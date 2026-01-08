@@ -1,0 +1,122 @@
+
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { supabase } from '@/lib/customSupabaseClient';
+import { authService } from '@/services/auth.service';
+import { useToast } from '@/contexts/ToastContext';
+
+const AuthContext = createContext(undefined);
+
+export const AuthProvider = ({ children }) => {
+  const { addToast } = useToast();
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch public user profile
+  const fetchProfile = useCallback(async (userId) => {
+    try {
+      const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
+      if (!error && data) setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  }, []);
+
+  const handleSession = useCallback(async (currentSession) => {
+    setSession(currentSession);
+    const currentUser = currentSession?.user ?? null;
+    setUser(currentUser);
+    
+    if (currentUser) {
+       await fetchProfile(currentUser.id);
+    } else {
+       setProfile(null);
+    }
+    setLoading(false);
+  }, [fetchProfile]);
+
+  useEffect(() => {
+    // Initial check
+    const initAuth = async () => {
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        await handleSession(initialSession);
+      } catch (err) {
+        console.error("Auth init error:", err);
+        setLoading(false);
+      }
+    };
+    initAuth();
+
+    // Subscription
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [handleSession]);
+
+  const signUp = useCallback(async (email, password, fullName) => {
+    return await authService.signUp(email, password, fullName);
+  }, []);
+
+  const signIn = useCallback(async (email, password) => {
+    return await authService.signIn(email, password);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    const result = await authService.signOut();
+    if (result.success) {
+        setUser(null);
+        setProfile(null);
+        setSession(null);
+    }
+    return result;
+  }, []);
+  
+  const resendVerification = useCallback(async (email) => {
+      return await authService.resendVerificationEmail(email);
+  }, []);
+  
+  const changePassword = useCallback(async (newPassword) => {
+      return await authService.changePassword(newPassword);
+  }, []);
+  
+  const updateProfile = useCallback(async (userId, fullName) => {
+      const result = await authService.updateProfile(userId, fullName);
+      if(result.success) {
+          await fetchProfile(userId);
+      }
+      return result;
+  }, [fetchProfile]);
+
+  // Determine if email is confirmed. 
+  // Supabase sets `email_confirmed_at` string if confirmed.
+  const isEmailConfirmed = !!user?.email_confirmed_at;
+
+  const value = useMemo(() => ({
+    user,
+    profile,
+    session,
+    loading,
+    isAdmin: profile?.role === 'admin',
+    userRole: profile?.role || 'user',
+    isEmailVerified: isEmailConfirmed,
+    signUp,
+    signIn,
+    signOut,
+    resendVerification,
+    changePassword,
+    updateProfile
+  }), [user, profile, session, loading, isEmailConfirmed, signUp, signIn, signOut, resendVerification, changePassword, updateProfile]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
+  return context;
+};
