@@ -1,0 +1,72 @@
+<svg width="560" height="360" viewBox="0 0 560 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Ilustración de métricas de trabajos y facturación</title>
+  <desc id="desc">Tarjeta con gráficos de barras y línea que representan métricas de trabajos completados, ingresos y rendimiento.</desc>
+
+  <defs>
+    <linearGradient id="card-bg" x1="40" y1="24" x2="520" y2="336" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#020617" />
+      <stop offset="1" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#38BDF8" />
+      <stop offset="1" stop-color="#6366F1" />
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="560" height="360" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="26" stdDeviation="34" flood-color="#020617" flood-opacity="0.9" />
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <!-- main card -->
+    <rect x="40" y="24" width="480" height="312" rx="32" fill="url(#card-bg)" />
+    <rect x="40.5" y="24.5" width="479" height="311" rx="31.5" stroke="#111827" stroke-opacity="0.9" />
+
+    <!-- top bar with dots -->
+    <rect x="60" y="48" width="440" height="32" rx="16" fill="#020617" />
+    <circle cx="80" cy="64" r="5" fill="#22C55E" />
+    <circle cx="98" cy="64" r="5" fill="#EAB308" />
+    <circle cx="116" cy="64" r="5" fill="#F97316" />
+    <rect x="144" y="58" width="96" height="6" rx="3" fill="#CBD5F5" fill-opacity="0.7" />
+
+    <!-- kpi row -->
+    <rect x="76" y="96" width="120" height="64" rx="18" fill="#020617" />
+    <rect x="88" y="110" width="54" height="6" rx="3" fill="#9CA3AF" />
+    <rect x="88" y="126" width="64" height="16" rx="8" fill="url(#accent)" />
+
+    <rect x="220" y="96" width="120" height="64" rx="18" fill="#020617" />
+    <rect x="232" y="110" width="74" height="6" rx="3" fill="#9CA3AF" />
+    <rect x="232" y="126" width="60" height="16" rx="8" fill="#22C55E" />
+
+    <rect x="364" y="96" width="120" height="64" rx="18" fill="#020617" />
+    <rect x="376" y="110" width="76" height="6" rx="3" fill="#9CA3AF" />
+    <rect x="376" y="126" width="48" height="16" rx="8" fill="#F97316" />
+
+    <!-- bar chart area -->
+    <rect x="76" y="184" width="220" height="120" rx="18" fill="#020617" />
+    <rect x="90" y="196" width="80" height="8" rx="4" fill="#9CA3AF" fill-opacity="0.8" />
+
+    <!-- bars -->
+    <rect x="94" y="216" width="20" height="64" rx="6" fill="#1D4ED8" />
+    <rect x="124" y="228" width="20" height="52" rx="6" fill="#22C55E" />
+    <rect x="154" y="236" width="20" height="44" rx="6" fill="#38BDF8" />
+    <rect x="184" y="222" width="20" height="58" rx="6" fill="#6366F1" />
+    <rect x="214" y="244" width="20" height="36" rx="6" fill="#0EA5E9" />
+
+    <!-- line chart area -->
+    <rect x="320" y="184" width="196" height="120" rx="18" fill="#020617" />
+    <rect x="334" y="196" width="84" height="8" rx="4" fill="#9CA3AF" fill-opacity="0.8" />
+
+    <!-- grid lines -->
+    <path d="M336 224H500" stroke="#1F2937" stroke-width="1" stroke-linecap="round" />
+    <path d="M336 242H500" stroke="#1F2937" stroke-width="1" stroke-linecap="round" />
+    <path d="M336 260H500" stroke="#1F2937" stroke-width="1" stroke-linecap="round" />
+
+    <!-- line path -->
+    <path d="M344 254L366 240L388 246L410 228L432 234L454 218L476 222" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- highlight dots -->
+    <circle cx="366" cy="240" r="4" fill="#38BDF8" />
+    <circle cx="410" cy="228" r="4" fill="#22C55E" />
+    <circle cx="454" cy="218" r="4" fill="#F97316" />
+  </g>
+</svg>

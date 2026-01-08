@@ -72,7 +72,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-slate-50 text-foreground min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900;
+    @apply bg-background text-foreground min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

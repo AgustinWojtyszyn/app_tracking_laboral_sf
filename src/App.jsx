@@ -17,6 +17,7 @@ import HistoryPage from '@/pages/HistoryPage';
 import GroupsPage from '@/pages/GroupsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import AdminPage from '@/pages/AdminPage';
+import WorkersPage from '@/pages/WorkersPage';
 
 // Components
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
@@ -47,7 +48,7 @@ function App() {
         />
         <Route 
           path="/register" 
-          element={user ? <Navigate to="/app/dashboard" replace /> : <RegisterPage />} 
+          element={<RegisterPage />} 
         />
         
         {/* Protected Routes */}
@@ -61,6 +62,7 @@ function App() {
           <Route path="trabajos-diarios" element={<DailyJobsPage />} />
           <Route path="panel-mensual" element={<MonthlyPanelPage />} />
           <Route path="historial" element={<HistoryPage />} />
+          <Route path="trabajadores" element={<WorkersPage />} />
           <Route path="grupos" element={<GroupsPage />} />
           <Route path="configuracion" element={<SettingsPage />} />
           <Route path="admin" element={

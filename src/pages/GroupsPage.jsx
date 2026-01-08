@@ -9,7 +9,7 @@ import GroupForm from '@/components/groups/GroupForm';
 import GroupMembers from '@/components/groups/GroupMembers';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function GroupsPage() {
   const { user } = useAuth();
@@ -74,7 +74,7 @@ export default function GroupsPage() {
 
                   return (
                     <div key={group.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group-card overflow-hidden flex flex-col h-full">
-                        <div className="p-6 flex-1">
+                        <div className="p-6 flex-1 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-3 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-lg shadow-sm">
                                     <Users className="w-6 h-6 text-[#1e3a8a]" />
@@ -101,22 +101,29 @@ export default function GroupsPage() {
                             </div>
                         </div>
 
-                        <div className="bg-gray-50 p-4 border-t border-gray-100 flex gap-2">
+                        <div className="bg-gray-50 dark:bg-slate-900 p-4 border-t border-gray-100 dark:border-slate-800 flex gap-2">
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm" className="flex-1 border-gray-200 hover:border-blue-300 hover:text-blue-700 bg-white" onClick={() => setSelectedGroup(group)}>
-                                        <ShieldCheck className="w-4 h-4 mr-2" />
-                                        Miembros
+                                    <Button 
+                                      variant="default" 
+                                      size="sm" 
+                                      className="flex-1 bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm md:text-base py-2.5 flex items-center justify-center gap-2" 
+                                      onClick={() => setSelectedGroup(group)}
+                                    >
+                                        <ShieldCheck className="w-5 h-5" />
+                                        Gestionar miembros
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-2xl bg-white p-0 overflow-hidden">
-                                    <div className="p-6 bg-[#1e3a8a] text-white">
-                                        <h2 className="text-xl font-bold">Gestionar Grupo</h2>
-                                        <p className="text-blue-200 text-sm">{group.name}</p>
-                                    </div>
-                                    <div className="p-6">
-                                        <GroupMembers group={group} onClose={() => {}} />
-                                    </div>
+                                                                <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
+                                                                        <DialogHeader className="p-0">
+                                                                            <div className="p-6 bg-[#1e3a8a] text-white">
+                                                                                <DialogTitle className="text-xl font-bold">Gestionar Grupo</DialogTitle>
+                                                                                <p className="text-blue-200 text-sm">{group.name}</p>
+                                                                            </div>
+                                                                        </DialogHeader>
+                                                                        <div className="p-6 bg-white dark:bg-slate-900">
+                                                                            <GroupMembers group={group} onClose={() => {}} />
+                                                                        </div>
                                 </DialogContent>
                             </Dialog>
                             

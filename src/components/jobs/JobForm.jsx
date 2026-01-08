@@ -4,6 +4,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { jobsService } from '@/services/jobs.service';
+import { usersService } from '@/services/users.service';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
@@ -14,6 +15,8 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState([]);
+  const [workers, setWorkers] = useState([]);
+  const [workerId, setWorkerId] = useState('');
   
   const initialForm = {
     date: new Date().toISOString().split('T')[0],
@@ -39,18 +42,46 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         cost_spent: jobToEdit.cost_spent || '',
         amount_to_charge: jobToEdit.amount_to_charge || ''
       });
+      setWorkerId(jobToEdit.user_id || user?.id || '');
       setOpen(true);
     } else {
         setFormData(initialForm);
+        setWorkerId(user?.id || '');
     }
     setErrors({});
-    if(open) fetchGroups();
-  }, [jobToEdit, open]);
+  }, [jobToEdit]);
+
+  useEffect(() => {
+    if (open) {
+      fetchGroups();
+      fetchWorkers();
+    }
+  }, [open]);
 
   const fetchGroups = async () => {
     // Only fetch groups where user is a member
     const { data } = await supabase.from('groups').select('id, name');
     if (data) setGroups(data);
+  };
+
+  const fetchWorkers = async () => {
+    try {
+      const result = await usersService.getAllUsers();
+      if (result.success && result.data) {
+        setWorkers(result.data);
+        if (!workerId && user) {
+          setWorkerId(user.id);
+        }
+      } else if (!result.success && user) {
+        setWorkers([{ id: user.id, full_name: user.user_metadata?.full_name || '', email: user.email }]);
+        setWorkerId(user.id);
+      }
+    } catch (e) {
+      if (user) {
+        setWorkers([{ id: user.id, full_name: user.user_metadata?.full_name || '', email: user.email }]);
+        setWorkerId(user.id);
+      }
+    }
   };
 
   const validate = () => {
@@ -71,7 +102,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     setLoading(true);
     const payload = {
         ...formData,
-        user_id: user.id,
+      user_id: workerId || user.id,
         group_id: formData.group_id || null,
         hours_worked: Number(formData.hours_worked),
         cost_spent: Number(formData.cost_spent),
@@ -104,26 +135,26 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
           <Button className="bg-[#1e3a8a] hover:bg-blue-900 text-white">Nuevo Trabajo</Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader>
           <DialogTitle className="text-[#1e3a8a]">{jobToEdit ? 'Editar Trabajo' : 'Nuevo Trabajo'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Fecha *</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Fecha *</label>
               <input
                 type="date"
-                className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
                 value={formData.date}
                 onChange={e => setFormData({ ...formData, date: e.target.value })}
               />
               {errors.date && <span className="text-xs text-red-500">{errors.date}</span>}
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Estado</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Estado</label>
               <select
-                className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
                 value={formData.status}
                 onChange={e => setFormData({ ...formData, status: e.target.value })}
               >
@@ -135,55 +166,55 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Ubicación</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Ubicación</label>
             <input
-              className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
               value={formData.location || ''}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
-              placeholder="Ej: Oficina Central"
+              placeholder="Ej: Oficina Central, cliente, dirección..."
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Descripción</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Descripción</label>
             <textarea
-              className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
-              rows="2"
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+              rows="3"
               value={formData.description || ''}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Detalles del trabajo..."
+              placeholder="Detalles del trabajo, quién lo solicita, referencias, etc."
             />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Horas *</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Horas *</label>
               <input
                 type="number"
                 step="0.5"
-                className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.hours_worked}
                 onChange={e => setFormData({ ...formData, hours_worked: e.target.value })}
               />
               {errors.hours_worked && <span className="text-xs text-red-500">{errors.hours_worked}</span>}
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Costo</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Costo</label>
               <input
                 type="number"
                 step="0.01"
-                className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.cost_spent}
                 onChange={e => setFormData({ ...formData, cost_spent: e.target.value })}
               />
                {errors.cost_spent && <span className="text-xs text-red-500">{errors.cost_spent}</span>}
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">A Cobrar</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">A Cobrar</label>
               <input
                 type="number"
                 step="0.01"
-                className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.amount_to_charge}
                 onChange={e => setFormData({ ...formData, amount_to_charge: e.target.value })}
               />
@@ -191,11 +222,28 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 items-center">
+          <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Grupo</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Trabajador asignado</label>
               <select
-                className="w-full mt-1 p-2 border border-gray-300 rounded focus:border-[#1e3a8a] outline-none"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
+                value={workerId}
+                onChange={e => setWorkerId(e.target.value)}
+              >
+                <option value="">Seleccionar trabajador...</option>
+                {workers.map(w => (
+                  <option key={w.id} value={w.id}>
+                    {w.full_name || w.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 items-center">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Grupo</label>
+              <select
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
                 value={formData.group_id}
                 onChange={e => setFormData({ ...formData, group_id: e.target.value })}
               >
@@ -213,7 +261,8 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                     checked={formData.editable_by_group}
                     onChange={e => setFormData({...formData, editable_by_group: e.target.checked})}
                 />
-                <label htmlFor="editable" className="text-sm text-gray-700">Editable por grupo</label>
+              <label htmlFor="editable" className="text-sm text-gray-700 dark:text-slate-100">Editable por grupo</label>
+            </div>
             </div>
           </div>
 

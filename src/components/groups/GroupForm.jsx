@@ -49,15 +49,15 @@ export default function GroupForm({ onSuccess }) {
       <DialogTrigger asChild>
         <Button className="bg-blue-900 text-white hover:bg-blue-800">Crear Grupo</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader>
-          <DialogTitle>Crear Nuevo Grupo</DialogTitle>
+          <DialogTitle className="text-gray-900 dark:text-slate-50">Crear Nuevo Grupo</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div>
-            <label className="text-sm font-medium mb-1 block">Nombre del Grupo *</label>
+            <label className="text-sm font-medium mb-1 block text-gray-700 dark:text-slate-100">Nombre del Grupo *</label>
             <input 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" 
+              className="w-full p-2 border border-gray-300 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400" 
               placeholder="Ej: Equipo de Ventas"
               value={name}
               onChange={e => setName(e.target.value)}
@@ -65,9 +65,9 @@ export default function GroupForm({ onSuccess }) {
             />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">Descripción</label>
+            <label className="text-sm font-medium mb-1 block text-gray-700 dark:text-slate-100">Descripción</label>
             <textarea 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" 
+              className="w-full p-2 border border-gray-300 dark:border-slate-700 rounded focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400" 
               placeholder="Propósito del grupo..."
               value={description}
               onChange={e => setDescription(e.target.value)}

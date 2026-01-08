@@ -45,14 +45,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Hola, {profile?.full_name?.split(' ')[0] || 'Usuario'} 👋</h1>
             <p className="text-gray-500 mt-1">Aquí tienes el resumen de tu actividad de hoy.</p>
         </div>
-        <Link to="/daily-jobs">
-            <Button className="bg-[#1e3a8a] text-white hover:bg-blue-900 shadow-lg shadow-blue-900/20 transition-all hover:scale-105">
-                <Plus className="w-4 h-4 mr-2" /> Nuevo Trabajo
+        <Link to="/app/trabajos-diarios">
+          <Button className="bg-[#1e3a8a] text-white hover:bg-blue-900 shadow-lg shadow-blue-900/20 transition-all hover:scale-105">
+            <Plus className="w-5 h-5 mr-2" /> Nuevo Trabajo
             </Button>
         </Link>
       </div>
@@ -98,18 +98,18 @@ export default function DashboardPage() {
       <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <h2 className="text-lg font-bold text-gray-900 flex items-center">
-                <Briefcase className="w-5 h-5 mr-2 text-[#1e3a8a]" /> Trabajos Recientes
+            <Briefcase className="w-6 h-6 mr-2 text-[#1e3a8a]" /> Trabajos Recientes
             </h2>
-            <Link to="/daily-jobs" className="text-[#1e3a8a] hover:text-blue-900 text-sm font-medium flex items-center transition-colors">
-                Ver Todo <ArrowRight className="w-4 h-4 ml-1" />
+          <Link to="/app/trabajos-diarios" className="text-[#1e3a8a] hover:text-blue-900 text-sm font-medium flex items-center transition-colors">
+            Ver Todo <ArrowRight className="w-5 h-5 ml-1" />
             </Link>
         </div>
         <div className="divide-y divide-gray-100">
             {recentJobs.length === 0 ? (
                 <div className="p-12 text-center flex flex-col items-center justify-center text-gray-500">
-                    <Briefcase className="w-12 h-12 mb-3 text-gray-200" />
+                <Briefcase className="w-14 h-14 mb-3 text-gray-200" />
                     <p>No tienes trabajos registrados hoy.</p>
-                    <Link to="/daily-jobs" className="mt-4 text-sm text-[#1e3a8a] font-medium hover:underline">
+                <Link to="/app/trabajos-diarios" className="mt-4 text-sm text-[#1e3a8a] font-medium hover:underline">
                         Registrar mi primer trabajo
                     </Link>
                 </div>

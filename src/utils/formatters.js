@@ -2,7 +2,7 @@
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
-    currency: 'USD', // Using USD as generic currency based on user preference or ARS
+    currency: 'ARS',
     minimumFractionDigits: 2
   }).format(amount || 0);
 };
