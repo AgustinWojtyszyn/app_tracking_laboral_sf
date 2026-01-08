@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.gitignore:Zone.Identifier
+*.log
+.env
+.env.*
+*.local
+*.Zone.Identifier
+*:Zone.Identifier
+.DS_Store
+.vscode/
