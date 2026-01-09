@@ -72,7 +72,47 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900;
+    /* Aumentamos ligeramente el tamaño base y el contraste general */
+    @apply bg-background text-foreground min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900 text-[17px] md:text-[18px];
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* Escala suave para menús, tarjetas y formularios manteniendo responsividad */
+@layer components {
+  /* Navegación lateral y botones principales un poco más grandes */
+  .text-nav-lg {
+    @apply text-lg md:text-xl;
+  }
+
+  .card-lg {
+    @apply text-base md:text-lg p-5 md:p-6;
+  }
+
+  .form-lg input,
+  .form-lg select,
+  .form-lg textarea {
+    @apply text-base md:text-lg py-3 px-3;
+  }
+
+  /* Tipografía siempre legible sobre fondos claros u oscuros */
+  input,
+  textarea,
+  select {
+    @apply text-foreground bg-white dark:bg-slate-900 placeholder:text-muted-foreground;
+  }
+
+  label,
+  button,
+  p,
+  span {
+    @apply text-foreground;
+  }
+
+  /* Ajustes de contraste globales en modo oscuro para tipografías grises usadas en toda la app */
+  .dark .text-gray-900 { @apply text-slate-50; }
+  .dark .text-gray-800 { @apply text-slate-100; }
+  .dark .text-gray-700 { @apply text-slate-200; }
+  .dark .text-gray-600 { @apply text-slate-300; }
+  .dark .text-gray-500 { @apply text-slate-300; }
 }

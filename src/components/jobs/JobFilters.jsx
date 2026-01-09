@@ -29,15 +29,15 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
       handleChange('search', '');
   };
 
-  return (
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 transition-all duration-300">
-      <div className="flex flex-col lg:flex-row gap-4">
+    return (
+	    <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 transition-all duration-300">
+            <div className="flex flex-col lg:flex-row gap-4">
         {/* Search Bar - Always Visible */}
         <div className="flex-1 relative">
-                        <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400 dark:text-slate-400" />
+                	    <Search className="w-5 h-5 absolute left-3 top-3 text-gray-400 dark:text-slate-400" />
             <input
                 type="text"
-                                className="w-full pl-10 p-2.5 text-sm bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent outline-none transition-all text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+                                    className="w-full pl-10 py-3 px-3 text-base md:text-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent outline-none transition-all text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 placeholder="Buscar por descripción, ubicación..."
                 value={filters.search}
                 onChange={(e) => handleChange('search', e.target.value)}
@@ -46,10 +46,10 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
 
         {/* Desktop Filters / Mobile Toggle */}
         <div className="lg:hidden">
-            <Button 
+        	<Button 
                 variant="outline" 
                 onClick={() => setIsExpanded(!isExpanded)} 
-                className="w-full flex items-center justify-between"
+                className="w-full flex items-center justify-between h-11 md:h-12 text-base md:text-lg"
             >
                 <span className="flex items-center gap-2"><Filter className="w-5 h-5" /> Filtros</span>
                 {isExpanded ? <X className="w-5 h-5" /> : null}
@@ -74,9 +74,9 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
             )}
 
             {/* Status */}
-            <div className="w-full lg:w-40">
+            <div className="w-full lg:w-52">
                 <select
-                className="w-full p-2.5 text-sm bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] outline-none text-gray-900 dark:text-slate-50"
+	            className="w-full py-3 px-3 text-base md:text-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] outline-none text-gray-900 dark:text-slate-50"
                 value={filters.status}
                 onChange={(e) => handleChange('status', e.target.value)}
                 >
@@ -88,9 +88,9 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
             </div>
 
             {/* Group */}
-            <div className="w-full lg:w-40">
+            <div className="w-full lg:w-52">
                 <select
-                className="w-full p-2.5 text-sm bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] outline-none text-gray-900 dark:text-slate-50"
+	            className="w-full py-3 px-3 text-base md:text-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] outline-none text-gray-900 dark:text-slate-50"
                 value={filters.groupId}
                 onChange={(e) => handleChange('groupId', e.target.value)}
                 >
@@ -103,12 +103,12 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
 
             {/* Clear Button */}
             {showClear && (
-                <Button 
+	    	    <Button 
                     variant="ghost" 
                     size="icon"
                     onClick={handleClear}
                     title="Limpiar filtros"
-                    className="text-gray-400 hover:text-[#1e3a8a] hover:bg-blue-50"
+	            className="text-gray-400 hover:text-[#1e3a8a] hover:bg-blue-50 w-11 h-11"
                 >
                     <X className="w-6 h-6" />
                 </Button>

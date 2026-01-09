@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import Input from '@/components/Input';
 import Alert from '@/components/Alert';
+import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageToggle from '@/components/layout/LanguageToggle';
 import { ArrowLeft, UserPlus, MailCheck } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -20,6 +22,8 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signUp, resendVerification } = useAuth();
+  const { t, language } = useLanguage();
+  const isEn = language === 'en';
 
   const validate = () => {
     const newErrors = {};
@@ -75,21 +79,24 @@ export default function RegisterPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="w-full max-w-md"
         >
+            <div className="flex justify-end mb-4">
+                <LanguageToggle />
+            </div>
             <div className="bg-white rounded-xl shadow-xl border-2 border-green-500/20 p-8 text-center">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <MailCheck className="w-8 h-8 text-green-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-green-700 mb-2">¡Cuenta creada exitosamente!</h2>
+                <h2 className="text-2xl font-bold text-green-700 mb-2">{isEn ? 'Account created successfully!' : '¡Cuenta creada exitosamente!'}</h2>
                 <p className="text-green-600/80 mb-8 leading-relaxed">
-                    Te enviamos un correo de confirmación a <span className="font-semibold text-green-700">{formData.email}</span>.<br/>
-                    Debes confirmarlo antes de iniciar sesión. <br/>
-                    <span className="text-sm">(Revisa tu bandeja de entrada y spam)</span>
+                    {isEn ? 'We sent a confirmation email to ' : 'Te enviamos un correo de confirmación a '}<span className="font-semibold text-green-700">{formData.email}</span>.<br/>
+                    {isEn ? 'Please confirm it before signing in.' : 'Debes confirmarlo antes de iniciar sesión.'} <br/>
+                    <span className="text-sm">{isEn ? '(Check your inbox and spam)' : '(Revisa tu bandeja de entrada y spam)'}</span>
                 </p>
                 
                 <div className="space-y-3">
                     <Link to="/login" className="block">
                         <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/10">
-                            Ir a Iniciar Sesión
+                            {isEn ? 'Go to Login' : 'Ir a Iniciar Sesión'}
                         </Button>
                     </Link>
                     <Button 
@@ -98,7 +105,7 @@ export default function RegisterPage() {
                         disabled={loading} 
                         className="w-full border-green-200 text-green-700 hover:bg-green-50"
                     >
-                        {loading ? 'Reenviando...' : 'Reenviar confirmación'}
+                        {loading ? (isEn ? 'Resending...' : 'Reenviando...') : (isEn ? 'Resend confirmation' : 'Reenviar confirmación')}
                     </Button>
                 </div>
             </div>
@@ -113,20 +120,23 @@ export default function RegisterPage() {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        className="w-full max-w-lg"
       >
-        <Link to="/" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-[#1e3a8a] mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver al inicio
+        <div className="flex justify-end mb-4">
+          <LanguageToggle />
+        </div>
+        <Link to="/" className="inline-flex items-center text-lg md:text-xl font-semibold text-[#1e3a8a] hover:text-blue-900 mb-12 transition-colors">
+          <ArrowLeft className="w-6 h-6 mr-3" />
+          {t('auth.backHome')}
         </Link>
         
-        <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-8 md:p-10">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-10 md:p-12">
           <div className="text-center mb-8">
             <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <UserPlus className="w-6 h-6 text-[#1e3a8a]" />
             </div>
-            <h1 className="text-2xl font-bold text-[#1e3a8a]">Crear Cuenta</h1>
-            <p className="text-sm text-gray-500 mt-2">Únete a Work Tracker para gestionar tu negocio</p>
+            <h1 className="text-2xl font-bold text-[#1e3a8a]">{t('auth.registerTitle')}</h1>
+            <p className="text-sm text-gray-500 mt-2">{t('auth.registerSubtitle')}</p>
           </div>
 
           {authError && (
@@ -194,9 +204,9 @@ export default function RegisterPage() {
           </form>
 
           <div className="text-center text-sm mt-8 pt-6 border-t border-gray-100">
-            <span className="text-gray-600">¿Ya tienes cuenta? </span>
+            <span className="text-gray-600">{t('auth.yesAccount')} </span>
             <Link to="/login" className="font-semibold text-[#1e3a8a] hover:text-blue-700 hover:underline transition-colors">
-              Inicia sesión aquí
+              {t('auth.loginCta')}
             </Link>
           </div>
         </div>

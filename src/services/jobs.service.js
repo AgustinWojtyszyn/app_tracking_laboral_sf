@@ -4,21 +4,49 @@ import { supabase } from '@/lib/customSupabaseClient';
 export const jobsService = {
   async getJobsByDateRange(startDate, endDate, filters = {}) {
     try {
-      let query = supabase
+      // Consulta principal intentando incluir relaciones de grupos y trabajadores internos.
+      // Usamos la FK explícita jobs_group_id_fkey para que PostgREST no
+      // intente usar una columna inexistente llamada "groups" en jobs.
+      let baseQuery = supabase
         .from('jobs')
-        .select('*, groups(name), users(full_name, email)')
+        .select('*, groups:groups!jobs_group_id_fkey(name), workers:workers!jobs_worker_id_fkey(display_name, alias)')
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: false });
 
-      if (filters.status && filters.status !== 'all') query = query.eq('status', filters.status);
-      if (filters.groupId && filters.groupId !== 'all') query = query.eq('group_id', filters.groupId);
-      if (filters.userId && filters.userId !== 'all') query = query.eq('user_id', filters.userId);
+      if (filters.status && filters.status !== 'all') baseQuery = baseQuery.eq('status', filters.status);
+      if (filters.groupId && filters.groupId !== 'all') baseQuery = baseQuery.eq('group_id', filters.groupId);
+      if (filters.workerId && filters.workerId !== 'all') baseQuery = baseQuery.eq('worker_id', filters.workerId);
       if (filters.search) {
-        query = query.or(`description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+        baseQuery = baseQuery.or(`description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
       }
 
-      const { data, error } = await query;
+      let { data, error } = await baseQuery;
+
+      // Si hay un error de esquema relacionado con 'groups' (PGRST204),
+      // hacemos un fallback a una consulta sin relaciones para no romper la app.
+      if (error && error.code === 'PGRST204') {
+        console.warn("Fallo relación jobs->groups, usando fallback sin joins:", error.message);
+
+        let fallbackQuery = supabase
+          .from('jobs')
+          .select('*')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .order('date', { ascending: false });
+
+        if (filters.status && filters.status !== 'all') fallbackQuery = fallbackQuery.eq('status', filters.status);
+        if (filters.groupId && filters.groupId !== 'all') fallbackQuery = fallbackQuery.eq('group_id', filters.groupId);
+        if (filters.workerId && filters.workerId !== 'all') fallbackQuery = fallbackQuery.eq('worker_id', filters.workerId);
+        if (filters.search) {
+          fallbackQuery = fallbackQuery.or(`description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+        }
+
+        const fallbackResult = await fallbackQuery;
+        data = fallbackResult.data;
+        error = fallbackResult.error;
+      }
+
       if (error) throw error;
       return { success: true, data };
     } catch (error) {

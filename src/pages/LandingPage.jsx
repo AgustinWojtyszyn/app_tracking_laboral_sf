@@ -5,9 +5,13 @@ import { motion } from 'framer-motion';
 import { Briefcase, TrendingUp, Users, Download, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/layout/ThemeToggle';
+import LanguageToggle from '@/components/layout/LanguageToggle';
+import { useLanguage } from '@/contexts/LanguageContext';
 import heroDashboard from '../assets/hero-dashboard.svg';
 
 export default function LandingPage() {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
@@ -33,10 +37,15 @@ export default function LandingPage() {
               <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/40">
                 <Briefcase className="w-4 h-4 text-white" />
               </div>
-              <span className="text-xl font-semibold tracking-tight">Work Tracker</span>
+              <span className="text-xl font-semibold tracking-tight">Job Tracker</span>
+            </div>
+            <div className="flex sm:hidden items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="hidden sm:block">
+              <div className="hidden sm:flex items-center gap-2">
+                <LanguageToggle />
                 <ThemeToggle />
               </div>
               <Link to="/login">
@@ -44,12 +53,12 @@ export default function LandingPage() {
                   variant="ghost"
                   className="hidden sm:inline-flex text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70"
                 >
-                  Iniciar Sesión
+                  {isEn ? 'Sign in' : 'Iniciar Sesión'}
                 </Button>
               </Link>
               <Link to="/register">
                 <Button className="h-10 text-sm px-5 rounded-full shadow-lg shadow-blue-900/40">
-                  Crear cuenta
+                  {isEn ? 'Create account' : 'Crear cuenta'}
                 </Button>
               </Link>
             </div>
@@ -81,27 +90,29 @@ export default function LandingPage() {
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold">
                   ●
                 </span>
-                <span className="font-medium">Organizá tus trabajos y tu facturación en un solo lugar</span>
+                <span className="font-medium">
+                  {isEn ? 'Organize all your jobs and billing in one place' : 'Organizá tus trabajos y tu facturación en un solo lugar'}
+                </span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-slate-900 dark:text-slate-50 mb-4">
-                <span className="block leading-[1.05]">Seguimiento profesional</span>
+                <span className="block leading-[1.05]">{isEn ? 'Professional tracking' : 'Seguimiento profesional'}</span>
                 <span className="block bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-500 bg-clip-text text-transparent dark:from-blue-300 dark:via-sky-400 dark:to-indigo-300">
-                  para tu trabajo diario
+                  {isEn ? 'for your daily work' : 'para tu trabajo diario'}
                 </span>
               </h1>
 
               <p className="mt-4 max-w-xl text-base sm:text-lg text-slate-700 dark:text-slate-300/90 leading-relaxed">
-                Registra trabajos, controla costos, gestiona equipos y genera reportes listos para enviar a tu
-                estudio contable. Pensado para profesionales y equipos que quieren dejar atrás las planillas
-                manuales.
+                {isEn
+                  ? 'Log jobs, control costs, manage teams and generate reports ready to share. Designed for professionals and teams who want to move beyond spreadsheets.'
+                  : 'Registra trabajos, controla costos, gestiona equipos y genera reportes listos para enviar a tu estudio contable. Pensado para profesionales y equipos que quieren dejar atrás las planillas manuales.'}
               </p>
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Link to="/register" className="sm:w-auto">
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                     <Button className="w-full sm:w-auto h-12 sm:h-14 text-sm sm:text-base rounded-full px-7 sm:px-8 shadow-xl shadow-blue-900/40">
-                      Probar gratis ahora
+                      {isEn ? 'Try it free now' : 'Probar gratis ahora'}
                       <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
                     </Button>
                   </motion.div>
@@ -113,7 +124,7 @@ export default function LandingPage() {
                       variant="outline"
                       className="w-full sm:w-auto h-12 sm:h-14 rounded-full border-slate-300 bg-white/70 text-slate-900 hover:bg-slate-100 dark:border-slate-600 dark:bg-transparent dark:text-slate-100 dark:hover:bg-slate-900/60"
                     >
-                      Ya tengo cuenta
+                      {isEn ? 'I already have an account' : 'Ya tengo cuenta'}
                     </Button>
                   </motion.div>
                 </Link>
@@ -121,9 +132,9 @@ export default function LandingPage() {
 
               {/* Stats */}
               <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 max-w-lg">
-                <StatsCard value="+30%" label="Mejor visibilidad del trabajo" />
-                <StatsCard value="-6h" label="Menos tiempo en planillas al mes" />
-                <StatsCard value="100%" label="Datos listos para contabilidad" className="hidden sm:flex" />
+                <StatsCard value="+30%" label={isEn ? 'Better work visibility' : 'Mejor visibilidad del trabajo'} />
+                <StatsCard value="-6h" label={isEn ? 'Less time on spreadsheets/month' : 'Menos tiempo en planillas al mes'} />
+                <StatsCard value="100%" label={isEn ? 'Data ready for accounting' : 'Datos listos para contabilidad'} className="hidden sm:flex" />
               </div>
             </div>
 
@@ -160,7 +171,7 @@ export default function LandingPage() {
               viewport={{ once: true }}
               className="text-xs font-semibold tracking-[0.25em] text-slate-400 uppercase mb-3"
             >
-              Beneficios clave
+              {isEn ? 'Key benefits' : 'Beneficios clave'}
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -169,7 +180,7 @@ export default function LandingPage() {
               transition={{ delay: 0.08 }}
               className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-900 dark:text-slate-50"
             >
-              Todo lo que necesitás para tener el control de tu operación
+              {isEn ? 'Everything you need to control your operation' : 'Todo lo que necesitás para tener el control de tu operación'}
             </motion.p>
           </div>
 
@@ -182,23 +193,23 @@ export default function LandingPage() {
           >
             <BenefitCard
               icon={Briefcase}
-              title="Gestión de trabajos"
-              desc="Registrá cada trabajo con horas, costos, ubicación y notas clave para no perder ningún detalle."
+              title={isEn ? 'Job management' : 'Gestión de trabajos'}
+              desc={isEn ? 'Log each job with hours, costs, location and key notes so nothing is missed.' : 'Registrá cada trabajo con horas, costos, ubicación y notas clave para no perder ningún detalle.'}
             />
             <BenefitCard
               icon={TrendingUp}
-              title="Control financiero"
-              desc="Seguimiento claro de ingresos y gastos, con vistas mensuales que facilitan la toma de decisiones."
+              title={isEn ? 'Financial control' : 'Control financiero'}
+              desc={isEn ? 'Clear tracking of income and expenses, with monthly views to ease decisions.' : 'Seguimiento claro de ingresos y gastos, con vistas mensuales que facilitan la toma de decisiones.'}
             />
             <BenefitCard
               icon={Users}
-              title="Trabajo en equipo"
-              desc="Organizá grupos, asigná responsabilidades y mantené a todo el equipo en la misma página."
+              title={isEn ? 'Teamwork' : 'Trabajo en equipo'}
+              desc={isEn ? 'Create groups, assign responsibilities and keep everyone on the same page.' : 'Organizá grupos, asigná responsabilidades y mantené a todo el equipo en la misma página.'}
             />
             <BenefitCard
               icon={Download}
-              title="Reportes instantáneos"
-              desc="Generá reportes en Excel listos para enviar a tu estudio contable o compartir con tus clientes."
+              title={isEn ? 'Instant reports' : 'Reportes instantáneos'}
+              desc={isEn ? 'Generate Excel reports ready to send to accounting or share with clients.' : 'Generá reportes en Excel listos para enviar a tu estudio contable o compartir con tus clientes.'}
             />
           </motion.div>
         </div>
@@ -209,11 +220,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-900 dark:text-slate-50">
-              ¿Cómo funciona?
+              {isEn ? 'How does it work?' : '¿Cómo funciona?'}
             </h2>
             <p className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
-              Empezá a ordenar tu negocio en tres pasos simples. Sin implementaciones largas, sin complejidad
-              innecesaria.
+              {isEn
+                ? 'Get organized in three simple steps. No long implementations, no unnecessary complexity.'
+                : 'Empezá a ordenar tu negocio en tres pasos simples. Sin implementaciones largas, sin complejidad innecesaria.'}
             </p>
           </div>
 
@@ -229,18 +241,30 @@ export default function LandingPage() {
 
             <Step
               number="1"
-              title="Crea tu cuenta"
-              desc="Registrate gratis en segundos, configurá tus datos básicos y dejá lista tu cuenta para empezar."
+              title={isEn ? 'Create your account' : 'Crea tu cuenta'}
+              desc={
+                isEn
+                  ? 'Sign up free in seconds, set your basic data and get ready to start.'
+                  : 'Registrate gratis en segundos, configurá tus datos básicos y dejá lista tu cuenta para empezar.'
+              }
             />
             <Step
               number="2"
-              title="Registrá tus trabajos"
-              desc="Cargá trabajos diarios, clientes, montos y gastos asociados para tener todo centralizado."
+              title={isEn ? 'Log your jobs' : 'Registrá tus trabajos'}
+              desc={
+                isEn
+                  ? 'Add daily jobs, clients, amounts and expenses so everything stays centralized.'
+                  : 'Cargá trabajos diarios, clientes, montos y gastos asociados para tener todo centralizado.'
+              }
             />
             <Step
               number="3"
-              title="Mirá tus números"
-              desc="Visualizá tu rendimiento, descargá reportes y usá esa información para planificar el próximo mes."
+              title={isEn ? 'See your numbers' : 'Mirá tus números'}
+              desc={
+                isEn
+                  ? 'View performance, download reports and use that info to plan next month.'
+                  : 'Visualizá tu rendimiento, descargá reportes y usá esa información para planificar el próximo mes.'
+              }
             />
           </motion.div>
         </div>
@@ -254,20 +278,20 @@ export default function LandingPage() {
               <div className="w-7 h-7 rounded-lg bg-slate-900 text-slate-50 flex items-center justify-center dark:bg-slate-900">
                 <Briefcase className="w-4 h-4 text-blue-500 dark:text-blue-400" />
               </div>
-              <span className="text-base font-medium text-slate-900 dark:text-slate-100">Work Tracker</span>
+              <span className="text-base font-medium text-slate-900 dark:text-slate-100">Job Tracker</span>
             </div>
 
             <div className="flex flex-wrap justify-center gap-6 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               <Link to="/login" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
-                Iniciar sesión
+                {isEn ? 'Sign in' : 'Iniciar sesión'}
               </Link>
               <Link to="/register" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
-                Registrarse
+                {isEn ? 'Register' : 'Registrarse'}
               </Link>
             </div>
 
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-500">
-              &copy; {new Date().getFullYear()} Work Tracker. Todos los derechos reservados.
+              &copy; {new Date().getFullYear()} Job Tracker. {isEn ? 'All rights reserved.' : 'Todos los derechos reservados.'}
             </p>
           </div>
         </div>

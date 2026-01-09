@@ -7,7 +7,7 @@ export const useFilters = (initialState = {}) => {
     endDate: '',
     status: 'all',
     groupId: 'all',
-    userId: 'all',
+    workerId: 'all',
     search: '',
     ...initialState
   });
@@ -22,7 +22,7 @@ export const useFilters = (initialState = {}) => {
       endDate: '',
       status: 'all',
       groupId: 'all',
-      userId: 'all',
+      workerId: 'all',
       search: ''
     });
   };
@@ -33,6 +33,7 @@ export const useFilters = (initialState = {}) => {
       return data.filter(item => {
           if (filters.status !== 'all' && item.status !== filters.status) return false;
           if (filters.groupId !== 'all' && item.group_id !== filters.groupId) return false;
+        if (filters.workerId !== 'all' && item.worker_id !== filters.workerId) return false;
           if (filters.search) {
               const term = filters.search.toLowerCase();
               const matchDesc = item.description?.toLowerCase().includes(term);

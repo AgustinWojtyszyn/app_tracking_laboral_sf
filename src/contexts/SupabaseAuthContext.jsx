@@ -83,6 +83,10 @@ export const AuthProvider = ({ children }) => {
   const changePassword = useCallback(async (newPassword) => {
       return await authService.changePassword(newPassword);
   }, []);
+
+  const resetPassword = useCallback(async (email) => {
+    return await authService.resetPassword(email);
+  }, []);
   
   const updateProfile = useCallback(async (userId, fullName) => {
       const result = await authService.updateProfile(userId, fullName);
@@ -109,8 +113,9 @@ export const AuthProvider = ({ children }) => {
     signOut,
     resendVerification,
     changePassword,
-    updateProfile
-  }), [user, profile, session, loading, isEmailConfirmed, signUp, signIn, signOut, resendVerification, changePassword, updateProfile]);
+    updateProfile,
+    resetPassword
+  }), [user, profile, session, loading, isEmailConfirmed, signUp, signIn, signOut, resendVerification, changePassword, updateProfile, resetPassword]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

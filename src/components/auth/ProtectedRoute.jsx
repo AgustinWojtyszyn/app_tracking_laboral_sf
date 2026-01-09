@@ -67,7 +67,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && !isAdmin) {
-    return <Navigate to="/app/dashboard" replace />;
+    return <Navigate to="/app/trabajos-diarios" replace />;
   }
 
   return children;

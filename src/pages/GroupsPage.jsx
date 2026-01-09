@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useGroups } from '@/hooks/useGroups';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Users, Trash2, Calendar, ShieldCheck, User } from 'lucide-react';
 import GroupForm from '@/components/groups/GroupForm';
@@ -15,6 +16,7 @@ export default function GroupsPage() {
   const { user } = useAuth();
   const { addToast } = useToast();
   const { getGroups, deleteGroup } = useGroups();
+  const { t } = useLanguage();
   
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,11 +48,11 @@ export default function GroupsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
+        <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center">
         <div>
-            <h1 className="text-2xl font-bold text-gray-900">Grupos de Trabajo</h1>
-            <p className="text-gray-500">Colabora con otros usuarios</p>
+	        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-50">{t('groupsPage.title')}</h1>
+	        <p className="text-base md:text-lg text-gray-500 dark:text-slate-300">{t('groupsPage.subtitle')}</p>
         </div>
         <GroupForm onSuccess={fetchGroups} />
       </div>
@@ -58,12 +60,12 @@ export default function GroupsPage() {
       {loading ? (
           <LoadingSpinner />
       ) : groups.length === 0 ? (
-          <div className="p-16 text-center bg-white rounded-xl shadow-sm border border-dashed border-gray-300 flex flex-col items-center">
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-                 <Users className="w-8 h-8 text-blue-300" />
+          <div className="p-18 text-center bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 flex flex-col items-center gap-3">
+              <div className="w-18 h-18 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+                 <Users className="w-10 h-10 text-blue-300" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">No tienes grupos</h3>
-              <p className="text-gray-500 max-w-sm mt-1 mb-6">Crea un grupo para compartir trabajos y gestionar proyectos en equipo.</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-50">{t('groupsPage.emptyTitle')}</h3>
+              <p className="text-base text-gray-500 dark:text-slate-300 max-w-sm mt-1 mb-6">{t('groupsPage.emptyDesc')}</p>
               <GroupForm onSuccess={fetchGroups} />
           </div>
       ) : (
@@ -73,29 +75,29 @@ export default function GroupsPage() {
                   const memberCount = group.group_members?.[0]?.count || 0;
 
                   return (
-                    <div key={group.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group-card overflow-hidden flex flex-col h-full">
-                        <div className="p-6 flex-1 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50">
+                    <div key={group.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group-card overflow-hidden flex flex-col h-full card-lg">
+                        <div className="flex-1 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-3 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-lg shadow-sm">
                                     <Users className="w-6 h-6 text-[#1e3a8a]" />
                                 </div>
                                 {isCreator && (
-                                    <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-1 rounded-full border border-blue-200">
-                                        Admin
+                                    <span className="text-xs md:text-sm font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full border border-blue-200">
+                                        {t('groupsPage.adminBadge')}
                                     </span>
                                 )}
                             </div>
                             
-                            <h3 className="font-bold text-lg text-gray-900 mb-2">{group.name}</h3>
-                            <p className="text-sm text-gray-500 line-clamp-2">{group.description || "Sin descripción disponible."}</p>
+                            <h3 className="font-bold text-xl text-gray-900 dark:text-slate-50 mb-2">{group.name}</h3>
+                            <p className="text-base text-gray-500 dark:text-slate-300 line-clamp-2">{group.description || t('groupsPage.noDescription')}</p>
                             
-                            <div className="flex items-center gap-4 mt-6 pt-4 border-t border-gray-100 text-xs text-gray-500">
-                                <div className="flex items-center" title="Miembros">
-                                    <User className="w-3 h-3 mr-1.5" /> 
-                                    {memberCount} {memberCount === 1 ? 'Miembro' : 'Miembros'}
+                            <div className="flex items-center gap-4 mt-6 pt-4 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-slate-300">
+                                <div className="flex items-center" title={t('groupsPage.membersLabel')}>
+                                    <User className="w-4 h-4 mr-1.5" /> 
+                                    {memberCount} {memberCount === 1 ? t('groupsPage.membersLabel') : t('groupsPage.membersLabel')}
                                 </div>
-                                <div className="flex items-center" title="Fecha creación">
-                                    <Calendar className="w-3 h-3 mr-1.5" /> 
+                                <div className="flex items-center" title={t('groupsPage.creationLabel')}>
+                                    <Calendar className="w-4 h-4 mr-1.5" /> 
                                     {new Date(group.created_at).toLocaleDateString()}
                                 </div>
                             </div>
@@ -111,7 +113,7 @@ export default function GroupsPage() {
                                       onClick={() => setSelectedGroup(group)}
                                     >
                                         <ShieldCheck className="w-5 h-5" />
-                                        Gestionar miembros
+                                        {t('groupsPage.manageMembers')}
                                     </Button>
                                 </DialogTrigger>
                                                                 <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
@@ -129,8 +131,8 @@ export default function GroupsPage() {
                             
                             {isCreator && (
                                 <ConfirmationModal
-                                    title="¿Eliminar Grupo?"
-                                    description={`Estás a punto de eliminar "${group.name}". Esta acción es irreversible y eliminará todos los datos asociados.`}
+                                    title={t('groupsPage.deleteTitle')}
+                                    description={t('groupsPage.deleteDesc')}
                                     confirmLabel="Sí, eliminar"
                                     onConfirm={() => handleDelete(group.id)}
                                     trigger={

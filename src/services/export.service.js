@@ -10,7 +10,7 @@ export const exportService = {
       Ubicación: job.location || '',
       Descripción: job.description || '',
       Grupo: job.groups?.name || '-',
-      Usuario: job.users?.full_name || job.users?.email || '-',
+      Trabajador: job.workers?.display_name || job.workers?.alias || '-',
       'Horas': Number(job.hours_worked) || 0,
       'Costo': Number(job.cost_spent) || 0,
       'Monto': Number(job.amount_to_charge) || 0,
@@ -33,7 +33,7 @@ export const exportService = {
     XLSX.writeFile(workbook, filename);
   },
 
-  exportJobsToExcel(jobs, filename = 'trabajos.xlsx') {
+  exportJobsToExcel(jobs, filename = 'trabajos.xls') {
     if (!jobs || jobs.length === 0) return;
 
     const data = jobs.map(this._mapJobToRow);
@@ -55,7 +55,7 @@ export const exportService = {
   },
 
   exportDayToExcel(date, jobs) {
-      this.exportJobsToExcel(jobs, `trabajos_${date}.xlsx`);
+      this.exportJobsToExcel(jobs, `trabajos_${date}.xls`);
   },
 
   exportRangeToExcel(startDate, endDate, jobs) {
@@ -112,7 +112,7 @@ export const exportService = {
         'Monto': grandTotalCharge
     });
 
-    const filename = `trabajos_${startDate}_a_${endDate}.xlsx`;
+    const filename = `trabajos_${startDate}_a_${endDate}.xls`;
     this._saveWorkbook(finalData, filename);
   }
 };

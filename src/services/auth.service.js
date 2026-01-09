@@ -21,6 +21,25 @@ export const authService = {
         },
       });
       if (error) throw error;
+      // Asegurar que exista un registro asociado en la tabla `users`
+      try {
+        const authUser = data?.user;
+        if (authUser) {
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert({ id: authUser.id, email, full_name: fullName });
+
+          // Ignorar error si ya existe el registro, pero loguear otros casos
+          if (profileError && profileError.code !== '23505') {
+            console.error('SignUp - error al crear perfil en tabla users:', profileError);
+          }
+        } else {
+          console.warn('SignUp - no se recibió user en la respuesta de Supabase; no se pudo crear fila en users.');
+        }
+      } catch (profileException) {
+        console.error('SignUp - excepción creando perfil en users:', profileException);
+      }
+
       return { success: true, data, error: null };
     } catch (error) {
       console.error("SignUp Error:", error);
@@ -106,6 +125,19 @@ export const authService = {
       if (error) throw error;
       return { success: true, message: "Contraseña actualizada exitosamente." };
     } catch (error) {
+      return { success: false, message: error.message };
+    }
+  },
+
+  async resetPassword(email) {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`
+      });
+      if (error) throw error;
+      return { success: true, message: "Te enviamos un email para restablecer tu contraseña." };
+    } catch (error) {
+      console.error("ResetPassword Error:", error);
       return { success: false, message: error.message };
     }
   }

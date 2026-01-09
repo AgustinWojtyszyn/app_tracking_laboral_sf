@@ -26,20 +26,22 @@ export default function ConfirmationModal({
       <AlertDialogTrigger asChild>
         {trigger}
       </AlertDialogTrigger>
-      <AlertDialogContent className="bg-white border-none shadow-xl">
+      <AlertDialogContent className="bg-background text-foreground border border-border shadow-xl">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-xl font-bold text-gray-900">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-600">
+          <AlertDialogTitle className="text-xl font-bold text-foreground">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 text-gray-800 border-none">{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction 
             onClick={(e) => {
                 onConfirm(e);
             }}
-            className={variant === "destructive" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-[#1e3a8a] hover:bg-blue-900 text-white"}
+            className={variant === "destructive" 
+              ? "bg-red-600 hover:bg-red-700 text-white" 
+              : "bg-[#1e3a8a] hover:bg-blue-900 text-white"}
           >
             {confirmLabel}
           </AlertDialogAction>

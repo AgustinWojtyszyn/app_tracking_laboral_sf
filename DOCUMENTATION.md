@@ -1,8 +1,8 @@
 
-# Work Tracker - Documentation
+# Job Tracker - Documentation
 
 ## Overview
-Work Tracker is a React-based web application for tracking daily jobs, expenses, and managing teams. It uses Supabase for authentication and database services.
+Job Tracker is a React-based web application for tracking daily jobs, expenses, and managing teams. It uses Supabase for authentication and database services.
 
 ## Setup Instructions
 
@@ -15,7 +15,7 @@ This application requires the following environment variables to be set in your 
 ### How to Verify Installation
 
 1. **Check Console**: Open the browser developer console (F12). Ensure there are no red error messages related to imports or missing files.
-2. **Landing Page**: Visit the root URL `/`. You should see the "Work Tracker" landing page with a "Comenzar Gratis" button.
+2. **Landing Page**: Visit the root URL `/`. You should see the "Job Tracker" landing page with a "Comenzar Gratis" button.
 3. **Navigation**: Click "Iniciar Sesión" to go to `/login` and "Registrarse" to go to `/register`.
 4. **Registration**: Create a new account. You should see a success message asking you to confirm your email.
 5. **Login**: Log in with an existing (confirmed) account. You should be redirected to `/app/dashboard`.

@@ -1,5 +1,5 @@
 
-# WorkManager - Sistema de Gestión de Trabajos
+# Job Tracker - Sistema de Gestión de Trabajos
 
 Aplicación web para la gestión de trabajos diarios, control de horas, costos y facturación, con soporte para grupos de trabajo y roles de usuario.
 
@@ -17,4 +17,3 @@ Aplicación web para la gestión de trabajos diarios, control de horas, costos y
 
 1.  Clonar el repositorio.
 2.  Copiar `.env.example` a `.env` (si existe) o configurar las siguientes variables en su entorno de despliegue:
-

@@ -112,11 +112,11 @@ export default function HistoryPage() {
                   <th className="px-6 py-3 font-medium">Fecha</th>
                   <th className="px-6 py-3 font-medium">Descripción</th>
                   <th className="px-6 py-3 font-medium">Trabajador</th>
-                  <th className="px-6 py-3 font-medium">Ubicación</th>
                   <th className="px-6 py-3 font-medium">Grupo</th>
+                  <th className="px-6 py-3 font-medium text-center">Estado</th>
+                  <th className="pl-10 pr-6 py-3 font-medium">Ubicación</th>
                   <th className="px-6 py-3 font-medium text-right">Horas</th>
                   <th className="px-6 py-3 font-medium text-right">Monto</th>
-                  <th className="px-6 py-3 font-medium text-center">Estado</th>
                   <th className="px-6 py-3 font-medium text-right">Acciones</th>
                 </tr>
               </thead>
@@ -125,20 +125,20 @@ export default function HistoryPage() {
                   <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-slate-50">{formatDate(job.date)}</td>
                     <td className="px-6 py-4 max-w-xs truncate text-gray-900 dark:text-slate-50" title={job.description}>{job.description}</td>
-                    <td className="px-6 py-4 text-gray-700 dark:text-slate-200">{job.users?.full_name || job.users?.email || '-'}</td>
-                    <td className="px-6 py-4">{job.location}</td>
+                    <td className="px-6 py-4 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                     <td className="px-6 py-4">{job.groups?.name || '-'}</td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        job.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                        job.status === 'archived' ? 'bg-gray-100 text-gray-800' : 
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {job.status === 'pending' ? 'Pendiente' : job.status === 'completed' ? 'Completado' : 'Archivado'}
+                      </span>
+                    </td>
+                    <td className="pl-10 pr-6 py-4">{job.location}</td>
                     <td className="px-6 py-4 text-right">{job.hours_worked}</td>
                     <td className="px-6 py-4 text-right font-medium">{formatCurrency(job.amount_to_charge)}</td>
-                    <td className="px-6 py-4 text-center">
-                       <span className={`text-xs px-2 py-1 rounded-full ${
-                            job.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                            job.status === 'archived' ? 'bg-gray-100 text-gray-800' : 
-                            'bg-yellow-100 text-yellow-800'
-                        }`}>
-                            {job.status === 'pending' ? 'Pendiente' : job.status === 'completed' ? 'Completado' : 'Archivado'}
-                        </span>
-                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditingJob(job)}>
@@ -184,7 +184,7 @@ export default function HistoryPage() {
                         <div className="text-xs text-gray-500 dark:text-slate-300 flex flex-wrap gap-3 mt-1">
                           {job.location && <span className="flex items-center"><MapPin className="w-4 h-4 mr-1" /> {job.location}</span>}
                           {job.groups && <span>Grupo: {job.groups.name}</span>}
-                          {job.users && <span>Trabajador: {job.users.full_name || job.users.email}</span>}
+                          {job.workers && <span>Trabajador: {job.workers.display_name || job.workers.alias}</span>}
                       </div>
 
                       <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-50">

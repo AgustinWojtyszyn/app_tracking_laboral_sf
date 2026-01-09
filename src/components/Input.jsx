@@ -16,7 +16,7 @@ export default function Input({
       {label && (
         <label 
           htmlFor={id} 
-          className="text-sm font-semibold leading-none text-gray-800 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          className="text-sm font-semibold leading-none text-gray-800 dark:text-slate-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
           {label}
         </label>
@@ -26,7 +26,7 @@ export default function Input({
           id={id}
           type={type}
           className={cn(
-            "flex h-12 w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:border-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200",
+            "flex h-12 w-full rounded-lg border-2 border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100 focus-visible:border-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-50 dark:placeholder:text-slate-400",
             error && "border-red-500 focus-visible:ring-red-100 focus-visible:border-red-500",
             className
           )}

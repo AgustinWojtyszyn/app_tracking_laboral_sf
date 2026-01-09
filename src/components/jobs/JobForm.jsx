@@ -4,7 +4,8 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { jobsService } from '@/services/jobs.service';
-import { usersService } from '@/services/users.service';
+import { workersService } from '@/services/workers.service';
+import WorkerFormModal from '@/components/workers/WorkerFormModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
@@ -42,11 +43,11 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         cost_spent: jobToEdit.cost_spent || '',
         amount_to_charge: jobToEdit.amount_to_charge || ''
       });
-      setWorkerId(jobToEdit.user_id || user?.id || '');
+      setWorkerId(jobToEdit.worker_id || '');
       setOpen(true);
     } else {
         setFormData(initialForm);
-        setWorkerId(user?.id || '');
+        setWorkerId('');
     }
     setErrors({});
   }, [jobToEdit]);
@@ -65,28 +66,16 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   };
 
   const fetchWorkers = async () => {
-    try {
-      const result = await usersService.getAllUsers();
-      if (result.success && result.data) {
-        setWorkers(result.data);
-        if (!workerId && user) {
-          setWorkerId(user.id);
-        }
-      } else if (!result.success && user) {
-        setWorkers([{ id: user.id, full_name: user.user_metadata?.full_name || '', email: user.email }]);
-        setWorkerId(user.id);
-      }
-    } catch (e) {
-      if (user) {
-        setWorkers([{ id: user.id, full_name: user.user_metadata?.full_name || '', email: user.email }]);
-        setWorkerId(user.id);
-      }
+    const result = await workersService.getWorkers();
+    if (result.success && result.data) {
+      setWorkers(result.data);
     }
   };
 
   const validate = () => {
     const newErrors = {};
     if (!formData.date) newErrors.date = "La fecha es requerida";
+    if (!workerId) newErrors.worker_id = "Seleccioná un trabajador";
     if (Number(formData.hours_worked) <= 0) newErrors.hours_worked = "Horas deben ser mayor a 0";
     if (Number(formData.cost_spent) < 0) newErrors.cost_spent = "Costo no puede ser negativo";
     if (Number(formData.amount_to_charge) < 0) newErrors.amount_to_charge = "Monto no puede ser negativo";
@@ -100,13 +89,21 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     if (!validate()) return;
 
     setLoading(true);
+    // Construimos el payload solo con columnas reales de la tabla jobs,
+    // evitando enviar relaciones como "groups" o "users" que vienen
+    // embebidas en jobToEdit y provocan errores PGRST204.
     const payload = {
-        ...formData,
-      user_id: workerId || user.id,
-        group_id: formData.group_id || null,
-        hours_worked: Number(formData.hours_worked),
-        cost_spent: Number(formData.cost_spent),
-        amount_to_charge: Number(formData.amount_to_charge),
+      date: formData.date,
+      location: formData.location || '',
+      description: formData.description || '',
+      status: formData.status,
+      editable_by_group: formData.editable_by_group,
+      worker_id: workerId,
+      group_id: formData.group_id || null,
+      hours_worked: Number(formData.hours_worked),
+      cost_spent: Number(formData.cost_spent),
+      amount_to_charge: Number(formData.amount_to_charge),
+      user_id: user?.id || null,
     };
 
     let result;
@@ -135,9 +132,9 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
           <Button className="bg-[#1e3a8a] hover:bg-blue-900 text-white">Nuevo Trabajo</Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 dark:text-slate-50">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 dark:text-slate-50 form-lg">
         <DialogHeader>
-          <DialogTitle className="text-[#1e3a8a]">{jobToEdit ? 'Editar Trabajo' : 'Nuevo Trabajo'}</DialogTitle>
+          <DialogTitle className="text-[#1e3a8a] text-2xl md:text-3xl">{jobToEdit ? 'Editar Trabajo' : 'Nuevo Trabajo'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="grid grid-cols-2 gap-4">
@@ -224,19 +221,44 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Trabajador asignado</label>
-              <select
-                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
-                value={workerId}
-                onChange={e => setWorkerId(e.target.value)}
-              >
-                <option value="">Seleccionar trabajador...</option>
-                {workers.map(w => (
-                  <option key={w.id} value={w.id}>
-                    {w.full_name || w.email}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Trabajador asignado *</label>
+                  <select
+                    className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
+                    value={workerId}
+                    onChange={e => setWorkerId(e.target.value)}
+                  >
+                    <option value="">Seleccionar trabajador...</option>
+                    {workers.map(w => (
+                      <option key={w.id} value={w.id}>
+                        {w.display_name || w.alias || 'Sin nombre'}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.worker_id && <span className="text-xs text-red-500">{errors.worker_id}</span>}
+                  {workers.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      No hay trabajadores creados. Creá uno para poder asignarlo.
+                    </p>
+                  )}
+                    <WorkerFormModal
+                      onSaved={(newWorker) => {
+                        setWorkers((prev) => [...prev, newWorker]);
+                        setWorkerId(newWorker.id);
+                      }}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="mt-6 h-9 px-3 text-xs md:text-sm text-[#1e3a8a] border-blue-200"
+                        >
+                          + Crear trabajador
+                        </Button>
+                      }
+                    />
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 items-center">

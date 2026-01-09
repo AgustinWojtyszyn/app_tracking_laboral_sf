@@ -10,14 +10,13 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 
 // Protected Pages
-import DashboardPage from '@/pages/DashboardPage';
 import DailyJobsPage from '@/pages/DailyJobsPage';
 import MonthlyPanelPage from '@/pages/MonthlyPanelPage';
-import HistoryPage from '@/pages/HistoryPage';
 import GroupsPage from '@/pages/GroupsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import AdminPage from '@/pages/AdminPage';
 import WorkersPage from '@/pages/WorkersPage';
+import TutorialPage from '@/pages/TutorialPage';
 
 // Components
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
@@ -40,11 +39,11 @@ function App() {
         {/* Public Routes */}
         <Route 
           path="/" 
-          element={user ? <Navigate to="/app/dashboard" replace /> : <LandingPage />} 
+          element={user ? <Navigate to="/app/trabajos-diarios" replace /> : <LandingPage />} 
         />
         <Route 
           path="/login" 
-          element={user ? <Navigate to="/app/dashboard" replace /> : <LoginPage />} 
+          element={user ? <Navigate to="/app/trabajos-diarios" replace /> : <LoginPage />} 
         />
         <Route 
           path="/register" 
@@ -57,13 +56,12 @@ function App() {
             <AppLayout />
           </ProtectedRoute>
         }>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route index element={<Navigate to="trabajos-diarios" replace />} />
           <Route path="trabajos-diarios" element={<DailyJobsPage />} />
           <Route path="panel-mensual" element={<MonthlyPanelPage />} />
-          <Route path="historial" element={<HistoryPage />} />
           <Route path="trabajadores" element={<WorkersPage />} />
           <Route path="grupos" element={<GroupsPage />} />
+          <Route path="tutorial" element={<TutorialPage />} />
           <Route path="configuracion" element={<SettingsPage />} />
           <Route path="admin" element={
             <ProtectedRoute adminOnly={true}>

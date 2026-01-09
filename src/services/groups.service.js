@@ -60,10 +60,50 @@ export const groupsService = {
 
   async addMember(groupId, email) {
     try {
-      const { data: userData, error: userError } = await supabase
-        .from('users').select('id').eq('email', email).single();
-      
-      if (userError || !userData) return { success: false, error: "Usuario no encontrado" };
+      const rawIdentifier = (email || '').trim();
+      if (!rawIdentifier) {
+        return { success: false, error: "Ingresa un email o nombre" };
+      }
+
+      const isEmail = rawIdentifier.includes('@');
+      const normalizedEmail = rawIdentifier.toLowerCase();
+      console.log('addMember - identificador para búsqueda:', {
+        rawIdentifier,
+        normalizedEmail,
+        mode: isEmail ? 'email' : 'name'
+      });
+
+      let query = supabase
+        .from('users')
+        .select('id, email, full_name')
+        .limit(2);
+
+      if (isEmail) {
+        // Búsqueda exacta por email (case-insensitive)
+        query = query.ilike('email', normalizedEmail);
+      } else {
+        // Búsqueda por nombre que contenga el texto ingresado (case-insensitive)
+        query = query.ilike('full_name', `%${rawIdentifier}%`);
+      }
+
+      const { data: usersFound, error: userError } = await query;
+
+      if (userError) {
+        console.error('addMember - error en consulta de usuario:', userError);
+        return { success: false, error: "Error al buscar usuario" };
+      }
+
+      if (!usersFound || usersFound.length === 0) {
+        console.error('addMember - usuario no encontrado para identificador:', rawIdentifier);
+        return { success: false, error: "Usuario no encontrado" };
+      }
+
+      if (usersFound.length > 1) {
+        console.warn('addMember - múltiples usuarios encontrados para identificador:', rawIdentifier, usersFound);
+        return { success: false, error: "Se encontraron varios usuarios con ese nombre. Usa el email completo." };
+      }
+
+      const userData = usersFound[0];
 
       const { error } = await supabase
         .from('group_members')
@@ -75,7 +115,8 @@ export const groupsService = {
       }
       return { success: true, message: "Miembro agregado exitosamente" };
     } catch (error) {
-      return { success: false, error: "Error al agregar miembro." };
+      console.error('addMember - error al agregar miembro:', error);
+      return { success: false, error: error?.message || "Error al agregar miembro." };
     }
   },
 

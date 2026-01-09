@@ -28,10 +28,12 @@ export default function GroupMembers({ group, onClose }) {
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    if (!newEmail) return;
+        if (!newEmail) return;
+
+        const normalizedEmail = newEmail.trim().toLowerCase();
 
     setAdding(true);
-    const result = await groupsService.addMember(group.id, newEmail);
+        const result = await groupsService.addMember(group.id, normalizedEmail);
     setAdding(false);
 
     if (result.success) {
@@ -70,7 +72,7 @@ export default function GroupMembers({ group, onClose }) {
             <input 
                 type="email" 
                 placeholder="Email del usuario a agregar"
-                className="flex-1 p-2 border rounded text-sm"
+                className="flex-1 w-full p-2 border border-gray-300 dark:border-slate-700 rounded text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={newEmail}
                 onChange={e => setNewEmail(e.target.value)}
                 required
@@ -103,17 +105,12 @@ export default function GroupMembers({ group, onClose }) {
                                     <div className="text-xs text-gray-500">{m.users?.email}</div>
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                    <button 
-                                        onClick={() => handleRoleChange(m.user_id, m.role)}
-                                        className={`text-xs px-2 py-1 rounded-full border transition-colors ${
-                                            m.role === 'admin' 
-                                            ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' 
-                                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                                        }`}
-                                        title="Click para cambiar rol"
+                                    <span
+                                      className="text-xs px-2 py-1 rounded-full border bg-gray-50 text-gray-600 border-gray-200"
+                                      title="Rol del miembro"
                                     >
-                                        {m.role === 'admin' ? 'Admin' : 'Miembro'}
-                                    </button>
+                                      Miembro
+                                    </span>
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     <ConfirmationModal 
