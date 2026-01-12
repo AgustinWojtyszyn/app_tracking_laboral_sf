@@ -10,9 +10,11 @@ import {
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { profile, signOut, isAdmin } = useAuth();
+  const { profile, user, signOut, isAdmin } = useAuth();
   const { t } = useLanguage();
   const location = useLocation();
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuario';
+  const displayEmail = profile?.email || user?.email || '';
 
   const navItems = [
     { label: t('nav.daily'), path: '/app/trabajos-diarios', icon: Calendar },
@@ -83,8 +85,8 @@ export default function Sidebar() {
 
         <div className="p-5 border-t border-blue-800 bg-[#152e6e]">
           <div className="mb-4 px-1">
-            <p className="text-xl font-semibold leading-snug break-words">{profile?.full_name || 'Usuario'}</p>
-            <p className="text-lg text-blue-200 leading-snug break-words">{profile?.email}</p>
+            <p className="text-xl font-semibold leading-snug break-words">{displayName}</p>
+            <p className="text-lg text-blue-200 leading-snug break-words">{displayEmail}</p>
           </div>
           
           <button 
