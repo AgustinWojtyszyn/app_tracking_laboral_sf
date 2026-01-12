@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/ToastContext';
 
 export default function HistoryPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { addToast } = useToast();
   const { filters, setFilter } = useFilters({
     startDate: getMonthStart(),
@@ -66,15 +66,20 @@ export default function HistoryPage() {
     setLoading(false);
   };
 
-  const handleDelete = async (id) => {
+    const handleDelete = async (id) => {
+      if (!isAdmin) {
+      addToast('Solo un administrador puede eliminar trabajos.', 'error');
+      return;
+      }
+
       const result = await jobsService.deleteJob(id);
       if (result.success) {
-          addToast("Trabajo eliminado correctamente", 'success');
-          fetchJobs();
+        addToast("Trabajo eliminado correctamente", 'success');
+        fetchJobs();
       } else {
-          addToast(result.error, 'error');
+        addToast(result.error, 'error');
       }
-  };
+    };
 
   const currentData = getPageData(filteredJobs);
   const totalPageCount = totalPages(filteredJobs.length);
@@ -141,19 +146,21 @@ export default function HistoryPage() {
                     <td className="px-6 py-4 text-right font-medium">{formatCurrency(job.amount_to_charge)}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditingJob(job)}>
-                        <Edit2 className="w-5 h-5 text-blue-600" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditingJob(job)}>
+                          <Edit2 className="w-5 h-5 text-blue-600" />
                         </Button>
-                        <ConfirmationModal
-                            onConfirm={() => handleDelete(job.id)}
-                            title="¿Eliminar trabajo?"
-                            description="Esta acción no se puede deshacer."
-                            trigger={
-                          <Button variant="ghost" size="icon" className="h-9 w-9">
-                            <Trash2 className="w-5 h-5 text-red-600" />
+                        {isAdmin && (
+                          <ConfirmationModal
+                              onConfirm={() => handleDelete(job.id)}
+                              title="¿Eliminar trabajo?"
+                              description="Esta acción no se puede deshacer."
+                              trigger={
+                                <Button variant="ghost" size="icon" className="h-9 w-9">
+                                  <Trash2 className="w-5 h-5 text-red-600" />
                                 </Button>
-                            }
-                        />
+                              }
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -191,15 +198,17 @@ export default function HistoryPage() {
                         <Button variant="outline" size="sm" onClick={() => setEditingJob(job)} className="h-9 flex-1">
                           <Edit2 className="w-4 h-4 mr-1" /> Editar
                         </Button>
-                        <ConfirmationModal
-                            onConfirm={() => handleDelete(job.id)}
-                            title="¿Eliminar?"
-                            trigger={
-                            <Button variant="outline" size="sm" className="h-9 flex-1 text-red-600 border-red-200">
-                              <Trash2 className="w-4 h-4 mr-1" /> Eliminar
+                        {isAdmin && (
+                          <ConfirmationModal
+                              onConfirm={() => handleDelete(job.id)}
+                              title="¿Eliminar?"
+                              trigger={
+                                <Button variant="outline" size="sm" className="h-9 flex-1 text-red-600 border-red-200">
+                                  <Trash2 className="w-4 h-4 mr-1" /> Eliminar
                                 </Button>
-                            }
-                        />
+                              }
+                          />
+                        )}
                       </div>
                   </div>
               ))}

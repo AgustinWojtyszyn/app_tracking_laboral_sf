@@ -13,7 +13,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatCurrency } from '@/utils/formatters';
 
 export default function DailyJobsPage() {
-  const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
   const { addToast } = useToast();
   const { language } = useLanguage();
   const isEn = language === 'en';
@@ -37,15 +37,20 @@ export default function DailyJobsPage() {
     setLoading(false);
   };
 
-  const handleDelete = async (id) => {
-    const result = await jobsService.deleteJob(id);
-    if (result.success) {
-      addToast(result.message, 'success');
-      fetchJobs();
-    } else {
-      addToast(result.error, 'error');
-    }
-  };
+    const handleDelete = async (id) => {
+        if (!isAdmin) {
+            addToast(isEn ? 'Only administrators can delete jobs.' : 'Solo los administradores pueden eliminar trabajos.', 'error');
+            return;
+        }
+
+        const result = await jobsService.deleteJob(id);
+        if (result.success) {
+            addToast(result.message, 'success');
+            fetchJobs();
+        } else {
+            addToast(result.error, 'error');
+        }
+    };
 
   const totals = jobs.reduce((acc, job) => {
     const status = (job.status || '').trim().toLowerCase();
@@ -169,19 +174,21 @@ export default function DailyJobsPage() {
                                                     >
                                                         <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
                                                     </Button>
-                                                    <ConfirmationModal
-                                                        title={isEn ? 'Delete job?' : '¿Eliminar trabajo?'}
-                                                        onConfirm={() => handleDelete(job.id)}
-                                                        trigger={
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-9 w-9 text-red-600"
-                                                            >
-                                                                <Trash2 className="w-5 h-5" />
-                                                            </Button>
-                                                        }
-                                                    />
+                                                    {isAdmin && (
+                                                      <ConfirmationModal
+                                                          title={isEn ? 'Delete job?' : '¿Eliminar trabajo?'}
+                                                          onConfirm={() => handleDelete(job.id)}
+                                                          trigger={
+                                                              <Button
+                                                                  variant="ghost"
+                                                                  size="icon"
+                                                                  className="h-9 w-9 text-red-600"
+                                                              >
+                                                                  <Trash2 className="w-5 h-5" />
+                                                              </Button>
+                                                          }
+                                                      />
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -246,19 +253,21 @@ export default function DailyJobsPage() {
                                                 >
                                                     <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
                                                 </Button>
-                                                <ConfirmationModal
-                                                    title={isEn ? 'Delete?' : '¿Eliminar?'}
-                                                    onConfirm={() => handleDelete(job.id)}
-                                                    trigger={
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-9 text-red-600 border-red-200"
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-1" /> {isEn ? 'Delete' : 'Eliminar'}
-                                                        </Button>
-                                                    }
-                                                />
+                                                {isAdmin && (
+                                                  <ConfirmationModal
+                                                      title={isEn ? 'Delete?' : '¿Eliminar?'}
+                                                      onConfirm={() => handleDelete(job.id)}
+                                                      trigger={
+                                                          <Button
+                                                              variant="outline"
+                                                              size="sm"
+                                                              className="h-9 text-red-600 border-red-200"
+                                                          >
+                                                              <Trash2 className="w-4 h-4 mr-1" /> {isEn ? 'Delete' : 'Eliminar'}
+                                                          </Button>
+                                                      }
+                                                  />
+                                                )}
                                             </div>
                                         </div>
                             ))}
