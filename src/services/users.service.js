@@ -26,13 +26,29 @@ export const usersService = {
   },
 
   async getAuditLogs(filters = {}) {
-    try {
-      let query = supabase.from('audit_logs').select('*, users(email)').order('timestamp', { ascending: false }).limit(50);
-      const { data, error } = await query;
-      if (error) throw error;
-      return { success: true, data };
-    } catch (error) {
-      return { success: false, error: "Error al cargar logs." };
+    const selectAttempts = [
+      '*, users:auth.users!audit_logs_user_id_fkey(email)', // FK pointing to auth schema
+      '*, users:users!audit_logs_user_id_fkey(email)',       // FK pointing to public.users
+      '*'                                                   // fallback without join
+    ];
+
+    let lastError = null;
+
+    for (const select of selectAttempts) {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select(select)
+        .order('timestamp', { ascending: false })
+        .limit(50);
+
+      if (!error) {
+        return { success: true, data };
+      }
+
+      lastError = error;
     }
+
+    // If every attempt failed, return a friendly error
+    return { success: false, error: lastError?.message || "Error al cargar logs." };
   }
 };
