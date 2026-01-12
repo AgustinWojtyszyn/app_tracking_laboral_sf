@@ -24,7 +24,6 @@ export default function SettingsPage() {
   const [showCurrentPwd, setShowCurrentPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
-
     const updateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
