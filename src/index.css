@@ -73,16 +73,31 @@
   }
   body {
     /* Aumentamos ligeramente el tamaño base y el contraste general */
-    @apply bg-background text-foreground min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900 text-[17px] md:text-[18px];
+    @apply bg-background text-foreground min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900 text-[25px] md:text-[25px];
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 /* Escala suave para menús, tarjetas y formularios manteniendo responsividad */
 @layer components {
+  /* Escala de lectura amplia en todo el contenido de la app (excepto títulos) */
+  .app-text-lg :is(p, span, li, label, input, select, textarea, button, a, td, th, div) {
+    font-size: 25px !important;
+    line-height: 1.5;
+  }
+
+  .app-text-lg small {
+    font-size: 20px !important;
+  }
+
+  .app-text-lg h1 { @apply leading-tight; }
+  .app-text-lg h2 { @apply leading-tight; }
+  .app-text-lg h3 { @apply leading-tight; }
+  .app-text-lg h4 { @apply leading-tight; }
+
   /* Navegación lateral y botones principales un poco más grandes */
   .text-nav-lg {
-    @apply text-lg md:text-xl;
+    @apply text-xl md:text-2xl;
   }
 
   .card-lg {

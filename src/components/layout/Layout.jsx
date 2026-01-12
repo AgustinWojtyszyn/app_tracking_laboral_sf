@@ -10,7 +10,7 @@ export default function Layout({ children }) {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 transition-all duration-300 ease-in-out">
-        <div className="container mx-auto p-4 lg:p-8 pt-20 lg:pt-8 max-w-7xl">
+        <div className="container mx-auto p-4 lg:p-8 pt-20 lg:pt-8 max-w-7xl app-text-lg">
           {children}
         </div>
       </main>
