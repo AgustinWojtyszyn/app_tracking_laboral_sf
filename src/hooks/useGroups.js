@@ -6,9 +6,9 @@ export const useGroups = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getGroups = useCallback(async () => {
+  const getGroups = useCallback(async (userId) => {
     setLoading(true);
-    const result = await groupsService.getAllGroups();
+    const result = await groupsService.getAllGroups(userId);
     setLoading(false);
     if (!result.success) setError(result.error);
     return result;
@@ -56,6 +56,13 @@ export const useGroups = () => {
       return result;
   }, []);
 
+    const requestToJoin = useCallback(async (groupId, userId) => {
+      setLoading(true);
+      const result = await groupsService.requestToJoin(groupId, userId);
+      setLoading(false);
+      return result;
+    }, []);
+
   return { 
       loading, 
       error, 
@@ -65,6 +72,7 @@ export const useGroups = () => {
       getGroupMembers, 
       addMember, 
       removeMember,
-      updateMemberRole
+      updateMemberRole,
+      requestToJoin
   };
 };

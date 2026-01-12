@@ -60,7 +60,11 @@ function App() {
           <Route path="trabajos-diarios" element={<DailyJobsPage />} />
           <Route path="panel-mensual" element={<MonthlyPanelPage />} />
           <Route path="trabajadores" element={<WorkersPage />} />
-          <Route path="grupos" element={<GroupsPage />} />
+          <Route path="grupos" element={
+            <ProtectedRoute adminOnly={true}>
+              <GroupsPage />
+            </ProtectedRoute>
+          } />
           <Route path="tutorial" element={<TutorialPage />} />
           <Route path="configuracion" element={<SettingsPage />} />
           <Route path="admin" element={

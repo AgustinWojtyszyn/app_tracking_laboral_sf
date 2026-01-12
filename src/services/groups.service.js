@@ -2,13 +2,31 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
 export const groupsService = {
-  async getAllGroups() {
+  async getAllGroups(currentUserId) {
     try {
-      const { data, error } = await supabase
+      const { data: groups, error } = await supabase
         .from('groups')
         .select('*, group_members(count)');
       if (error) throw error;
-      return { success: true, data };
+
+      // Enriquecer con información de membresía del usuario actual
+      if (currentUserId && groups) {
+        const { data: memberships, error: membershipError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', currentUserId);
+
+        if (membershipError) {
+          console.error('Error al obtener membresías de grupos:', membershipError);
+          return { success: true, data: groups.map(g => ({ ...g, isMember: false })) };
+        }
+
+        const memberGroupIds = new Set((memberships || []).map(m => m.group_id));
+        const enriched = groups.map(g => ({ ...g, isMember: memberGroupIds.has(g.id) }));
+        return { success: true, data: enriched };
+      }
+
+      return { success: true, data: (groups || []).map(g => ({ ...g, isMember: false })) };
     } catch (error) {
       return { success: false, error: "Error al cargar grupos." };
     }
@@ -139,6 +157,84 @@ export const groupsService = {
       return { success: true, message: "Rol actualizado" };
     } catch (error) {
       return { success: false, error: "Error al actualizar rol." };
+    }
+  },
+
+  async requestToJoin(groupId, userId) {
+    try {
+      if (!userId) return { success: false, error: 'Usuario no válido.' };
+
+      // Evitar duplicar membresías existentes
+      const { data: existingMember, error: memberError } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (memberError) throw memberError;
+      if (existingMember) {
+        return { success: false, error: 'Ya sos miembro de este grupo.' };
+      }
+
+      // Crear solicitud de ingreso
+      const { error } = await supabase
+        .from('group_join_requests')
+        .insert([{ group_id: groupId, user_id: userId, status: 'pending' }]);
+
+      if (error) throw error;
+      return { success: true, message: 'Solicitud enviada al administrador del grupo.' };
+    } catch (error) {
+      console.error('requestToJoin - error:', error);
+      return { success: false, error: 'Error al enviar la solicitud.' };
+    }
+  },
+
+  async getJoinRequests(groupId) {
+    try {
+      const { data, error } = await supabase
+        .from('group_join_requests')
+        .select('id, group_id, user_id, status, created_at, users(email, full_name)')
+        .eq('group_id', groupId)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error('getJoinRequests - error:', error);
+      return { success: false, error: 'Error al cargar solicitudes.' };
+    }
+  },
+
+  async respondToJoinRequest(requestId, groupId, userId, accept) {
+    try {
+      if (accept) {
+        // Agregar como miembro (ignorar si ya existe)
+        const { error: insertError } = await supabase
+          .from('group_members')
+          .insert([{ group_id: groupId, user_id: userId }]);
+
+        if (insertError && insertError.code !== '23505') throw insertError;
+
+        const { error: updateError } = await supabase
+          .from('group_join_requests')
+          .update({ status: 'approved' })
+          .eq('id', requestId);
+
+        if (updateError) throw updateError;
+        return { success: true, message: 'Solicitud aprobada.' };
+      } else {
+        const { error } = await supabase
+          .from('group_join_requests')
+          .update({ status: 'rejected' })
+          .eq('id', requestId);
+
+        if (error) throw error;
+        return { success: true, message: 'Solicitud rechazada.' };
+      }
+    } catch (error) {
+      console.error('respondToJoinRequest - error:', error);
+      return { success: false, error: 'Error al procesar la solicitud.' };
     }
   }
 };

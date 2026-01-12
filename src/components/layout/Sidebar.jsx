@@ -18,7 +18,8 @@ export default function Sidebar() {
     { label: t('nav.daily'), path: '/app/trabajos-diarios', icon: Calendar },
     { label: t('nav.monthly'), path: '/app/panel-mensual', icon: CalendarDays },
     { label: t('nav.workers'), path: '/app/trabajadores', icon: UserCog },
-    { label: t('nav.groups'), path: '/app/grupos', icon: Users },
+    // La pestaña de grupos solo la ven administradores
+    ...(isAdmin ? [{ label: t('nav.groups'), path: '/app/grupos', icon: Users }] : []),
     { label: t('nav.tutorial'), path: '/app/tutorial', icon: BookOpen },
     { label: t('nav.settings'), path: '/app/configuracion', icon: Settings },
   ];
@@ -59,7 +60,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 px-6 py-7 space-y-3 overflow-y-auto text-nav-lg">
+        <nav className="flex-1 px-6 py-7 space-y-3 text-nav-lg">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;

@@ -13,14 +13,15 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function GroupsPage() {
-  const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
   const { addToast } = useToast();
-  const { getGroups, deleteGroup } = useGroups();
+    const { getGroups, deleteGroup, requestToJoin } = useGroups();
   const { t } = useLanguage();
   
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState(null);
+    const [joiningGroupId, setJoiningGroupId] = useState(null);
 
   useEffect(() => {
     if (user) fetchGroups();
@@ -28,7 +29,7 @@ export default function GroupsPage() {
 
   const fetchGroups = async () => {
     setLoading(true);
-    const result = await getGroups();
+        const result = await getGroups(user?.id);
     if (result.success) {
         setGroups(result.data);
     } else {
@@ -42,6 +43,18 @@ export default function GroupsPage() {
       if (result.success) {
           addToast(result.message, 'success');
           fetchGroups();
+      } else {
+          addToast(result.error, 'error');
+      }
+  };
+
+  const handleJoinRequest = async (groupId) => {
+      if (!user) return;
+      setJoiningGroupId(groupId);
+      const result = await requestToJoin(groupId, user.id);
+      setJoiningGroupId(null);
+      if (result.success) {
+          addToast(result.message, 'success');
       } else {
           addToast(result.error, 'error');
       }
@@ -72,6 +85,8 @@ export default function GroupsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {groups.map(group => {
                   const isCreator = group.created_by === user.id;
+                  const isMember = !!group.isMember;
+                  const isGroupAdmin = isCreator || isAdmin;
                   const memberCount = group.group_members?.[0]?.count || 0;
 
                   return (
@@ -104,32 +119,47 @@ export default function GroupsPage() {
                         </div>
 
                         <div className="bg-gray-50 dark:bg-slate-900 p-4 border-t border-gray-100 dark:border-slate-800 flex gap-2">
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button 
-                                      variant="default" 
-                                      size="sm" 
-                                      className="flex-1 bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm md:text-base py-2.5 flex items-center justify-center gap-2" 
-                                      onClick={() => setSelectedGroup(group)}
-                                    >
-                                        <ShieldCheck className="w-5 h-5" />
-                                        {t('groupsPage.manageMembers')}
-                                    </Button>
-                                </DialogTrigger>
-                                                                <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
-                                                                        <DialogHeader className="p-0">
-                                                                            <div className="p-6 bg-[#1e3a8a] text-white">
-                                                                                <DialogTitle className="text-xl font-bold">Gestionar Grupo</DialogTitle>
-                                                                                <p className="text-blue-200 text-sm">{group.name}</p>
-                                                                            </div>
-                                                                        </DialogHeader>
-                                                                        <div className="p-6 bg-white dark:bg-slate-900">
-                                                                            <GroupMembers group={group} onClose={() => {}} />
-                                                                        </div>
-                                </DialogContent>
-                            </Dialog>
-                            
-                            {isCreator && (
+                            {isMember && (
+                              <Dialog>
+                                  <DialogTrigger asChild>
+                                      <Button 
+                                        variant="default" 
+                                        size="sm" 
+                                        className="flex-1 bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm md:text-base py-2.5 flex items-center justify-center gap-2" 
+                                        onClick={() => setSelectedGroup(group)}
+                                      >
+                                          <ShieldCheck className="w-5 h-5" />
+                                          {t('groupsPage.manageMembers')}
+                                      </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
+                                          <DialogHeader className="p-0">
+                                              <div className="p-6 bg-[#1e3a8a] text-white">
+                                                  <DialogTitle className="text-xl font-bold">Gestionar Grupo</DialogTitle>
+                                                  <p className="text-blue-200 text-sm">{group.name}</p>
+                                              </div>
+                                          </DialogHeader>
+                                          <div className="p-6 bg-white dark:bg-slate-900">
+                                              <GroupMembers group={group} onClose={() => {}} isGroupAdmin={isGroupAdmin} />
+                                          </div>
+                                  </DialogContent>
+                              </Dialog>
+                            )}
+
+                            {!isMember && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="flex-1 bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm md:text-base py-2.5 flex items-center justify-center gap-2"
+                                onClick={() => handleJoinRequest(group.id)}
+                                disabled={joiningGroupId === group.id}
+                              >
+                                <ShieldCheck className="w-5 h-5" />
+                                {joiningGroupId === group.id ? 'Enviando solicitud...' : 'Unirme'}
+                              </Button>
+                            )}
+
+                            {isGroupAdmin && (
                                 <ConfirmationModal
                                     title={t('groupsPage.deleteTitle')}
                                     description={t('groupsPage.deleteDesc')}
