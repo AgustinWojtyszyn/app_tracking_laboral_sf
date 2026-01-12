@@ -115,4 +115,43 @@
   .dark .text-gray-700 { @apply text-slate-200; }
   .dark .text-gray-600 { @apply text-slate-300; }
   .dark .text-gray-500 { @apply text-slate-300; }
+
+  /* Panel de administración: texto negro de alto contraste sobre fondo blanco */
+  body:has(a[href="/app/admin"].bg-blue-800) {
+    --background: 0 0% 100%;
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 0%;
+    color: #000;
+    background-color: #fff;
+  }
+
+  body:has(a[href="/app/admin"].bg-blue-800) main,
+  body:has(a[href="/app/admin"].bg-blue-800) .bg-white,
+  body:has(a[href="/app/admin"].bg-blue-800) table,
+  body:has(a[href="/app/admin"].bg-blue-800) th,
+  body:has(a[href="/app/admin"].bg-blue-800) td,
+  body:has(a[href="/app/admin"].bg-blue-800) h1,
+  body:has(a[href="/app/admin"].bg-blue-800) h2,
+  body:has(a[href="/app/admin"].bg-blue-800) h3,
+  body:has(a[href="/app/admin"].bg-blue-800) h4,
+  body:has(a[href="/app/admin"].bg-blue-800) p,
+  body:has(a[href="/app/admin"].bg-blue-800) span,
+  body:has(a[href="/app/admin"].bg-blue-800) label,
+  body:has(a[href="/app/admin"].bg-blue-800) select,
+  body:has(a[href="/app/admin"].bg-blue-800) option,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-gray-500,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-gray-600,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-gray-700,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-gray-800,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-gray-900,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-purple-800,
+  body:has(a[href="/app/admin"].bg-blue-800) .text-blue-800 {
+    color: #000 !important;
+  }
+
+  body:has(a[href="/app/admin"].bg-blue-800) .bg-gray-50 {
+    background-color: #fff;
+  }
 }
