@@ -97,7 +97,7 @@
 
   /* Navegación lateral y botones principales un poco más grandes */
   .text-nav-lg {
-    @apply text-xl md:text-2xl;
+    @apply text-lg md:text-xl;
   }
 
   .card-lg {

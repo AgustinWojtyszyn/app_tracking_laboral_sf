@@ -34,10 +34,10 @@ export default function Sidebar() {
     <>
       {/* Mobile Toggle */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-primary text-primary-foreground flex items-center justify-between px-5 z-50 shadow-md">
-        <span className="font-bold text-3xl">Job Tracker</span>
+        <span className="font-bold text-2xl">Job Tracker</span>
         <div className="flex items-center gap-2">
           <button onClick={toggleSidebar} className="inline-flex items-center justify-center rounded-md p-1.5">
-            {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
+            {isOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
           </button>
         </div>
       </div>
@@ -55,8 +55,8 @@ export default function Sidebar() {
       `}>
         <div className="p-7 border-b border-blue-800/60 hidden lg:flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold leading-tight">Job Tracker</h1>
-            <p className="text-lg text-blue-100/80 mt-1">{t('nav.daily')}</p>
+            <h1 className="text-3xl font-bold leading-tight">Job Tracker</h1>
+            <p className="text-base text-blue-100/80 mt-1">{t('nav.daily')}</p>
           </div>
         </div>
 
