@@ -5,12 +5,13 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Download, Trash2, Edit2, Calendar, MapPin, DollarSign, User, Share2 } from 'lucide-react';
+import { Download, Trash2, Edit2, Calendar, MapPin, DollarSign, User, Share2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatCurrency } from '@/utils/formatters';
+import JobDetailModal from '@/components/jobs/JobDetailModal';
 
 export default function DailyJobsPage() {
     const { user, isAdmin } = useAuth();
@@ -21,6 +22,7 @@ export default function DailyJobsPage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingJob, setEditingJob] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
     if (user) fetchJobs();
@@ -187,10 +189,18 @@ export default function DailyJobsPage() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
+                                                        onClick={() => setSelectedJob(job)}
+                                                        className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-sm font-semibold shadow-sm"
+                                                    >
+                                                        <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() => setEditingJob(job)}
                                                         className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm font-semibold shadow-sm"
                                                     >
-                                                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
+                                                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
                                                     </Button>
                                                     {isAdmin && (
                                                       <ConfirmationModal
@@ -266,10 +276,18 @@ export default function DailyJobsPage() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
+                                                    onClick={() => setSelectedJob(job)}
+                                                    className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs font-semibold shadow-sm"
+                                                >
+                                                    <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
                                                     onClick={() => setEditingJob(job)}
                                                     className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs font-semibold shadow-sm"
                                                 >
-                                                    <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
+                                                    <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
                                                 </Button>
                                                 {isAdmin && (
                                                   <ConfirmationModal
@@ -302,6 +320,16 @@ export default function DailyJobsPage() {
                         fetchJobs();
                     }}
                 />
+            )}
+            {selectedJob && (
+              <JobDetailModal
+                job={selectedJob}
+                onClose={() => setSelectedJob(null)}
+                onEdit={(job) => {
+                  setSelectedJob(null);
+                  setEditingJob(job);
+                }}
+              />
             )}
         </div>
     );
