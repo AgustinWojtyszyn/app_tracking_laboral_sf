@@ -114,5 +114,36 @@ export const exportService = {
 
     const filename = `trabajos_${startDate}_a_${endDate}.xls`;
     this._saveWorkbook(finalData, filename);
+  },
+
+  // Build a text-friendly summary for sharing (e.g., WhatsApp)
+  buildJobsShareText(jobs, title = 'Trabajos') {
+    if (!jobs || jobs.length === 0) return '';
+
+    const lines = jobs.map((job, idx) => {
+      const statusLabel = job.status === 'completed'
+        ? 'Completado'
+        : job.status === 'archived'
+        ? 'Archivado'
+        : 'Pendiente';
+
+      return [
+        `#${idx + 1} | ${formatDate(job.date)} - ${job.description || 'Sin descripción'}`,
+        `Lugar: ${job.location || '-'}`,
+        `Trabajador: ${job.workers?.display_name || job.workers?.alias || '-'}`,
+        `Grupo: ${job.groups?.name || '-'}`,
+        `Estado: ${statusLabel}`,
+        `Horas: ${job.hours_worked || 0} | Costo: ${formatCurrency(job.cost_spent)} | Cobrar: ${formatCurrency(job.amount_to_charge)}`
+      ].join('\n');
+    });
+
+    return `${title}\nTotal: ${jobs.length}\n\n${lines.join('\n\n')}`;
+  },
+
+  shareJobsViaWhatsApp(jobs, title = 'Trabajos') {
+    const message = this.buildJobsShareText(jobs, title);
+    if (!message) return;
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 };

@@ -38,7 +38,7 @@ export default function ExcelExportButton({
       className="gap-2"
     >
       {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-      Exportar Excel
+      Exportar a Excel
     </Button>
   );
 }

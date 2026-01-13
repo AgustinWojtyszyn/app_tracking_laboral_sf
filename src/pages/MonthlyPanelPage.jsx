@@ -5,11 +5,13 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatCurrency, formatNumber, formatDate } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
-import { CalendarDays, Briefcase, DollarSign, Clock } from 'lucide-react';
+import { CalendarDays, Briefcase, DollarSign, Clock, Share2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
 import { useFilters } from '@/hooks/useFilters';
+import { Button } from '@/components/ui/button';
+import { exportService } from '@/services/export.service';
 
 export default function MonthlyPanelPage() {
   const { user } = useAuth();
@@ -62,6 +64,14 @@ export default function MonthlyPanelPage() {
     return acc;
   }, {});
 
+  const handleShare = () => {
+    if (!filteredJobs || filteredJobs.length === 0) return;
+    const title = isEn
+      ? `Monthly orders ${filters.startDate} to ${filters.endDate}`
+      : `Órdenes mensuales ${filters.startDate} a ${filters.endDate}`;
+    exportService.shareJobsViaWhatsApp(filteredJobs, title);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -69,12 +79,23 @@ export default function MonthlyPanelPage() {
 	        <h1 className="text-3xl md:text-4xl font-bold text-[#1e3a8a] dark:text-slate-50">{t('monthlyPage.title')}</h1>
 	        <p className="text-base md:text-lg text-gray-500 dark:text-slate-300">{t('monthlyPage.subtitle')}</p>
         </div>
-        <ExcelExportButton 
-            jobs={filteredJobs} 
-            grouped={true}
-            startDate={filters.startDate}
-            endDate={filters.endDate}
-        />
+        <div className="flex gap-2 flex-wrap justify-end">
+          <Button
+            variant="outline"
+            onClick={handleShare}
+            disabled={!filteredJobs || filteredJobs.length === 0}
+            className="gap-2"
+          >
+            <Share2 className="w-4 h-4" />
+            {isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}
+          </Button>
+          <ExcelExportButton 
+              jobs={filteredJobs} 
+              grouped={true}
+              startDate={filters.startDate}
+              endDate={filters.endDate}
+          />
+        </div>
       </div>
 
       <JobFilters filters={filters} onChange={setFilter} />

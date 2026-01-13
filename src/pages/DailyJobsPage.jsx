@@ -5,7 +5,7 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Download, Trash2, Edit2, Calendar, MapPin, DollarSign, User } from 'lucide-react';
+import { Download, Trash2, Edit2, Calendar, MapPin, DollarSign, User, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -35,6 +35,17 @@ export default function DailyJobsPage() {
       addToast(result.error, 'error');
     }
     setLoading(false);
+  };
+
+  const handleShare = () => {
+    if (!jobs || jobs.length === 0) {
+      addToast(isEn ? 'No jobs to share.' : 'No hay trabajos para compartir.', 'error');
+      return;
+    }
+    const title = isEn
+      ? `Daily jobs - ${date}`
+      : `Trabajos diarios - ${date}`;
+    exportService.shareJobsViaWhatsApp(jobs, title);
   };
 
     const handleDelete = async (id) => {
@@ -81,7 +92,14 @@ export default function DailyJobsPage() {
        className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
        onClick={() => exportService.exportDayToExcel(date, jobs)}
      >
-            <Download className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Export' : 'Exportar'}</span>
+            <Download className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Export to Excel' : 'Exportar a Excel'}</span>
+             </Button>
+             <Button
+               variant="outline"
+               className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
+               onClick={handleShare}
+             >
+               <Share2 className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}</span>
              </Button>
              <div className="flex-1 md:flex-none">
                  <JobForm onSuccess={fetchJobs} />
