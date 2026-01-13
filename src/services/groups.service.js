@@ -236,5 +236,19 @@ export const groupsService = {
       console.error('respondToJoinRequest - error:', error);
       return { success: false, error: 'Error al procesar la solicitud.' };
     }
+  },
+
+  async deleteJoinRequest(requestId) {
+    try {
+      const { error } = await supabase
+        .from('group_join_requests')
+        .delete()
+        .eq('id', requestId);
+      if (error) throw error;
+      return { success: true, message: 'Solicitud eliminada.' };
+    } catch (error) {
+      console.error('deleteJoinRequest - error:', error);
+      return { success: false, error: 'Error al eliminar la solicitud.' };
+    }
   }
 };

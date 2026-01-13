@@ -101,6 +101,20 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false }) {
       }
   };
 
+  const handleDeleteRequest = async (requestId) => {
+      if (!isGroupAdmin) {
+        toast({ variant: 'destructive', description: 'Solo el administrador puede eliminar solicitudes.' });
+        return;
+      }
+      const result = await groupsService.deleteJoinRequest(requestId);
+      if (result.success) {
+        toast({ description: result.message });
+        fetchJoinRequests();
+      } else {
+        toast({ variant: 'destructive', description: result.error });
+      }
+  };
+
   return (
     <div className="space-y-6">
         {isGroupAdmin && (
@@ -210,6 +224,20 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false }) {
                                                 >
                                                     Rechazar
                                                 </Button>
+                                                <ConfirmationModal
+                                                    title="¿Eliminar solicitud?"
+                                                    description="La solicitud se eliminará definitivamente."
+                                                    onConfirm={() => handleDeleteRequest(r.id)}
+                                                    trigger={
+                                                      <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                      >
+                                                        <Trash2 className="w-4 h-4" />
+                                                      </Button>
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     ))}
