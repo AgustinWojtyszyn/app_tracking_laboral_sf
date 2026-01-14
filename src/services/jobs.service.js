@@ -89,6 +89,22 @@ export const jobsService = {
     }
   },
 
+  async deleteCompletedJobs(startDate, endDate) {
+    try {
+      const { error, count } = await supabase
+        .from('jobs')
+        .delete({ count: 'exact' })
+        .eq('status', 'completed')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) throw error;
+      return { success: true, message: "Trabajos completados eliminados", removed: count || 0 };
+    } catch (error) {
+      return { success: false, error: "No se pudieron limpiar los trabajos completados." };
+    }
+  },
+
   async getJobStats(startDate, endDate) {
     try {
       const { data, error } = await supabase.rpc('get_job_stats', { start_date: startDate, end_date: endDate });

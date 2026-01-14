@@ -3,22 +3,27 @@ import React, { useState, useEffect } from 'react';
 import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useToast } from '@/contexts/ToastContext';
 import { formatCurrency, formatNumber, formatDate } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
-import { CalendarDays, Briefcase, DollarSign, Clock, Share2 } from 'lucide-react';
+import { CalendarDays, Briefcase, DollarSign, Clock, Share2, Trash2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
 import { useFilters } from '@/hooks/useFilters';
 import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
+import { jobsService } from '@/services/jobs.service';
+import ConfirmationModal from '@/components/common/ConfirmationModal';
 
 export default function MonthlyPanelPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { getJobsByDateRange, loading } = useJobs();
   const { t, language } = useLanguage();
+  const { addToast } = useToast();
   const isEn = language === 'en';
   const [jobs, setJobs] = useState([]);
+  const [clearing, setClearing] = useState(false);
   
   // Use filter hook for state management
   const { filters, setFilter } = useFilters({
@@ -72,6 +77,28 @@ export default function MonthlyPanelPage() {
     exportService.shareJobsViaWhatsApp(filteredJobs, title);
   };
 
+  const handleClearCompleted = async () => {
+    if (!isAdmin) {
+      addToast(isEn ? 'Only administrators can clean completed jobs.' : 'Solo los administradores pueden limpiar trabajos completados.', 'error');
+      return;
+    }
+    setClearing(true);
+    const result = await jobsService.deleteCompletedJobs(filters.startDate, filters.endDate);
+    if (result.success) {
+      const removed = result.removed || 0;
+      addToast(
+        removed === 0
+          ? (isEn ? 'No completed jobs to remove.' : 'No hay trabajos completados para eliminar.')
+          : (isEn ? `Removed ${removed} completed jobs.` : `Se eliminaron ${removed} trabajos completados.`),
+        'success'
+      );
+      fetchJobs();
+    } else {
+      addToast(result.error, 'error');
+    }
+    setClearing(false);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -89,6 +116,24 @@ export default function MonthlyPanelPage() {
             <Share2 className="w-4 h-4" />
             {isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}
           </Button>
+          {isAdmin && (
+            <ConfirmationModal
+              title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
+              description={isEn ? 'Delete all completed jobs in the selected range.' : 'Eliminar todos los trabajos con estado completado en el rango seleccionado.'}
+              confirmLabel={isEn ? 'Delete' : 'Eliminar'}
+              onConfirm={handleClearCompleted}
+              trigger={
+                <Button
+                  variant="destructive"
+                  disabled={clearing || loading}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
+                </Button>
+              }
+            />
+          )}
           <ExcelExportButton 
               jobs={filteredJobs} 
               grouped={true}

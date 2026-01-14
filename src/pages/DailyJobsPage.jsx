@@ -23,6 +23,7 @@ export default function DailyJobsPage() {
   const [loading, setLoading] = useState(true);
   const [editingJob, setEditingJob] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     if (user) fetchJobs();
@@ -56,14 +57,36 @@ export default function DailyJobsPage() {
             return;
         }
 
-        const result = await jobsService.deleteJob(id);
-        if (result.success) {
-            addToast(result.message, 'success');
-            fetchJobs();
-        } else {
-            addToast(result.error, 'error');
-        }
-    };
+    const result = await jobsService.deleteJob(id);
+    if (result.success) {
+        addToast(result.message, 'success');
+        fetchJobs();
+    } else {
+        addToast(result.error, 'error');
+    }
+  };
+
+  const handleClearCompleted = async () => {
+    if (!isAdmin) {
+      addToast(isEn ? 'Only administrators can clean completed jobs.' : 'Solo los administradores pueden limpiar trabajos completados.', 'error');
+      return;
+    }
+    setClearing(true);
+    const result = await jobsService.deleteCompletedJobs(date, date);
+    if (result.success) {
+      const removed = result.removed || 0;
+      addToast(
+        removed === 0
+          ? (isEn ? 'No completed jobs to remove.' : 'No hay trabajos completados para eliminar.')
+          : (isEn ? `Removed ${removed} completed jobs.` : `Se eliminaron ${removed} trabajos completados.`),
+        'success'
+      );
+      fetchJobs();
+    } else {
+      addToast(result.error, 'error');
+    }
+    setClearing(false);
+  };
 
   const totals = jobs.reduce((acc, job) => {
     const status = (job.status || '').trim().toLowerCase();
@@ -101,8 +124,25 @@ export default function DailyJobsPage() {
                className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
                onClick={handleShare}
              >
-               <Share2 className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}</span>
+             <Share2 className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}</span>
              </Button>
+             {isAdmin && (
+               <ConfirmationModal
+                 title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
+                 description={isEn ? 'Delete all completed jobs for this day.' : 'Eliminar todos los trabajos con estado completado de esta fecha.'}
+                 confirmLabel={isEn ? 'Delete' : 'Eliminar'}
+                 onConfirm={handleClearCompleted}
+                 trigger={
+                   <Button
+                     variant="destructive"
+                     className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
+                     disabled={clearing || loading}
+                   >
+                     <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
+                   </Button>
+                 }
+               />
+             )}
              <div className="flex-1 md:flex-none">
                  <JobForm onSuccess={fetchJobs} />
              </div>

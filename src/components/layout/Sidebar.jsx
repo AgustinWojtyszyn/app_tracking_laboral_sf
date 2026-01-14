@@ -16,19 +16,17 @@ export default function Sidebar() {
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuario';
   const displayEmail = profile?.email || user?.email || '';
 
-  const navItems = [
+  const baseNavItems = [
     { label: t('nav.daily'), path: '/app/trabajos-diarios', icon: Calendar },
     { label: t('nav.monthly'), path: '/app/panel-mensual', icon: CalendarDays },
     { label: t('nav.workers'), path: '/app/trabajadores', icon: UserCog },
-    // La pestaña de grupos solo la ven administradores
-    ...(isAdmin ? [{ label: t('nav.groups'), path: '/app/grupos', icon: Users }] : []),
+    { label: t('nav.groups'), path: '/app/grupos', icon: Users, adminOnly: true },
+    { label: t('nav.admin'), path: '/app/admin', icon: ShieldAlert, adminOnly: true },
     { label: t('nav.tutorial'), path: '/app/tutorial', icon: BookOpen },
     { label: t('nav.settings'), path: '/app/configuracion', icon: Settings },
   ];
 
-  if (isAdmin) {
-    navItems.push({ label: t('nav.admin'), path: '/app/admin', icon: ShieldAlert });
-  }
+  const navItems = baseNavItems.filter((item) => (item.adminOnly ? isAdmin : true));
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 

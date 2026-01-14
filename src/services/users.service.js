@@ -50,5 +50,35 @@ export const usersService = {
 
     // If every attempt failed, return a friendly error
     return { success: false, error: lastError?.message || "Error al cargar logs." };
+  },
+
+  async updateUserRole(userId, role) {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role })
+        .eq('id', userId);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: "No se pudo actualizar el rol. Revisa tus permisos." };
+    }
+  },
+
+  async updateUserPermissions(userId, permissions = []) {
+    const cleanPermissions = Array.isArray(permissions) ? permissions : [];
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ permissions: cleanPermissions })
+        .eq('id', userId);
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: "No se pudieron guardar los permisos para este usuario." };
+    }
   }
 };
