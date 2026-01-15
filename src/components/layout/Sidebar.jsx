@@ -33,8 +33,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile Toggle */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-primary text-primary-foreground flex items-center justify-between px-5 z-50 shadow-md">
-        <span className="font-bold text-2xl">Job Tracker</span>
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-primary text-primary-foreground flex items-center justify-end px-5 z-50 shadow-md">
         <div className="flex items-center gap-2">
           <button onClick={toggleSidebar} className="inline-flex items-center justify-center rounded-md p-1.5">
             {isOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
@@ -53,13 +52,6 @@ export default function Sidebar() {
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         flex flex-col h-full lg:h-screen pt-16 lg:pt-0 shadow-xl
       `}>
-        <div className="p-7 border-b border-blue-800/60 hidden lg:flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold leading-tight">Job Tracker</h1>
-            <p className="text-base text-blue-100/80 mt-1">{t('nav.daily')}</p>
-          </div>
-        </div>
-
         <nav className="flex-1 px-6 py-7 space-y-3 text-nav-lg">
           {navItems.map((item) => {
             const Icon = item.icon;

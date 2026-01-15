@@ -4,7 +4,7 @@ const LanguageContext = createContext({ language: 'es', toggleLanguage: () => {}
 
 const translations = {
   es: {
-    brand: 'Job Tracker',
+    brand: 'Aplicación de Seguimiento Laboral',
     nav: {
       daily: 'Trabajos Diarios',
       monthly: 'Panel Mensual',
