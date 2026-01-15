@@ -9,6 +9,7 @@ import Alert from '@/components/Alert';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageToggle from '@/components/layout/LanguageToggle';
 import { ArrowLeft, UserPlus, MailCheck } from 'lucide-react';
+import BrandHeader from '@/components/layout/BrandHeader';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({ 
@@ -115,29 +116,33 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-gray-100 p-4 font-sans">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-lg"
-      >
-        <div className="flex justify-end mb-4">
-          <LanguageToggle />
-        </div>
-        <Link to="/" className="inline-flex items-center text-lg md:text-xl font-semibold text-[#1e3a8a] hover:text-blue-900 mb-12 transition-colors">
-          <ArrowLeft className="w-6 h-6 mr-3" />
-          {t('auth.backHome')}
-        </Link>
-        
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-10 md:p-12">
-          <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserPlus className="w-6 h-6 text-[#1e3a8a]" />
+    <div className="min-h-screen relative flex flex-col bg-gradient-to-br from-white via-slate-50 to-gray-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-gray-900 dark:text-slate-50 p-4 font-sans overflow-hidden">
+      <div className="relative z-10 mb-8">
+        <BrandHeader />
+      </div>
+      <div className="flex-1 flex items-center justify-center">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-lg"
+        >
+          <div className="flex justify-end mb-4">
+            <LanguageToggle />
+          </div>
+          <Link to="/" className="inline-flex items-center text-lg md:text-xl font-semibold text-[#1e3a8a] hover:text-blue-900 mb-12 transition-colors">
+            <ArrowLeft className="w-6 h-6 mr-3" />
+            {t('auth.backHome')}
+          </Link>
+          
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 p-10 md:p-12">
+            <div className="text-center mb-8">
+            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <UserPlus className="w-6 h-6 text-[#1e3a8a] dark:text-blue-200" />
             </div>
             <h1 className="text-2xl font-bold text-[#1e3a8a]">{t('auth.registerTitle')}</h1>
-            <p className="text-sm text-gray-500 mt-2">{t('auth.registerSubtitle')}</p>
-          </div>
+            <p className="text-sm text-gray-500 dark:text-slate-300 mt-2">{t('auth.registerSubtitle')}</p>
+            </div>
 
           {authError && (
             <div className="mb-6">
@@ -211,6 +216,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

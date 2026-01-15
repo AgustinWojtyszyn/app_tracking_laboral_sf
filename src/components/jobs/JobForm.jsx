@@ -129,7 +129,9 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     <Dialog open={open} onOpenChange={setOpen}>
       {!jobToEdit && (
         <DialogTrigger asChild>
-          <Button className="bg-[#1e3a8a] hover:bg-blue-900 text-white">Nuevo Trabajo</Button>
+          <Button className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white">
+            Nuevo Trabajo
+          </Button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 dark:text-slate-50 form-lg">

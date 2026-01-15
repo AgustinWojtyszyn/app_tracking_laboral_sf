@@ -171,18 +171,18 @@ export default function AdminPage() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
-        <p className="text-gray-500">Gestiona roles, permisos y seguridad en un solo lugar.</p>
+    <div className="space-y-6 text-gray-900 dark:text-white bg-slate-50 dark:bg-slate-950 p-4 md:p-6 rounded-2xl border border-gray-200 dark:border-slate-900">
+      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-4 shadow-sm text-gray-900 dark:text-white">
+        <h1 className="font-bold text-2xl md:text-3xl text-gray-900 dark:text-slate-50">Panel de Administración</h1>
+        <p className="text-base text-gray-600 dark:text-slate-300">Gestiona roles, permisos y seguridad en un solo lugar.</p>
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="users">
+        <TabsList className="grid w-full grid-cols-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200">
+          <TabsTrigger value="users" className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-slate-800 data-[state=active]:text-[#1e3a8a] dark:data-[state=active]:text-blue-100">
             <UserCog className="w-4 h-4 mr-2" /> Usuarios y roles
           </TabsTrigger>
-          <TabsTrigger value="audit">
+          <TabsTrigger value="audit" className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-slate-800 data-[state=active]:text-[#1e3a8a] dark:data-[state=active]:text-blue-100">
             <History className="w-4 h-4 mr-2" /> Auditoría
           </TabsTrigger>
         </TabsList>
@@ -190,25 +190,25 @@ export default function AdminPage() {
         {/* USERS TAB */}
         <TabsContent value="users" className="mt-4">
           <div className="grid lg:grid-cols-[2fr,1fr] gap-4 lg:gap-6">
-            <div className="bg-white rounded-lg shadow border overflow-hidden">
-              <div className="p-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden text-gray-900 dark:text-white">
+              <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-xs uppercase text-gray-500 font-semibold">Usuarios</p>
-                  <h3 className="text-lg font-semibold text-gray-900">Roles y funciones</h3>
-                  <p className="text-sm text-gray-500">Elige el rol y habilita solo las funciones necesarias.</p>
+                  <p className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold">USUARIOS</p>
+                  <h3 className="font-bold text-xl text-gray-900 dark:text-slate-50">Roles y funciones</h3>
+                  <p className="text-base text-gray-500 dark:text-slate-300">Elige el rol y habilita solo las funciones necesarias.</p>
                 </div>
                 <div className="flex flex-col md:flex-row gap-2 md:items-center">
                   <div className="relative w-full md:w-60">
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-4 h-4 text-gray-400 dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
-                      className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      className="w-full border border-gray-200 dark:border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
                       placeholder="Buscar por email o nombre"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </div>
                   <select
-                    className="border rounded-lg px-3 py-2 text-sm"
+                    className="border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
                     value={filterRole}
                     onChange={(e) => setFilterRole(e.target.value)}
                   >
@@ -219,30 +219,30 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="divide-y">
+              <div className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredUsers.map((u) => {
                   const draft = drafts[u.id] || { role: u.role, permissions: normalizePermissions(u.permissions) };
                   const isAdmin = draft.role === 'admin';
 
                   return (
-                    <div key={u.id} className="p-4 space-y-3 hover:bg-gray-50 transition">
+                    <div key={u.id} className="p-4 space-y-3 bg-white dark:bg-slate-900 transition border-b border-gray-100 dark:border-slate-800 last:border-b-0 text-gray-900 dark:text-white">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-gray-900">{u.full_name || 'Sin nombre'}</p>
-                          <div className="flex items-center text-sm text-gray-500">
+                          <p className="font-bold text-xl text-gray-900 dark:text-slate-50">{u.full_name || 'Sin nombre'}</p>
+                          <div className="flex items-center text-base text-gray-600 dark:text-slate-300">
                             <Mail className="w-3 h-3 mr-1" /> {u.email}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-sm text-gray-600 dark:text-slate-300">
                           Registrado: {formatDate(u.created_at)}
                         </div>
                       </div>
 
                       <div className="grid md:grid-cols-2 gap-3">
                         <div>
-                          <label className="text-xs uppercase text-gray-500 font-semibold mb-1 block">Rol</label>
+                          <label className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold mb-1 block">ROL</label>
                           <select
-                            className="w-full border rounded-lg px-3 py-2"
+                            className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                             value={draft.role}
                             onChange={(e) => handleRoleChange(u.id, e.target.value)}
                           >
@@ -253,7 +253,7 @@ export default function AdminPage() {
                         </div>
 
                         <div>
-                          <label className="text-xs uppercase text-gray-500 font-semibold mb-2 block">
+                          <label className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold mb-2 block">
                             Funciones activas
                           </label>
                           <div className="flex flex-wrap gap-2">
@@ -264,10 +264,10 @@ export default function AdminPage() {
                                   key={feature.key}
                                   type="button"
                                   onClick={() => togglePermission(u.id, feature.key)}
-                                  className={`px-3 py-1 rounded-full text-xs border transition ${
+                                  className={`px-3 py-1 rounded-full text-xs border transition focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 ${
                                     active
-                                      ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                      : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                                      ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-white dark:border-blue-800'
+                                      : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-white dark:border-slate-700'
                                   }`}
                                   disabled={isAdmin}
                                 >
@@ -277,7 +277,7 @@ export default function AdminPage() {
                             })}
                           </div>
                           {isAdmin && (
-                            <p className="text-[11px] text-blue-700 mt-1">Los administradores tienen todas las funciones.</p>
+                            <p className="text-[11px] text-blue-800 dark:text-blue-200 mt-1">Los administradores tienen todas las funciones.</p>
                           )}
                         </div>
                       </div>
@@ -300,7 +300,7 @@ export default function AdminPage() {
                           Deshacer
                         </Button>
                         <Button
-                          className="bg-blue-900 text-white"
+                          className="bg-blue-900 text-white hover:bg-blue-900 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
                           onClick={() => saveUserChanges(u.id)}
                           disabled={savingUserId === u.id}
                         >
@@ -312,7 +312,7 @@ export default function AdminPage() {
                 })}
 
                 {filteredUsers.length === 0 && (
-                  <div className="p-6 text-center text-gray-500">
+                  <div className="p-6 text-center text-base text-gray-600 dark:text-slate-200">
                     No encontramos usuarios con esos filtros.
                   </div>
                 )}
@@ -320,20 +320,20 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="bg-white rounded-lg border shadow p-4 space-y-3">
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 space-y-3 text-gray-900 dark:text-white">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-blue-900" />
+                  <ShieldCheck className="w-5 h-5 text-blue-900 dark:text-blue-200" />
                   <div>
-                    <p className="text-xs uppercase text-gray-500 font-semibold">Seguridad</p>
-                    <h4 className="font-semibold text-gray-900">Transferir rol de administrador</h4>
+                    <p className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold">SEGURIDAD</p>
+                    <h4 className="font-bold text-xl text-gray-900 dark:text-slate-50">Transferir rol de administrador</h4>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-base text-gray-500 dark:text-slate-300">
                   Mueve el rol de admin a otra persona. La acción queda registrada en la auditoría.
                 </p>
                 <div className="space-y-3">
                   <select
-                    className="w-full border rounded-lg px-3 py-2"
+                    className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
                     value={selectedUser}
                     onChange={(e) => setSelectedUser(e.target.value)}
                   >
@@ -350,7 +350,10 @@ export default function AdminPage() {
                     description="Este usuario obtendrá control completo del panel."
                     onConfirm={handleTransferAdmin}
                     trigger={
-                      <Button disabled={!selectedUser} className="w-full bg-blue-900 text-white">
+                      <Button
+                        disabled={!selectedUser}
+                        className="w-full bg-blue-900 text-white hover:bg-blue-900 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
+                      >
                         Transferir rol admin
                       </Button>
                     }
@@ -358,12 +361,12 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border shadow p-4 space-y-3">
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 space-y-3 text-gray-900 dark:text-white">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-500" />
                   <div>
-                    <p className="text-xs uppercase text-gray-500 font-semibold">Resumen</p>
-                    <h4 className="font-semibold text-gray-900">Estado rápido</h4>
+                    <p className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold">RESUMEN</p>
+                    <h4 className="font-bold text-xl text-gray-900 dark:text-slate-50">Estado rápido</h4>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -382,10 +385,10 @@ export default function AdminPage() {
 
         {/* AUDIT TAB */}
         <TabsContent value="audit" className="mt-4">
-          <div className="bg-white rounded-lg shadow overflow-hidden border">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-white">
             <div className="max-h-[600px] overflow-y-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-700 sticky top-0">
+                <thead className="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-100 sticky top-0">
                   <tr>
                     <th className="px-6 py-3">Fecha</th>
                     <th className="px-6 py-3">Usuario</th>
@@ -394,14 +397,14 @@ export default function AdminPage() {
                     <th className="px-6 py-3 hidden md:table-cell">Detalle</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {auditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
-                      <td className="px-6 py-4">{log.users?.email || 'Sistema'}</td>
-                      <td className="px-6 py-4 font-medium uppercase text-xs">{log.action}</td>
-                      <td className="px-6 py-4 text-xs hidden md:table-cell">{log.entity_type}</td>
-                      <td className="px-6 py-4 text-xs font-mono text-gray-500 truncate max-w-xs hidden md:table-cell">
+                    <tr key={log.id} className="bg-white dark:bg-slate-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-gray-800 dark:text-slate-50">{new Date(log.timestamp).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-gray-800 dark:text-slate-50">{log.user_email || 'Sistema'}</td>
+                      <td className="px-6 py-4 font-semibold uppercase text-xs text-gray-700 dark:text-slate-100">{log.action}</td>
+                      <td className="px-6 py-4 text-xs hidden md:table-cell text-gray-700 dark:text-slate-100">{log.entity_type}</td>
+                      <td className="px-6 py-4 text-xs font-mono text-gray-600 dark:text-slate-200 truncate max-w-xs hidden md:table-cell">
                         {JSON.stringify(log.new_value || log.old_value)}
                       </td>
                     </tr>
@@ -418,9 +421,9 @@ export default function AdminPage() {
 
 function Stat({ label, value }) {
   return (
-    <div className="p-3 rounded-lg border bg-gray-50">
-      <p className="text-xs uppercase text-gray-500 font-semibold">{label}</p>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
+    <div className="p-3 rounded-lg border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-white">
+      <p className="text-xs uppercase text-gray-600 dark:text-slate-100 font-semibold">{label}</p>
+      <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
     </div>
   );
 }

@@ -105,6 +105,22 @@ export const jobsService = {
     }
   },
 
+  async deletePendingJobs(startDate, endDate) {
+    try {
+      const { error, count } = await supabase
+        .from('jobs')
+        .delete({ count: 'exact' })
+        .eq('status', 'pending')
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) throw error;
+      return { success: true, message: "Trabajos pendientes eliminados", removed: count || 0 };
+    } catch (error) {
+      return { success: false, error: "No se pudieron limpiar los trabajos pendientes." };
+    }
+  },
+
   async getJobStats(startDate, endDate) {
     try {
       const { data, error } = await supabase.rpc('get_job_stats', { start_date: startDate, end_date: endDate });

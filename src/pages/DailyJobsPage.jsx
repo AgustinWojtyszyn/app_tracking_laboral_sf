@@ -5,7 +5,7 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Download, Trash2, Edit2, Calendar, MapPin, DollarSign, User, Share2, Eye } from 'lucide-react';
+import { Trash2, Edit2, Calendar, MapPin, DollarSign, User, Eye, MessageCircle, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -24,6 +24,8 @@ export default function DailyJobsPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
+  const hasJobs = jobs.length > 0;
+  const clearDisabled = clearing || loading;
 
   useEffect(() => {
     if (user) fetchJobs();
@@ -99,53 +101,54 @@ export default function DailyJobsPage() {
 
   return (
     <div className="space-y-8">
-    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-5 md:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
-        <div className="flex items-center gap-4 w-full md:w-auto">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-50 hidden md:block">
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 p-5 md:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
+        <div className="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
+            <h1 className="text-3xl md:text-3xl font-bold text-gray-900 dark:text-slate-50 hidden md:block">
               {isEn ? 'Daily Jobs' : 'Trabajos Diarios'}
             </h1>
             <input 
                 type="date" 
-                className="flex-1 md:flex-none py-3 px-3 border border-gray-300 dark:border-slate-700 rounded-lg focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 text-base md:text-lg"
+                className="w-full md:w-48 py-2.5 px-3 border border-gray-300 dark:border-slate-700 rounded-lg focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 text-sm md:text-base"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
             />
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-     <Button
-       variant="outline"
-       className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
-       onClick={() => exportService.exportDayToExcel(date, jobs)}
-     >
-            <Download className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Export to Excel' : 'Exportar a Excel'}</span>
-             </Button>
-             <Button
-               variant="outline"
-               className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
-               onClick={handleShare}
-             >
-             <Share2 className="w-6 h-6 mr-2" /> <span className="md:inline hidden">{isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}</span>
-             </Button>
-             {isAdmin && (
-               <ConfirmationModal
-                 title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
-                 description={isEn ? 'Delete all completed jobs for this day.' : 'Eliminar todos los trabajos con estado completado de esta fecha.'}
-                 confirmLabel={isEn ? 'Delete' : 'Eliminar'}
-                 onConfirm={handleClearCompleted}
-                 trigger={
-                   <Button
-                     variant="destructive"
-                     className="flex-1 md:flex-none h-11 md:h-12 text-base md:text-lg"
-                     disabled={clearing || loading}
-                   >
-                     <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
-                   </Button>
-                 }
-               />
-             )}
-             <div className="flex-1 md:flex-none">
-                 <JobForm onSuccess={fetchJobs} />
-             </div>
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch justify-end gap-3 w-full">
+          <Button
+            variant="default"
+            className="w-full sm:w-auto min-w-[150px] sm:min-w-[170px] h-12 md:h-14 text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
+            onClick={() => exportService.exportDayToExcel(date, jobs)}
+            disabled={!hasJobs || loading}
+          >
+            <FileSpreadsheet className="w-5 h-5" /> {isEn ? 'Export to Excel' : 'Exportar a Excel'}
+          </Button>
+          <Button
+            variant="default"
+            className="w-full sm:w-auto min-w-[150px] sm:min-w-[170px] h-12 md:h-14 text-base md:text-lg shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2"
+            onClick={handleShare}
+            disabled={!hasJobs || loading}
+          >
+            <MessageCircle className="w-5 h-5" /> {isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}
+          </Button>
+          <ConfirmationModal
+            title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
+            description={isEn ? 'Delete all completed jobs for this day.' : 'Eliminar todos los trabajos con estado completado de esta fecha.'}
+            confirmLabel={isEn ? 'Delete' : 'Eliminar'}
+            onConfirm={handleClearCompleted}
+            trigger={
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full sm:w-auto min-w-[120px] sm:min-w-[140px] h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                disabled={clearDisabled}
+              >
+                <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
+              </Button>
+            }
+          />
+          <div className="w-full sm:w-auto min-w-[120px] sm:min-w-[140px]">
+            <JobForm onSuccess={fetchJobs} />
+          </div>
         </div>
       </div>
 

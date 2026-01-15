@@ -26,30 +26,41 @@ export const usersService = {
   },
 
   async getAuditLogs(filters = {}) {
-    const selectAttempts = [
-      '*, users:auth.users!audit_logs_user_id_fkey(email)', // FK pointing to auth schema
-      '*, users:users!audit_logs_user_id_fkey(email)',       // FK pointing to public.users
-      '*'                                                   // fallback without join
-    ];
+    // Consulta simple sin joins para evitar errores 400 en PostgREST
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('id, action, entity_type, new_value, old_value, timestamp, user_id')
+      .order('timestamp', { ascending: false })
+      .limit(50);
 
-    let lastError = null;
-
-    for (const select of selectAttempts) {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select(select)
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      if (!error) {
-        return { success: true, data };
-      }
-
-      lastError = error;
+    if (error) {
+      return { success: false, error: error.message || "Error al cargar logs." };
     }
 
-    // If every attempt failed, return a friendly error
-    return { success: false, error: lastError?.message || "Error al cargar logs." };
+    // Enriquecer con email de usuario si está disponible
+    const userIds = Array.from(new Set((data || []).map((log) => log.user_id).filter(Boolean)));
+    let userEmails = {};
+
+    if (userIds.length) {
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, email')
+        .in('id', userIds);
+
+      if (usersData) {
+        userEmails = usersData.reduce((acc, u) => {
+          acc[u.id] = u.email;
+          return acc;
+        }, {});
+      }
+    }
+
+    const enriched = (data || []).map((log) => ({
+      ...log,
+      user_email: userEmails[log.user_id] || null
+    }));
+
+    return { success: true, data: enriched };
   },
 
   async updateUserRole(userId, role) {

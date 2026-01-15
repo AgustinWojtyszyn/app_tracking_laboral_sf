@@ -8,6 +8,7 @@ import ThemeToggle from '@/components/layout/ThemeToggle';
 import LanguageToggle from '@/components/layout/LanguageToggle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import heroDashboard from '../assets/hero-dashboard.svg';
+import BrandHeader from '@/components/layout/BrandHeader';
 
 export default function LandingPage() {
   const { language } = useLanguage();
@@ -68,6 +69,9 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative flex-1 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <BrandHeader />
+        </div>
         {/* Background gradient + glow */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950" />
         <div className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-blue-400/30 blur-[140px] opacity-70 dark:bg-blue-600/40" />
@@ -270,32 +274,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-background border-t border-slate-200/80 dark:border-slate-800/80 mt-auto py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-5">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-slate-900 text-slate-50 flex items-center justify-center dark:bg-slate-900">
-                <Briefcase className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-              </div>
-              <span className="text-base font-medium text-slate-900 dark:text-slate-100">Job Tracker</span>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-6 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              <Link to="/login" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
-                {isEn ? 'Sign in' : 'Iniciar sesión'}
-              </Link>
-              <Link to="/register" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
-                {isEn ? 'Register' : 'Registrarse'}
-              </Link>
-            </div>
-
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-500">
-              &copy; {new Date().getFullYear()} Job Tracker. {isEn ? 'All rights reserved.' : 'Todos los derechos reservados.'}
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

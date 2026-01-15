@@ -10,6 +10,7 @@ import Alert from '@/components/Alert';
 import LanguageToggle from '@/components/layout/LanguageToggle';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import { ArrowLeft, Lock } from 'lucide-react';
+import BrandHeader from '@/components/layout/BrandHeader';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -93,21 +94,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-slate-50 to-gray-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-gray-900 dark:text-slate-50 p-4 font-sans transition-colors duration-300">
+    <div className="min-h-screen relative flex flex-col bg-gradient-to-br from-white via-slate-50 to-gray-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-gray-900 dark:text-slate-50 p-4 font-sans transition-colors duration-300 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 right-10 h-64 w-64 bg-blue-300/25 dark:bg-blue-500/25 blur-[120px] rounded-full" />
         <div className="absolute bottom-10 left-6 h-56 w-56 bg-indigo-300/20 dark:bg-indigo-500/25 blur-[120px] rounded-full" />
       </div>
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-lg relative"
-      >
-        <div className="flex justify-end items-center gap-2 mb-4">
-          <ThemeToggle className="shadow-md bg-background/80 backdrop-blur-md border border-border/70" />
-          <LanguageToggle />
-        </div>
+      <div className="relative z-10 mb-8">
+        <BrandHeader />
+      </div>
+      <div className="flex-1 flex items-center justify-center relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-lg relative"
+        >
+          <div className="flex justify-end items-center gap-2 mb-4">
+            <ThemeToggle className="shadow-md bg-background/80 backdrop-blur-md border border-border/70" />
+            <LanguageToggle />
+          </div>
         <Link to="/" className="inline-flex items-center text-lg md:text-xl font-semibold text-[#1e3a8a] hover:text-blue-900 mb-12 transition-colors">
           <ArrowLeft className="w-6 h-6 mr-3" />
           {t('auth.backHome')}
@@ -210,6 +215,7 @@ export default function LoginPage() {
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

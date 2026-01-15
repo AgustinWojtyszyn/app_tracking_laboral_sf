@@ -1,16 +1,19 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2 } from 'lucide-react';
+import { Loader2, FileSpreadsheet } from 'lucide-react';
 import { exportService } from '@/services/export.service';
 
 export default function ExcelExportButton({ 
   jobs, 
   filename, 
   variant = "outline",
+  label = "Exportar a Excel",
+  icon: Icon = FileSpreadsheet,
   grouped = false, // If true, uses range export logic
   startDate,
-  endDate
+  endDate,
+  className = ""
 }) {
   const [exporting, setExporting] = useState(false);
 
@@ -35,10 +38,10 @@ export default function ExcelExportButton({
       variant={variant} 
       onClick={handleExport} 
       disabled={!jobs || jobs.length === 0 || exporting}
-      className="gap-2"
+      className={`gap-2 ${className}`}
     >
-      {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-      Exportar a Excel
+      {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon className="w-5 h-5" />}
+      {label}
     </Button>
   );
 }
