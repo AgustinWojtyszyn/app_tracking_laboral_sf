@@ -8,6 +8,8 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, UserCog, History, Mail, Search, Sparkles } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const FEATURE_OPTIONS = [
   { key: 'jobs', label: 'Trabajos y reportes' },
@@ -21,6 +23,66 @@ const ROLE_OPTIONS = [
   { value: 'user', label: 'Usuario' }
 ];
 
+const ACTION_META = {
+  group_created: {
+    label: { es: 'Grupo creado', en: 'Group created' },
+    tone: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100'
+  },
+  group_member_added: {
+    label: { es: 'Miembro agregado', en: 'Member added' },
+    tone: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-100'
+  },
+  group_member_joined: {
+    label: { es: 'Usuario se unió', en: 'User joined' },
+    tone: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-100'
+  },
+  transfer_admin: {
+    label: { es: 'Transferencia de admin', en: 'Admin transfer' },
+    tone: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-100'
+  },
+  user_role_updated: {
+    label: { es: 'Rol actualizado', en: 'Role updated' },
+    tone: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100'
+  },
+  user_permissions_updated: {
+    label: { es: 'Permisos actualizados', en: 'Permissions updated' },
+    tone: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-100'
+  }
+};
+
+const ENTITY_LABELS = {
+  group: 'Grupo',
+  group_member: 'Miembro de grupo',
+  users: 'Usuario',
+  user: 'Usuario',
+  job: 'Trabajo',
+  billing: 'Facturación'
+};
+
+const ROLE_LABELS = {
+  admin: { es: 'Administrador', en: 'Admin' },
+  user: { es: 'Usuario', en: 'User' }
+};
+
+const PERMISSION_LABELS = {
+  jobs: { es: 'Trabajos y reportes', en: 'Jobs & reports' },
+  groups: { es: 'Grupos y equipos', en: 'Groups & teams' },
+  billing: { es: 'Costos y facturación', en: 'Billing' },
+  audit: { es: 'Auditoría', en: 'Audit' }
+};
+
+const FIELD_LABELS = {
+  role: { es: 'Rol', en: 'Role' },
+  permissions: { es: 'Permisos', en: 'Permissions' },
+  group_name: { es: 'Grupo', en: 'Group' },
+  member_name: { es: 'Miembro', en: 'Member' },
+  added_user_name: { es: 'Miembro agregado', en: 'Added member' },
+  new_admin_name: { es: 'Nuevo admin', en: 'New admin' },
+  member_email: { es: 'Email', en: 'Email' },
+  user_email: { es: 'Email', en: 'Email' },
+  new_admin_email: { es: 'Email', en: 'Email' }
+};
+
 const normalizePermissions = (value) => {
   if (Array.isArray(value)) return value;
   if (typeof value === 'string') {
@@ -29,8 +91,160 @@ const normalizePermissions = (value) => {
   return [];
 };
 
+const parseAuditValue = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+};
+
+const formatEntity = (entity) => {
+  if (!entity) return 'Otro';
+  return ENTITY_LABELS[entity] || entity;
+};
+
+const normalizeActionKey = (action = '') => action.toLowerCase().replace(/\s+/g, '_');
+
+const formatAuditDetail = (log, language = 'es') => {
+  const rawNew = log.new_value_resolved || log.new_value;
+  const rawOld = log.old_value_resolved || log.old_value;
+  const newValue = parseAuditValue(rawNew);
+  const oldValue = parseAuditValue(rawOld);
+  const lang = language === 'en' ? 'en' : 'es';
+  const targetName = newValue?.user_name || newValue?.user_email || newValue?.user_id || 'Usuario';
+
+  if (log.action && normalizeActionKey(log.action) === 'transfer_admin') {
+    const name = newValue?.new_admin_name || newValue?.new_admin_email || 'Nuevo administrador';
+    return lang === 'en'
+      ? `Admin role transferred to ${name}.`
+      : `Rol de admin transferido a ${name}.`;
+  }
+
+  if (log.action && normalizeActionKey(log.action) === 'group_created') {
+    const groupName = newValue?.group_name || newValue?.name || 'Nuevo grupo';
+    return lang === 'en'
+      ? `Group "${groupName}" was created.`
+      : `Se creó el grupo "${groupName}".`;
+  }
+
+  if (log.action && normalizeActionKey(log.action) === 'group_member_added') {
+    const memberName = newValue?.added_user_name || newValue?.added_user_email || 'Un usuario';
+    const groupName = newValue?.group_name || `#${newValue?.group_id || ''}`;
+    return lang === 'en'
+      ? `${memberName} was added to ${groupName}.`
+      : `${memberName} agregado al grupo ${groupName}.`;
+  }
+
+  if (log.action && normalizeActionKey(log.action) === 'group_member_joined') {
+    const memberName = newValue?.member_name || newValue?.member_email || 'Un usuario';
+    const groupName = newValue?.group_name || `#${newValue?.group_id || ''}`;
+    return lang === 'en'
+      ? `${memberName} joined ${groupName}.`
+      : `${memberName} se unió al grupo ${groupName}.`;
+  }
+
+  if (log.action && normalizeActionKey(log.action) === 'user_role_updated') {
+    const prevRaw = oldValue?.role || '';
+    const nextRaw = newValue?.role || prevRaw || '';
+    const prevRole = ROLE_LABELS[prevRaw]?.[lang] || prevRaw || (lang === 'en' ? 'User' : 'Usuario');
+    const nextRole = ROLE_LABELS[nextRaw]?.[lang] || nextRaw || (lang === 'en' ? 'User' : 'Usuario');
+
+    if (prevRaw && prevRaw !== nextRaw) {
+      return lang === 'en'
+        ? `Role changed from ${prevRole} to ${nextRole} for ${targetName}.`
+        : `Rol cambiado de ${prevRole} a ${nextRole} para ${targetName}.`;
+    }
+
+    return lang === 'en'
+      ? `Role updated to ${nextRole} for ${targetName}.`
+      : `Rol actualizado a ${nextRole} para ${targetName}.`;
+  }
+
+  if (log.action && normalizeActionKey(log.action) === 'user_permissions_updated') {
+    const perms = Array.isArray(newValue?.permissions)
+      ? newValue.permissions.map((p) => PERMISSION_LABELS[p]?.[lang] || p).join(', ')
+      : '';
+    const previousPerms = Array.isArray(oldValue?.permissions)
+      ? oldValue.permissions.map((p) => PERMISSION_LABELS[p]?.[lang] || p).join(', ')
+      : '';
+
+    if (perms && previousPerms) {
+      return lang === 'en'
+        ? `Permissions updated for ${targetName}: ${previousPerms} → ${perms}.`
+        : `Permisos actualizados para ${targetName}: ${previousPerms} → ${perms}.`;
+    }
+
+    return lang === 'en'
+      ? `Permissions updated for ${targetName}${perms ? `: ${perms}` : ''}.`
+      : `Permisos actualizados para ${targetName}${perms ? `: ${perms}` : ''}.`;
+  }
+
+  if (newValue && oldValue && typeof newValue === 'object' && typeof oldValue === 'object') {
+    const diffs = Object.keys(newValue).slice(0, 3).map((key) => {
+      if (key === 'user_id' || key.endsWith('_id')) return null;
+      const before = oldValue[key];
+      const after = newValue[key];
+      if (before === after) return null;
+      if (key === 'permissions' && Array.isArray(after)) {
+        const mapped = after.map((p) => PERMISSION_LABELS[p]?.[lang] || p);
+        return lang === 'en'
+          ? `Permissions: ${mapped.join(', ')}`
+          : `Permisos: ${mapped.join(', ')}`;
+      }
+      const label = FIELD_LABELS[key]?.[lang] || key;
+      return `${label}: ${before ?? '—'} → ${after ?? '—'}`;
+    }).filter(Boolean);
+    if (diffs.length) return diffs.join(' • ');
+  }
+
+  if (newValue && typeof newValue === 'object') {
+    const pairs = Object.entries(newValue)
+      .filter(([key]) => !key.endsWith('_id'))
+      .slice(0, 4)
+      .map(([key, val]) => {
+        const label = FIELD_LABELS[key]?.[lang] || key;
+        if (Array.isArray(val)) {
+          const mapped = val.map((p) => PERMISSION_LABELS[p]?.[lang] || p);
+          return `${label}: ${mapped.join(', ')}`;
+        }
+        if (typeof val === 'object') {
+          return `${label}: ${JSON.stringify(val)}`;
+        }
+        return `${label}: ${String(val)}`;
+      });
+    if (pairs.length) return pairs.join(' • ');
+  }
+
+  if (typeof newValue === 'string') return newValue;
+  return lang === 'en' ? 'Action recorded' : 'Acción registrada';
+};
+
+const getActionMeta = (action, language = 'es') => {
+  const key = normalizeActionKey(action);
+  const meta = ACTION_META[key];
+
+  if (meta) {
+    return {
+      label: meta.label?.[language] || meta.label?.es || action?.replace(/_/g, ' ') || 'Acción',
+      tone: meta.tone
+    };
+  }
+
+  return {
+    label: action?.replace(/_/g, ' ') || 'Acción',
+    tone: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-100'
+  };
+};
+
 export default function AdminPage() {
   const { addToast } = useToast();
+  const { language } = useLanguage();
+  const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [drafts, setDrafts] = useState({});
@@ -39,6 +253,7 @@ export default function AdminPage() {
   const [savingUserId, setSavingUserId] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [clearingAudit, setClearingAudit] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -92,6 +307,7 @@ export default function AdminPage() {
       if (result.success) {
         addToast("Rol de administrador transferido correctamente.", 'success');
         await fetchUsers();
+        await fetchAuditLogs();
       } else {
         addToast(result.error, 'error');
       }
@@ -99,6 +315,23 @@ export default function AdminPage() {
       addToast(error.message, 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearAudit = async () => {
+    setClearingAudit(true);
+    const previousLogs = auditLogs;
+    setAuditLogs([]); // feedback visual inmediato
+
+    const result = await usersService.clearAuditLogs();
+    setClearingAudit(false);
+
+    if (result.success) {
+      await fetchAuditLogs();
+      addToast(result.message, 'success');
+    } else {
+      setAuditLogs(previousLogs); // revertir si falla
+      addToast(result.error || 'No se pudo limpiar la auditoría', 'error');
     }
   };
 
@@ -134,6 +367,7 @@ export default function AdminPage() {
   const saveUserChanges = async (userId) => {
     const draft = drafts[userId];
     if (!draft) return;
+    if (userId === user?.id) return;
 
     setSavingUserId(userId);
 
@@ -146,6 +380,7 @@ export default function AdminPage() {
 
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: draft.role, permissions: draft.permissions } : u));
       addToast("Cambios guardados", 'success');
+      await fetchAuditLogs();
     } catch (error) {
       addToast(error.message || 'No se pudieron guardar los cambios', 'error');
     } finally {
@@ -178,9 +413,6 @@ export default function AdminPage() {
             <h1 className="font-bold text-2xl md:text-3xl text-gray-900 dark:text-slate-50">Panel de Administración</h1>
             <p className="text-base text-gray-600 dark:text-slate-300">Gestiona roles, permisos y seguridad en un solo lugar.</p>
           </div>
-          <span className="text-2xl md:text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-rose-500 to-lime-400 drop-shadow-[0_6px_14px_rgba(234,88,12,0.25)] italic">
-            Servifood Catering
-          </span>
         </div>
       </div>
 
@@ -230,6 +462,7 @@ export default function AdminPage() {
                 {filteredUsers.map((u) => {
                   const draft = drafts[u.id] || { role: u.role, permissions: normalizePermissions(u.permissions) };
                   const isAdmin = draft.role === 'admin';
+                  const isCurrentUser = u.id === user?.id;
 
                   return (
                     <div key={u.id} className="p-4 space-y-3 bg-white dark:bg-slate-900 transition border-b border-gray-100 dark:border-slate-800 last:border-b-0 text-gray-900 dark:text-white">
@@ -248,72 +481,100 @@ export default function AdminPage() {
                       <div className="grid md:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold mb-1 block">ROL</label>
-                          <select
-                            className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
-                            value={draft.role}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                          >
-                            {ROLE_OPTIONS.map((r) => (
-                              <option key={r.value} value={r.value}>{r.label}</option>
-                            ))}
-                          </select>
+                          {isCurrentUser ? (
+                            <div className="px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm font-semibold">
+                              {ROLE_OPTIONS.find((r) => r.value === draft.role)?.label || draft.role}
+                            </div>
+                          ) : (
+                            <select
+                              className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
+                              value={draft.role}
+                              onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                            >
+                              {ROLE_OPTIONS.map((r) => (
+                                <option key={r.value} value={r.value}>{r.label}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
 
                         <div>
                           <label className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold mb-2 block">
                             Funciones activas
                           </label>
-                          <div className="flex flex-wrap gap-2">
-                            {FEATURE_OPTIONS.map((feature) => {
-                              const active = draft.permissions?.includes(feature.key);
-                              return (
-                                <button
-                                  key={feature.key}
-                                  type="button"
-                                  onClick={() => togglePermission(u.id, feature.key)}
-                                  className={`px-3 py-1 rounded-full text-xs border transition focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 ${
-                                    active
-                                      ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-white dark:border-blue-800'
-                                      : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-white dark:border-slate-700'
-                                  }`}
-                                  disabled={isAdmin}
-                                >
-                                  {feature.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          {isAdmin && (
+                          {isCurrentUser ? (
+                            <div className="flex flex-wrap gap-2">
+                              {FEATURE_OPTIONS.map((feature) => {
+                                const active = draft.role === 'admin' || draft.permissions?.includes(feature.key);
+                                return (
+                                  <span
+                                    key={feature.key}
+                                    className={`px-3 py-1 rounded-full text-xs border ${
+                                      active
+                                        ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-white dark:border-blue-800'
+                                        : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-white dark:border-slate-700'
+                                    }`}
+                                  >
+                                    {feature.label}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {FEATURE_OPTIONS.map((feature) => {
+                                const active = draft.permissions?.includes(feature.key);
+                                return (
+                                  <button
+                                    key={feature.key}
+                                    type="button"
+                                    onClick={() => togglePermission(u.id, feature.key)}
+                                    className={`px-3 py-1 rounded-full text-xs border transition focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 ${
+                                      active
+                                        ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-white dark:border-blue-800'
+                                        : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-white dark:border-slate-700'
+                                    }`}
+                                    disabled={isAdmin}
+                                  >
+                                    {feature.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {isAdmin && !isCurrentUser && (
                             <p className="text-[11px] text-blue-800 dark:text-blue-200 mt-1">Los administradores tienen todas las funciones.</p>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          disabled={savingUserId === u.id}
-                          onClick={() => {
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [u.id]: {
-                                ...prev[u.id],
-                                role: u.role,
-                                permissions: normalizePermissions(u.permissions)
-                              }
-                            }));
-                          }}
-                        >
-                          Deshacer
-                        </Button>
-                        <Button
-                          className="bg-blue-900 text-white hover:bg-blue-900 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
-                          onClick={() => saveUserChanges(u.id)}
-                          disabled={savingUserId === u.id}
-                        >
-                          {savingUserId === u.id ? 'Guardando...' : 'Guardar cambios'}
-                        </Button>
-                      </div>
+                      {!isCurrentUser && (
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            disabled={savingUserId === u.id}
+                            onClick={() => {
+                              setDrafts((prev) => ({
+                                ...prev,
+                                [u.id]: {
+                                  ...prev[u.id],
+                                  role: u.role,
+                                  permissions: normalizePermissions(u.permissions)
+                                }
+                              }));
+                            }}
+                          >
+                            Deshacer
+                          </Button>
+                          <Button
+                            className="bg-blue-900 text-white hover:bg-blue-900 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
+                            onClick={() => saveUserChanges(u.id)}
+                            disabled={savingUserId === u.id}
+                          >
+                            {savingUserId === u.id ? 'Guardando...' : 'Guardar cambios'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -327,47 +588,6 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 space-y-3 text-gray-900 dark:text-white">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-blue-900 dark:text-blue-200" />
-                  <div>
-                    <p className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold">SEGURIDAD</p>
-                    <h4 className="font-bold text-xl text-gray-900 dark:text-slate-50">Transferir rol de administrador</h4>
-                  </div>
-                </div>
-                <p className="text-base text-gray-500 dark:text-slate-300">
-                  Mueve el rol de admin a otra persona. La acción queda registrada en la auditoría.
-                </p>
-                <div className="space-y-3">
-                  <select
-                    className="w-full border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                  >
-                    <option value="">Selecciona un usuario</option>
-                    {users.filter((u) => u.role !== 'admin').map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.email} ({u.full_name || 'Sin nombre'})
-                      </option>
-                    ))}
-                  </select>
-
-                  <ConfirmationModal
-                    title="¿Confirmar transferencia?"
-                    description="Este usuario obtendrá control completo del panel."
-                    onConfirm={handleTransferAdmin}
-                    trigger={
-                      <Button
-                        disabled={!selectedUser}
-                        className="w-full bg-blue-900 text-white hover:bg-blue-900 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
-                      >
-                        Transferir rol admin
-                      </Button>
-                    }
-                  />
-                </div>
-              </div>
-
               <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm p-4 space-y-3 text-gray-900 dark:text-white">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-500" />
@@ -393,6 +613,27 @@ export default function AdminPage() {
         {/* AUDIT TAB */}
         <TabsContent value="audit" className="mt-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-white">
+            <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold">Auditoría</p>
+                <h3 className="font-bold text-xl text-gray-900 dark:text-slate-50">Actividad reciente</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-300">Mostrando las últimas 50 acciones con nombres de usuario.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-gray-200 dark:border-slate-700">
+                  {auditLogs.length} registros
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearAudit}
+                  disabled={clearingAudit}
+                  className="text-sm"
+                >
+                  {clearingAudit ? 'Limpiando...' : 'Limpiar historial'}
+                </Button>
+              </div>
+            </div>
             <div className="max-h-[600px] overflow-y-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-100 sticky top-0">
@@ -400,22 +641,49 @@ export default function AdminPage() {
                     <th className="px-6 py-3">Fecha</th>
                     <th className="px-6 py-3">Usuario</th>
                     <th className="px-6 py-3">Acción</th>
-                    <th className="px-6 py-3 hidden md:table-cell">Entidad</th>
-                    <th className="px-6 py-3 hidden md:table-cell">Detalle</th>
+                    <th className="px-6 py-3">Detalle</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="bg-white dark:bg-slate-900">
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-800 dark:text-slate-50">{new Date(log.timestamp).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-gray-800 dark:text-slate-50">{log.user_email || 'Sistema'}</td>
-                      <td className="px-6 py-4 font-semibold uppercase text-xs text-gray-700 dark:text-slate-100">{log.action}</td>
-                      <td className="px-6 py-4 text-xs hidden md:table-cell text-gray-700 dark:text-slate-100">{log.entity_type}</td>
-                      <td className="px-6 py-4 text-xs font-mono text-gray-600 dark:text-slate-200 truncate max-w-xs hidden md:table-cell">
-                        {JSON.stringify(log.new_value || log.old_value)}
+                  {auditLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-6 text-center text-gray-600 dark:text-slate-200">
+                        Aún no hay registros de auditoría.
                       </td>
                     </tr>
-                  ))}
+                  )}
+                  {auditLogs.map((log) => {
+                    const actionMeta = getActionMeta(log.action, language);
+                    const actorName = log.user_full_name || log.user_email || 'Sistema';
+                    const actorEmail = log.user_email && log.user_full_name ? log.user_email : null;
+                    const detail = formatAuditDetail(log, language);
+
+                    return (
+                      <tr key={log.id} className="bg-white dark:bg-slate-900">
+                        <td className="px-6 py-4 align-top">
+                          <div className="font-medium text-gray-900 dark:text-slate-50">{new Date(log.timestamp).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500 dark:text-slate-300">{formatEntity(log.entity_type)}</div>
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <div className="font-medium text-gray-900 dark:text-slate-50">{actorName}</div>
+                          {actorEmail && <div className="text-xs text-gray-500 dark:text-slate-300">{actorEmail}</div>}
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${actionMeta.tone}`}>
+                            {actionMeta.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 align-top text-gray-800 dark:text-slate-50">
+                          <div className="text-sm">{detail}</div>
+                          {log.entity_type && (
+                            <div className="text-xs text-gray-500 dark:text-slate-300 mt-1">
+                              {formatEntity(log.entity_type)}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

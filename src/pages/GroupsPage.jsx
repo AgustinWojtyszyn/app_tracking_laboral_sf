@@ -20,7 +20,6 @@ export default function GroupsPage() {
   
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedGroup, setSelectedGroup] = useState(null);
     const [joiningGroupId, setJoiningGroupId] = useState(null);
 
   useEffect(() => {
@@ -55,6 +54,7 @@ export default function GroupsPage() {
       setJoiningGroupId(null);
       if (result.success) {
           addToast(result.message, 'success');
+          fetchGroups();
       } else {
           addToast(result.error, 'error');
       }
@@ -73,9 +73,9 @@ export default function GroupsPage() {
       {loading ? (
           <LoadingSpinner />
       ) : groups.length === 0 ? (
-          <div className="p-18 text-center bg-white rounded-2xl shadow-sm border border-dashed border-gray-300 flex flex-col items-center gap-3">
-              <div className="w-18 h-18 bg-blue-50 rounded-full flex items-center justify-center mb-2">
-                 <Users className="w-10 h-10 text-blue-300" />
+          <div className="p-18 text-center bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-dashed border-gray-300 dark:border-slate-800 flex flex-col items-center gap-3">
+              <div className="w-18 h-18 bg-blue-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2">
+                 <Users className="w-10 h-10 text-blue-300 dark:text-blue-200" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-50">{t('groupsPage.emptyTitle')}</h3>
               <p className="text-base text-gray-500 dark:text-slate-300 max-w-sm mt-1 mb-6">{t('groupsPage.emptyDesc')}</p>
@@ -86,18 +86,24 @@ export default function GroupsPage() {
               {groups.map(group => {
                   const isCreator = group.created_by === user.id;
                   const isMember = !!group.isMember;
-                  const isGroupAdmin = isCreator || isAdmin;
-                  const memberCount = group.group_members?.[0]?.count || 0;
+                  const isGroupAdmin = isCreator; // Solo el creador administra (elimina y ve solicitudes)
+                  const memberCountRaw = typeof group.memberCount === 'number'
+                    ? group.memberCount
+                    : group.group_members?.[0]?.count || 0;
+                  const memberCount = Math.max(memberCountRaw, group.created_by ? 1 : 0);
+                  const pendingRequests = group.pendingRequests || 0;
+                  const requestStatus = group.requestStatus;
+                  const canManageGroup = isGroupAdmin;
 
                   return (
-                    <div key={group.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group-card overflow-hidden flex flex-col h-full card-lg">
+                    <div key={group.id} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 group-card overflow-hidden flex flex-col h-full card-lg">
                         <div className="flex-1 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50">
                             <div className="flex justify-between items-start mb-4">
-                                <div className="p-3 bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-lg shadow-sm">
-                                    <Users className="w-6 h-6 text-[#1e3a8a]" />
+                                <div className="p-3 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-900 border border-blue-100 dark:border-slate-700 rounded-lg shadow-sm">
+                                    <Users className="w-6 h-6 text-[#1e3a8a] dark:text-blue-200" />
                                 </div>
                                 {isCreator && (
-                                    <span className="text-xs md:text-sm font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full border border-blue-200">
+                                    <span className="text-xs md:text-sm font-bold uppercase tracking-wider bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 px-3 py-1.5 rounded-full border border-blue-200 dark:border-blue-700">
                                         {t('groupsPage.adminBadge')}
                                     </span>
                                 )}
@@ -109,24 +115,29 @@ export default function GroupsPage() {
                             <div className="flex items-center gap-4 mt-6 pt-4 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-slate-300">
                                 <div className="flex items-center" title={t('groupsPage.membersLabel')}>
                                     <User className="w-4 h-4 mr-1.5" /> 
-                                    {memberCount} {memberCount === 1 ? t('groupsPage.membersLabel') : t('groupsPage.membersLabel')}
+                                    {memberCount} {t('groupsPage.membersLabel')}
                                 </div>
                                 <div className="flex items-center" title={t('groupsPage.creationLabel')}>
                                     <Calendar className="w-4 h-4 mr-1.5" /> 
                                     {new Date(group.created_at).toLocaleDateString()}
                                 </div>
+                                {isCreator && (
+                                  <div className="flex items-center" title="Solicitudes pendientes">
+                                    <ShieldCheck className="w-4 h-4 mr-1.5" /> 
+                                    {pendingRequests} solicitudes
+                                  </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="bg-gray-50 dark:bg-slate-900 p-4 border-t border-gray-100 dark:border-slate-800 flex gap-2">
-                            {isMember && (
+                        <div className="bg-gray-50 dark:bg-slate-800 p-4 border-t border-gray-100 dark:border-slate-700 flex gap-2">
+                            {canManageGroup && (
                               <Dialog>
                                   <DialogTrigger asChild>
                                       <Button 
                                         variant="default" 
                                         size="sm" 
                                         className="flex-1 bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm md:text-base py-2.5 flex items-center justify-center gap-2" 
-                                        onClick={() => setSelectedGroup(group)}
                                       >
                                           <ShieldCheck className="w-5 h-5" />
                                           {t('groupsPage.manageMembers')}
@@ -140,7 +151,15 @@ export default function GroupsPage() {
                                               </div>
                                           </DialogHeader>
                                           <div className="p-6 bg-white dark:bg-slate-900">
-                                              <GroupMembers group={group} onClose={() => {}} isGroupAdmin={isGroupAdmin} />
+                                              <GroupMembers
+                                                group={group}
+                                                onClose={() => {}}
+                                                isGroupAdmin={isGroupAdmin}
+                                                isCreator={isCreator}
+                                                onMembersUpdated={(count) => {
+                                                  setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, memberCount: count } : g));
+                                                }}
+                                              />
                                           </div>
                                   </DialogContent>
                               </Dialog>
@@ -152,11 +171,51 @@ export default function GroupsPage() {
                                 size="sm"
                                 className="flex-1 bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm md:text-base py-2.5 flex items-center justify-center gap-2"
                                 onClick={() => handleJoinRequest(group.id)}
-                                disabled={joiningGroupId === group.id}
+                                disabled={joiningGroupId === group.id || requestStatus === 'pending' || isCreator}
                               >
                                 <ShieldCheck className="w-5 h-5" />
-                                {joiningGroupId === group.id ? 'Enviando solicitud...' : 'Unirme'}
+                                {isCreator
+                                  ? 'Eres el creador'
+                                  : joiningGroupId === group.id 
+                                    ? 'Enviando solicitud...' 
+                                    : requestStatus === 'pending'
+                                      ? 'Solicitud enviada'
+                                      : 'Unirme'}
                               </Button>
+                            )}
+
+                            {!canManageGroup && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="flex-1 text-sm md:text-base py-2.5 flex items-center justify-center gap-2"
+                                  >
+                                    <ShieldCheck className="w-5 h-5" />
+                                    Ver grupo
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
+                                        <DialogHeader className="p-0">
+                                            <div className="p-6 bg-[#1e3a8a] text-white">
+                                                <DialogTitle className="text-xl font-bold">Grupo</DialogTitle>
+                                                <p className="text-blue-200 text-sm">{group.name}</p>
+                                            </div>
+                                        </DialogHeader>
+                                        <div className="p-6 bg-white dark:bg-slate-900">
+                                            <GroupMembers
+                                              group={group}
+                                              onClose={() => {}}
+                                              isGroupAdmin={false}
+                                              isCreator={false}
+                                              onMembersUpdated={(count) => {
+                                                setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, memberCount: count } : g));
+                                              }}
+                                            />
+                                        </div>
+                                </DialogContent>
+                              </Dialog>
                             )}
 
                             {isGroupAdmin && (

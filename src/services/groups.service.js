@@ -1,33 +1,100 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { usersService } from '@/services/users.service';
 
 export const groupsService = {
+  async resolveActorId(candidateId = null) {
+    if (candidateId) return candidateId;
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.id || null;
+  },
+
+  async logGroupAudit(entry) {
+    const result = await usersService.logAuditEvent(entry);
+    if (!result.success) {
+      console.warn('groupsService - no se pudo registrar auditoría:', result.error);
+    }
+  },
+
   async getAllGroups(currentUserId) {
     try {
       const { data: groups, error } = await supabase
         .from('groups')
-        .select('*, group_members(count)');
-      if (error) throw error;
+        .select('*, group_members(count)')
+        .order('created_at', { ascending: false });
 
-      // Enriquecer con información de membresía del usuario actual
-      if (currentUserId && groups) {
-        const { data: memberships, error: membershipError } = await supabase
+      if (error) throw error;
+      if (!groups?.length) return { success: true, data: [] };
+
+      const groupIds = groups.map(g => g.id);
+      const creatorGroupIds = groups.filter(g => g.created_by === currentUserId).map(g => g.id);
+
+      // Ver si el usuario es miembro (sin necesitar rol)
+      const membershipByGroup = {};
+      if (currentUserId) {
+        const { data: membershipRows, error: membershipError } = await supabase
           .from('group_members')
           .select('group_id')
           .eq('user_id', currentUserId);
 
         if (membershipError) {
           console.error('Error al obtener membresías de grupos:', membershipError);
-          return { success: true, data: groups.map(g => ({ ...g, isMember: false })) };
+        } else {
+          (membershipRows || []).forEach(row => {
+            membershipByGroup[row.group_id] = true;
+          });
         }
-
-        const memberGroupIds = new Set((memberships || []).map(m => m.group_id));
-        const enriched = groups.map(g => ({ ...g, isMember: memberGroupIds.has(g.id) }));
-        return { success: true, data: enriched };
       }
 
-      return { success: true, data: (groups || []).map(g => ({ ...g, isMember: false })) };
+      // Solicitudes hechas por el usuario (para deshabilitar el botón de unirse)
+      let userRequestStatus = {};
+      if (currentUserId) {
+        const { data: myRequests, error: myReqError } = await supabase
+          .from('group_join_requests')
+          .select('group_id, status')
+          .eq('user_id', currentUserId)
+          .in('group_id', groupIds);
+
+        if (myReqError) {
+          console.error('Error al obtener solicitudes del usuario:', myReqError);
+        } else {
+          (myRequests || []).forEach(row => {
+            userRequestStatus[row.group_id] = row.status;
+          });
+        }
+      }
+
+      // Obtener solicitudes solo para grupos creados por el usuario (para mostrar pendientes)
+      let pendingRequestsByGroup = {};
+      if (creatorGroupIds.length > 0) {
+        const { data: requestRows, error: requestsError } = await supabase
+          .from('group_join_requests')
+          .select('group_id, status')
+          .in('group_id', creatorGroupIds);
+
+        if (requestsError) {
+          console.error('Error al obtener solicitudes de grupos:', requestsError);
+        } else {
+          (requestRows || []).forEach(row => {
+            if (row.status === 'pending') {
+              pendingRequestsByGroup[row.group_id] = (pendingRequestsByGroup[row.group_id] || 0) + 1;
+            }
+          });
+        }
+      }
+
+      const enriched = groups.map(g => ({
+        ...g,
+        memberCount: Math.max(g.group_members?.[0]?.count || 0, g.created_by ? 1 : 0),
+        pendingRequests: pendingRequestsByGroup[g.id] || 0,
+        isMember: g.created_by === currentUserId ? true : !!membershipByGroup[g.id],
+        memberRole: g.created_by === currentUserId ? 'admin' : null,
+        requestStatus: userRequestStatus[g.id] || null,
+      }));
+
+      return { success: true, data: enriched };
     } catch (error) {
+      console.error('getAllGroups - error:', error);
       return { success: false, error: "Error al cargar grupos." };
     }
   },
@@ -45,11 +112,32 @@ export const groupsService = {
     }
   },
 
-  async createGroup(groupData) {
+  async createGroup(groupData, actorId) {
     try {
       const { data, error } = await supabase.from('groups').insert([groupData]).select().single();
       if (error) throw error;
-      // Trigger handles adding creator as member
+      // Asegurar que el creador queda como miembro (idempotente)
+      if (data?.id && data?.created_by) {
+        const { error: memberError } = await supabase
+          .from('group_members')
+          .insert([{ group_id: data.id, user_id: data.created_by }]);
+        if (memberError && memberError.code !== '23505') {
+          console.error('createGroup - no se pudo agregar creador como miembro:', memberError);
+        }
+      }
+
+      const actingUserId = await this.resolveActorId(actorId || groupData?.created_by);
+      await this.logGroupAudit({
+        action: 'group_created',
+        entityType: 'group',
+        newValue: {
+          group_id: data?.id,
+          group_name: data?.name,
+          created_by: actingUserId
+        },
+        userId: actingUserId
+      });
+
       return { success: true, data, message: "Grupo creado exitosamente" };
     } catch (error) {
       return { success: false, error: "Error al crear el grupo." };
@@ -76,7 +164,7 @@ export const groupsService = {
       }
   },
 
-  async addMember(groupId, email) {
+  async addMember(groupId, email, actorId = null, { groupName = null } = {}) {
     try {
       const rawIdentifier = (email || '').trim();
       if (!rawIdentifier) {
@@ -131,6 +219,21 @@ export const groupsService = {
         if (error.code === '23505') return { success: false, error: "El usuario ya es miembro" };
         throw error;
       }
+
+      const actingUserId = await this.resolveActorId(actorId);
+      await this.logGroupAudit({
+        action: 'group_member_added',
+        entityType: 'group_member',
+        newValue: {
+          group_id: groupId,
+          group_name: groupName || null,
+          added_user_id: userData.id,
+          added_user_email: userData.email,
+          added_user_name: userData.full_name
+        },
+        userId: actingUserId
+      });
+
       return { success: true, message: "Miembro agregado exitosamente" };
     } catch (error) {
       console.error('addMember - error al agregar miembro:', error);
@@ -150,14 +253,8 @@ export const groupsService = {
   },
 
   async updateMemberRole(groupId, userId, newRole) {
-    try {
-      const { error } = await supabase
-        .from('group_members').update({ role: newRole }).match({ group_id: groupId, user_id: userId });
-      if (error) throw error;
-      return { success: true, message: "Rol actualizado" };
-    } catch (error) {
-      return { success: false, error: "Error al actualizar rol." };
-    }
+    // La tabla actual no tiene columna de rol; devolvemos mensaje claro para evitar errores 400.
+    return { success: false, error: "La gestión de roles no está habilitada en esta base de datos." };
   },
 
   async requestToJoin(groupId, userId) {
@@ -206,7 +303,7 @@ export const groupsService = {
     }
   },
 
-  async respondToJoinRequest(requestId, groupId, userId, accept) {
+  async respondToJoinRequest(requestId, groupId, userId, accept, { actorId = null, groupName = null, memberName = null, memberEmail = null } = {}) {
     try {
       if (accept) {
         // Agregar como miembro (ignorar si ya existe)
@@ -222,6 +319,20 @@ export const groupsService = {
           .eq('id', requestId);
 
         if (updateError) throw updateError;
+
+        const actingUserId = await this.resolveActorId(actorId);
+        await this.logGroupAudit({
+          action: 'group_member_joined',
+          entityType: 'group_member',
+          newValue: {
+            group_id: groupId,
+            group_name: groupName || null,
+            member_id: userId,
+            member_email: memberEmail || null,
+            member_name: memberName || null
+          },
+          userId: actingUserId
+        });
         return { success: true, message: 'Solicitud aprobada.' };
       } else {
         const { error } = await supabase

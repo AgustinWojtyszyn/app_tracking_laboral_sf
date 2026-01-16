@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/customSupabaseClient';
-
 export const workersService = {
   async getWorkers({ search = '', includeInactive = false } = {}) {
     try {
