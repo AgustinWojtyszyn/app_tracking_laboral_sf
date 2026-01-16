@@ -127,7 +127,7 @@ export default function GroupsPage() {
                                     <Calendar className="w-4 h-4 mr-1.5" /> 
                                     {new Date(group.created_at).toLocaleDateString()}
                                 </div>
-                                {isCreator && (
+                                {(isCreator || isMember) && (
                                   <div className="flex items-center" title="Solicitudes pendientes">
                                     <ShieldCheck className="w-4 h-4 mr-1.5" /> 
                                     {pendingRequests} solicitudes

@@ -75,8 +75,8 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   const validate = () => {
     const newErrors = {};
     const hours = parseFloat(formData.hours_worked);
-    const cost = parseFloat(formData.cost_spent);
-    const amount = parseFloat(formData.amount_to_charge);
+    const cost = formData.cost_spent === '' ? 0 : parseFloat(formData.cost_spent);
+    const amount = formData.amount_to_charge === '' ? 0 : parseFloat(formData.amount_to_charge);
     const location = (formData.location || '').trim();
     const description = (formData.description || '').trim();
     const status = (formData.status || '').trim();
@@ -183,7 +183,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
               value={formData.location || ''}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
-              placeholder="Ej: Oficina Central, cliente, dirección..."
+              placeholder="Ej: Oficina central, Depósito, Cliente, Remoto"
               required
             />
             {errors.location && <span className="text-xs text-red-500">{errors.location}</span>}
@@ -223,7 +223,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.cost_spent}
                 onChange={e => setFormData({ ...formData, cost_spent: e.target.value })}
-                required
               />
                {errors.cost_spent && <span className="text-xs text-red-500">{errors.cost_spent}</span>}
             </div>
@@ -235,7 +234,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.amount_to_charge}
                 onChange={e => setFormData({ ...formData, amount_to_charge: e.target.value })}
-                required
               />
               {errors.amount_to_charge && <span className="text-xs text-red-500">{errors.amount_to_charge}</span>}
             </div>
