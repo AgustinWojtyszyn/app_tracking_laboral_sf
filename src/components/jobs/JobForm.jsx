@@ -74,11 +74,22 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
   const validate = () => {
     const newErrors = {};
+    const hours = parseFloat(formData.hours_worked);
+    const cost = parseFloat(formData.cost_spent);
+    const amount = parseFloat(formData.amount_to_charge);
+    const location = (formData.location || '').trim();
+    const description = (formData.description || '').trim();
+    const status = (formData.status || '').trim();
+
     if (!formData.date) newErrors.date = "La fecha es requerida";
+    if (!status) newErrors.status = "Seleccioná un estado";
+    if (!location) newErrors.location = "La ubicación es requerida";
+    if (!description) newErrors.description = "La descripción es requerida";
     if (!workerId) newErrors.worker_id = "Seleccioná un trabajador";
-    if (Number(formData.hours_worked) <= 0) newErrors.hours_worked = "Horas deben ser mayor a 0";
-    if (Number(formData.cost_spent) < 0) newErrors.cost_spent = "Costo no puede ser negativo";
-    if (Number(formData.amount_to_charge) < 0) newErrors.amount_to_charge = "Monto no puede ser negativo";
+    if (!formData.group_id) newErrors.group_id = "Seleccioná un grupo";
+    if (!Number.isFinite(hours) || hours <= 0) newErrors.hours_worked = "Horas deben ser mayor a 0";
+    if (!Number.isFinite(cost) || cost < 0) newErrors.cost_spent = "Costo no puede ser negativo";
+    if (!Number.isFinite(amount) || amount < 0) newErrors.amount_to_charge = "Monto no puede ser negativo";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -156,11 +167,13 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
                 value={formData.status}
                 onChange={e => setFormData({ ...formData, status: e.target.value })}
+                required
               >
                 <option value="pending">Pendiente</option>
                 <option value="completed">Completado</option>
                 <option value="archived">Archivado</option>
               </select>
+              {errors.status && <span className="text-xs text-red-500">{errors.status}</span>}
             </div>
           </div>
 
@@ -171,7 +184,9 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               value={formData.location || ''}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
               placeholder="Ej: Oficina Central, cliente, dirección..."
+              required
             />
+            {errors.location && <span className="text-xs text-red-500">{errors.location}</span>}
           </div>
 
           <div>
@@ -182,7 +197,9 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               value={formData.description || ''}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
               placeholder="Detalles del trabajo, quién lo solicita, referencias, etc."
+              required
             />
+            {errors.description && <span className="text-xs text-red-500">{errors.description}</span>}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
@@ -194,6 +211,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.hours_worked}
                 onChange={e => setFormData({ ...formData, hours_worked: e.target.value })}
+                required
               />
               {errors.hours_worked && <span className="text-xs text-red-500">{errors.hours_worked}</span>}
             </div>
@@ -205,6 +223,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.cost_spent}
                 onChange={e => setFormData({ ...formData, cost_spent: e.target.value })}
+                required
               />
                {errors.cost_spent && <span className="text-xs text-red-500">{errors.cost_spent}</span>}
             </div>
@@ -216,6 +235,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.amount_to_charge}
                 onChange={e => setFormData({ ...formData, amount_to_charge: e.target.value })}
+                required
               />
               {errors.amount_to_charge && <span className="text-xs text-red-500">{errors.amount_to_charge}</span>}
             </div>
@@ -227,10 +247,11 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 <div className="flex-1">
                   <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Trabajador asignado *</label>
                   <select
-                    className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
-                    value={workerId}
-                    onChange={e => setWorkerId(e.target.value)}
-                  >
+                  className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
+                  value={workerId}
+                  onChange={e => setWorkerId(e.target.value)}
+                  required
+                >
                     <option value="">Seleccionar trabajador...</option>
                     {workers.map(w => (
                       <option key={w.id} value={w.id}>
@@ -270,12 +291,14 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
                 value={formData.group_id}
                 onChange={e => setFormData({ ...formData, group_id: e.target.value })}
+                required
               >
                 <option value="">Ninguno</option>
                 {groups.map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
+              {errors.group_id && <span className="text-xs text-red-500">{errors.group_id}</span>}
             </div>
             <div className="flex items-center pt-6">
                 <input

@@ -56,12 +56,16 @@ export const useGroups = () => {
       return result;
   }, []);
 
-    const requestToJoin = useCallback(async (groupId, userId) => {
-      setLoading(true);
-      const result = await groupsService.requestToJoin(groupId, userId);
-      setLoading(false);
-      return result;
-    }, []);
+  const requestToJoin = useCallback(async (groupId, userId) => {
+    if (!groupId) {
+      console.warn('useGroups.requestToJoin - groupId requerido pero ausente');
+      return { success: false, error: 'Debes seleccionar un grupo.' };
+    }
+    setLoading(true);
+    const result = await groupsService.requestToJoin(groupId, userId);
+    setLoading(false);
+    return result;
+  }, []);
 
   return { 
       loading, 

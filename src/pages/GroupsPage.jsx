@@ -49,6 +49,12 @@ export default function GroupsPage() {
 
   const handleJoinRequest = async (groupId) => {
       if (!user) return;
+      if (!groupId) {
+        addToast('Debes seleccionar un grupo antes de enviar la solicitud.', 'error');
+        console.warn('handleJoinRequest - sin groupId, abortando');
+        return;
+      }
+      console.log('handleJoinRequest - intentando crear solicitud', { groupId, userId: user.id });
       setJoiningGroupId(groupId);
       const result = await requestToJoin(groupId, user.id);
       setJoiningGroupId(null);
@@ -156,6 +162,7 @@ export default function GroupsPage() {
                                                 onClose={() => {}}
                                                 isGroupAdmin={isGroupAdmin}
                                                 isCreator={isCreator}
+                                                isMember={isMember}
                                                 onMembersUpdated={(count) => {
                                                   setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, memberCount: count } : g));
                                                 }}
@@ -209,6 +216,7 @@ export default function GroupsPage() {
                                               onClose={() => {}}
                                               isGroupAdmin={false}
                                               isCreator={false}
+                                              isMember={isMember}
                                               onMembersUpdated={(count) => {
                                                 setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, memberCount: count } : g));
                                               }}

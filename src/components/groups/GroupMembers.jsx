@@ -7,7 +7,14 @@ import { Loader2, Trash2, UserPlus, Shield } from 'lucide-react';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
-export default function GroupMembers({ group, onClose, isGroupAdmin = false, isCreator = false, onMembersUpdated = () => {} }) {
+export default function GroupMembers({
+  group,
+  onClose,
+  isGroupAdmin = false,
+  isCreator = false,
+  isMember = false,
+  onMembersUpdated = () => {}
+}) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newEmail, setNewEmail] = useState('');
@@ -16,6 +23,7 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false, isC
     const [loadingRequests, setLoadingRequests] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const canSeeRequests = isCreator || isMember;
 
   useEffect(() => {
     fetchMembers();
@@ -51,7 +59,7 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false, isC
   };
 
     const fetchJoinRequests = async () => {
-        if (!isCreator) return;
+        if (!isCreator && !isMember) return;
         setLoadingRequests(true);
         const result = await groupsService.getJoinRequests(group.id);
         if (result.success) {
@@ -61,16 +69,16 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false, isC
     };
 
     useEffect(() => {
-        if (isCreator) {
+        if (isCreator || isMember) {
             fetchJoinRequests();
         }
-    }, [group.id, isCreator]);
+    }, [group.id, isCreator, isMember]);
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-        if (!newEmail) return;
+    if (!newEmail) return;
 
-        const normalizedEmail = newEmail.trim().toLowerCase();
+    const normalizedEmail = newEmail.trim().toLowerCase();
 
     setAdding(true);
         const result = await groupsService.addMember(
@@ -255,7 +263,7 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false, isC
             )}
         </div>
 
-                {isCreator && (
+                {canSeeRequests && (
                     <div className="border rounded-md overflow-hidden mt-4 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 border-gray-200 dark:border-slate-700">
                         <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-800 dark:text-slate-100 font-semibold text-sm flex items-center gap-2">
                             <Shield className="w-4 h-4 text-gray-800 dark:text-slate-100" /> Solicitudes pendientes
@@ -280,35 +288,41 @@ export default function GroupMembers({ group, onClose, isGroupAdmin = false, isC
                                                 <div className="text-xs text-gray-500 dark:text-slate-300">{r.users?.email}</div>
                                             </td>
                                             <td className="px-4 py-3 text-right space-x-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-green-600 hover:bg-green-700 text-white text-xs"
-                                                    onClick={() => handleRespondRequest(r, true)}
-                                                >
-                                                    Aceptar
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-red-600 border-red-200 text-xs"
-                                                    onClick={() => handleRespondRequest(r, false)}
-                                                >
-                                                    Rechazar
-                                                </Button>
-                                                <ConfirmationModal
-                                                    title="¿Eliminar solicitud?"
-                                                    description="La solicitud se eliminará definitivamente."
-                                                    onConfirm={() => handleDeleteRequest(r.id)}
-                                                    trigger={
-                                                      <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                      >
-                                                        <Trash2 className="w-4 h-4" />
-                                                      </Button>
-                                                    }
-                                                />
+                                                {isGroupAdmin ? (
+                                                  <>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                                                        onClick={() => handleRespondRequest(r, true)}
+                                                    >
+                                                        Aceptar
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-red-600 border-red-200 text-xs"
+                                                        onClick={() => handleRespondRequest(r, false)}
+                                                    >
+                                                        Rechazar
+                                                    </Button>
+                                                    <ConfirmationModal
+                                                        title="¿Eliminar solicitud?"
+                                                        description="La solicitud se eliminará definitivamente."
+                                                        onConfirm={() => handleDeleteRequest(r.id)}
+                                                        trigger={
+                                                          <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                          >
+                                                            <Trash2 className="w-4 h-4" />
+                                                          </Button>
+                                                        }
+                                                    />
+                                                  </>
+                                                ) : (
+                                                  <span className="text-xs text-gray-500 dark:text-slate-300">Solo lectura</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

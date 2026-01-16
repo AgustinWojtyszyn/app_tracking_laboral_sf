@@ -3,6 +3,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { usersService } from '@/services/users.service';
 
 export const groupsService = {
+  isUuid(value) {
+    return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  },
   async resolveActorId(candidateId = null) {
     if (candidateId) return candidateId;
     const { data } = await supabase.auth.getUser();
@@ -64,13 +67,20 @@ export const groupsService = {
         }
       }
 
-      // Obtener solicitudes solo para grupos creados por el usuario (para mostrar pendientes)
+      // Obtener solicitudes pendientes para grupos donde es creador o miembro (para mostrar en cards)
       let pendingRequestsByGroup = {};
-      if (creatorGroupIds.length > 0) {
+      const requestGroupIds = Array.from(
+        new Set([
+          ...creatorGroupIds,
+          ...Object.keys(membershipByGroup)
+        ])
+      );
+
+      if (requestGroupIds.length > 0) {
         const { data: requestRows, error: requestsError } = await supabase
           .from('group_join_requests')
           .select('group_id, status')
-          .in('group_id', creatorGroupIds);
+          .in('group_id', requestGroupIds);
 
         if (requestsError) {
           console.error('Error al obtener solicitudes de grupos:', requestsError);
@@ -259,7 +269,25 @@ export const groupsService = {
 
   async requestToJoin(groupId, userId) {
     try {
+      console.log('requestToJoin - params', { groupId, userId });
       if (!userId) return { success: false, error: 'Usuario no válido.' };
+      if (!groupId) {
+        console.warn('requestToJoin - sin groupId');
+        return { success: false, error: 'Debes seleccionar un grupo.' };
+      }
+      if (!this.isUuid(groupId)) {
+        console.warn('requestToJoin - groupId inválido', groupId);
+        return { success: false, error: 'Grupo inválido.' };
+      }
+
+      // Validar que el grupo existe
+      const { data: groupRow, error: groupError } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('id', groupId)
+        .maybeSingle();
+      if (groupError) throw groupError;
+      if (!groupRow) return { success: false, error: 'Grupo no encontrado.' };
 
       // Evitar duplicar membresías existentes
       const { data: existingMember, error: memberError } = await supabase
@@ -275,11 +303,18 @@ export const groupsService = {
       }
 
       // Crear solicitud de ingreso
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('group_join_requests')
-        .insert([{ group_id: groupId, user_id: userId, status: 'pending' }]);
+        .insert([{ group_id: groupId, user_id: userId, status: 'pending' }])
+        .select('id, group_id, user_id')
+        .single();
 
       if (error) throw error;
+      if (!inserted?.group_id) {
+        console.error('requestToJoin - solicitud insertada sin group_id', inserted);
+      } else {
+        console.log('requestToJoin - solicitud creada', inserted);
+      }
       return { success: true, message: 'Solicitud enviada al administrador del grupo.' };
     } catch (error) {
       console.error('requestToJoin - error:', error);
@@ -289,6 +324,33 @@ export const groupsService = {
 
   async getJoinRequests(groupId) {
     try {
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUserId = authData?.user?.id || null;
+
+      if (!groupId) return { success: false, error: 'Selecciona un grupo.' };
+      if (!currentUserId) return { success: false, error: 'Usuario no válido.' };
+
+      // Verificar si es creador o miembro antes de mostrar solicitudes
+      const { data: groupRow, error: groupError } = await supabase
+        .from('groups')
+        .select('id, created_by')
+        .eq('id', groupId)
+        .maybeSingle();
+      if (groupError) throw groupError;
+      if (!groupRow) return { success: false, error: 'Grupo no encontrado.' };
+
+      const { data: membership } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+
+      const canSeeRequests = groupRow.created_by === currentUserId || !!membership;
+      if (!canSeeRequests) {
+        return { success: false, error: 'Solo los miembros pueden ver las solicitudes.' };
+      }
+
       const { data, error } = await supabase
         .from('group_join_requests')
         .select('id, group_id, user_id, status, created_at, users(email, full_name)')
