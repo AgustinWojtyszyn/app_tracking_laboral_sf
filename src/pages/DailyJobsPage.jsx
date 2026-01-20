@@ -163,13 +163,13 @@ export default function DailyJobsPage() {
              <span className="text-sm md:text-base text-green-600 dark:text-green-200 font-semibold uppercase tracking-wide">
                {isEn ? 'Total Cost' : 'Total Costo'}
              </span>
-             <p className="text-2xl md:text-3xl font-bold text-green-900 dark:text-green-100 mt-1">${totals.cost.toFixed(2)}</p>
+             <p className="text-2xl md:text-3xl font-bold text-green-900 dark:text-green-100 mt-1">{formatCurrency(totals.cost)}</p>
         </div>
         <div className="bg-purple-50 dark:bg-slate-900 p-5 rounded-xl border border-purple-100 dark:border-slate-700 text-center card-lg">
              <span className="text-sm md:text-base text-purple-600 dark:text-purple-200 font-semibold uppercase tracking-wide">
                {isEn ? 'Total to Charge' : 'Total a Cobrar'}
              </span>
-             <p className="text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">${totals.charge.toFixed(2)}</p>
+             <p className="text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">{formatCurrency(totals.charge)}</p>
         </div>
       </div>
 
@@ -191,12 +191,12 @@ export default function DailyJobsPage() {
                                         <th className="px-4 py-3 w-[24%] break-words">{isEn ? 'Description' : 'Descripción'}</th>
                                         <th className="px-4 py-3 w-[16%] break-words">{isEn ? 'Worker' : 'Trabajador'}</th>
                                         <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Group' : 'Grupo'}</th>
-                                        <th className="px-4 py-3 text-center w-[10%]">{isEn ? 'Status' : 'Estado'}</th>
-                                        <th className="px-4 py-3 w-[14%] break-words text-right">{isEn ? 'Location' : 'Ubicación'}</th>
-                                        <th className="px-4 py-3 text-right w-[8%]">{isEn ? 'Hours' : 'Horas'}</th>
+                                        <th className="px-4 py-3 text-center w-[9%]">{isEn ? 'Status' : 'Estado'}</th>
                                         <th className="px-4 py-3 text-right w-[10%]">{isEn ? 'Cost' : 'Costo'}</th>
                                         <th className="px-4 py-3 text-right w-[10%]">{isEn ? 'Charge' : 'Cobrar'}</th>
-                                        <th className="px-4 py-3 text-center w-[12%]">{isEn ? 'Actions' : 'Acciones'}</th>
+                                        <th className="px-4 py-3 text-right w-[8%]">{isEn ? 'Hours' : 'Horas'}</th>
+                                        <th className="px-4 py-3 w-[14%] break-words text-center">{isEn ? 'Location' : 'Ubicación'}</th>
+                                        <th className="px-4 py-3 text-center w-[11%]">{isEn ? 'Actions' : 'Acciones'}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -215,12 +215,10 @@ export default function DailyJobsPage() {
                                                 ? (isEn ? 'Archived' : 'Archivado')
                                                 : (isEn ? 'Pending' : 'Pendiente')}
                                             </td>
-                                            <td className="px-4 py-3 break-words text-right whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
-                                            <td className="px-4 py-3 text-right">{job.hours_worked}</td>
                                             <td className="px-4 py-3 text-right">{formatCurrency(job.cost_spent)}</td>
-                                            <td className="px-4 py-3 text-right font-bold text-green-700 dark:text-green-400">
-                                              {formatCurrency(job.amount_to_charge)}
-                                            </td>
+                                            <td className="px-4 py-3 text-right">{formatCurrency(job.amount_to_charge)}</td>
+                                            <td className="px-4 py-3 text-right">{job.hours_worked}</td>
+                                            <td className="px-4 py-3 break-words text-center whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="flex justify-center gap-4 flex-wrap">
                                                     <Button
