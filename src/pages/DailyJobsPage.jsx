@@ -192,7 +192,7 @@ export default function DailyJobsPage() {
                                         <th className="px-4 py-3 text-right w-[8%] min-w-[80px]">{isEn ? 'Hours' : 'Horas'}</th>
                                         <th className="px-4 py-3 w-[16%] break-words">{isEn ? 'Worker' : 'Trabajador'}</th>
                                         <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Group' : 'Grupo'}</th>
-                                        <th className="px-4 py-3 text-center w-[9%]">{isEn ? 'Status' : 'Estado'}</th>
+                                        <th className="px-4 py-3 text-center w-[10%] min-w-[110px] whitespace-nowrap">{isEn ? 'Status' : 'Estado'}</th>
                                         <th className="px-4 py-3 text-right w-[10%] min-w-[120px]">{isEn ? 'Cost' : 'Costo'}</th>
                                         <th className="px-4 py-3 w-[14%] break-words text-center">{isEn ? 'Location' : 'Ubicación'}</th>
                                         <th className="px-4 py-3 text-right w-[10%] min-w-[130px]">{isEn ? 'Charge' : 'Cobrar'}</th>
@@ -209,7 +209,7 @@ export default function DailyJobsPage() {
                                             <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{job.hours_worked}</td>
                                             <td className="px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                                             <td className="px-4 py-3 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.groups?.name || '-'}</td>
-                                            <td className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-slate-100">
+                                            <td className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap min-w-[110px]">
                                               {job.status === 'completed'
                                                 ? (isEn ? 'Completed' : 'Completado')
                                                 : job.status === 'archived'
