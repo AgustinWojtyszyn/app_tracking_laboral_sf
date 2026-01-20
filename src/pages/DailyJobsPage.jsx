@@ -193,9 +193,9 @@ export default function DailyJobsPage() {
                                         <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Group' : 'Grupo'}</th>
                                         <th className="px-4 py-3 text-center w-[9%]">{isEn ? 'Status' : 'Estado'}</th>
                                         <th className="px-4 py-3 text-right w-[10%] min-w-[120px]">{isEn ? 'Cost' : 'Costo'}</th>
+                                        <th className="px-4 py-3 w-[14%] break-words text-center">{isEn ? 'Location' : 'Ubicación'}</th>
                                         <th className="px-4 py-3 text-right w-[10%] min-w-[130px]">{isEn ? 'Charge' : 'Cobrar'}</th>
                                         <th className="px-4 py-3 text-right w-[8%] min-w-[80px]">{isEn ? 'Hours' : 'Horas'}</th>
-                                        <th className="px-4 py-3 w-[14%] break-words text-center">{isEn ? 'Location' : 'Ubicación'}</th>
                                         <th className="px-4 py-3 text-center w-[11%]">{isEn ? 'Actions' : 'Acciones'}</th>
                                     </tr>
                                 </thead>
@@ -216,9 +216,9 @@ export default function DailyJobsPage() {
                                                 : (isEn ? 'Pending' : 'Pendiente')}
                                             </td>
                                             <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(job.cost_spent)}</td>
+                                            <td className="px-4 py-3 break-words text-center whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
                                             <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(job.amount_to_charge)}</td>
                                             <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{job.hours_worked}</td>
-                                            <td className="px-4 py-3 break-words text-center whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="flex justify-center gap-4 flex-wrap">
                                                     <Button
