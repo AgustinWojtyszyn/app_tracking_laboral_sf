@@ -188,14 +188,14 @@ export default function DailyJobsPage() {
                             <table className="w-full table-fixed text-base md:text-lg text-left">
                                 <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
                                     <tr>
-                                        <th className="px-4 py-3 w-[24%] break-words">{isEn ? 'Description' : 'Descripción'}</th>
+                                        <th className="px-4 py-3 w-[22%] break-words">{isEn ? 'Description' : 'Descripción'}</th>
+                                        <th className="px-4 py-3 text-right w-[8%] min-w-[80px]">{isEn ? 'Hours' : 'Horas'}</th>
                                         <th className="px-4 py-3 w-[16%] break-words">{isEn ? 'Worker' : 'Trabajador'}</th>
                                         <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Group' : 'Grupo'}</th>
                                         <th className="px-4 py-3 text-center w-[9%]">{isEn ? 'Status' : 'Estado'}</th>
                                         <th className="px-4 py-3 text-right w-[10%] min-w-[120px]">{isEn ? 'Cost' : 'Costo'}</th>
                                         <th className="px-4 py-3 w-[14%] break-words text-center">{isEn ? 'Location' : 'Ubicación'}</th>
                                         <th className="px-4 py-3 text-right w-[10%] min-w-[130px]">{isEn ? 'Charge' : 'Cobrar'}</th>
-                                        <th className="px-4 py-3 text-right w-[8%] min-w-[80px]">{isEn ? 'Hours' : 'Horas'}</th>
                                         <th className="px-4 py-3 text-center w-[11%]">{isEn ? 'Actions' : 'Acciones'}</th>
                                     </tr>
                                 </thead>
@@ -206,6 +206,7 @@ export default function DailyJobsPage() {
                                             className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                                         >
                                             <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-50 break-words">{job.description}</td>
+                                            <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{job.hours_worked}</td>
                                             <td className="px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                                             <td className="px-4 py-3 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.groups?.name || '-'}</td>
                                             <td className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-slate-100">
@@ -218,7 +219,6 @@ export default function DailyJobsPage() {
                                             <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(job.cost_spent)}</td>
                                             <td className="px-4 py-3 break-words text-center whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
                                             <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(job.amount_to_charge)}</td>
-                                            <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{job.hours_worked}</td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="flex justify-center gap-4 flex-wrap">
                                                     <Button
