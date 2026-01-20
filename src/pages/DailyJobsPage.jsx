@@ -191,11 +191,11 @@ export default function DailyJobsPage() {
                                         <th className="px-4 py-3 w-[24%] break-words">{isEn ? 'Description' : 'Descripción'}</th>
                                         <th className="px-4 py-3 w-[16%] break-words">{isEn ? 'Worker' : 'Trabajador'}</th>
                                         <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Group' : 'Grupo'}</th>
-                                        <th className="px-3 py-3 text-center w-[10%]">{isEn ? 'Status' : 'Estado'}</th>
-                                        <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Location' : 'Ubicación'}</th>
-                                        <th className="px-3 py-3 text-right w-[8%]">{isEn ? 'Hours' : 'Horas'}</th>
-                                        <th className="px-3 py-3 text-right w-[10%]">{isEn ? 'Cost' : 'Costo'}</th>
-                                        <th className="px-3 py-3 text-right w-[10%]">{isEn ? 'Charge' : 'Cobrar'}</th>
+                                        <th className="px-4 py-3 text-center w-[10%]">{isEn ? 'Status' : 'Estado'}</th>
+                                        <th className="px-4 py-3 w-[14%] break-words text-right">{isEn ? 'Location' : 'Ubicación'}</th>
+                                        <th className="px-4 py-3 text-right w-[8%]">{isEn ? 'Hours' : 'Horas'}</th>
+                                        <th className="px-4 py-3 text-right w-[10%]">{isEn ? 'Cost' : 'Costo'}</th>
+                                        <th className="px-4 py-3 text-right w-[10%]">{isEn ? 'Charge' : 'Cobrar'}</th>
                                         <th className="px-4 py-3 text-center w-[12%]">{isEn ? 'Actions' : 'Acciones'}</th>
                                     </tr>
                                 </thead>
@@ -206,25 +206,19 @@ export default function DailyJobsPage() {
                                             className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                                         >
                                             <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-50 break-words">{job.description}</td>
-                                            <td className="px-4 py-3 text-gray-700 dark:text-slate-200 break-words">{job.workers?.display_name || job.workers?.alias || '-'}</td>
-                                            <td className="px-4 py-3 break-words">{job.groups?.name || '-'}</td>
-                                            <td className="px-3 py-3 text-center">
-                                              <span className={`text-xs md:text-sm px-3 py-1.5 rounded-full font-semibold ${
-                                                job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                                                'bg-yellow-100 text-yellow-700'
-                                              }`}>
-                                                {job.status === 'completed'
-                                                  ? (isEn ? 'Completed' : 'Completado')
-                                                  : job.status === 'archived'
-                                                  ? (isEn ? 'Archived' : 'Archivado')
-                                                  : (isEn ? 'Pending' : 'Pendiente')}
-                                              </span>
+                                            <td className="px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.workers?.display_name || job.workers?.alias || '-'}</td>
+                                            <td className="px-4 py-3 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.groups?.name || '-'}</td>
+                                            <td className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-slate-100">
+                                              {job.status === 'completed'
+                                                ? (isEn ? 'Completed' : 'Completado')
+                                                : job.status === 'archived'
+                                                ? (isEn ? 'Archived' : 'Archivado')
+                                                : (isEn ? 'Pending' : 'Pendiente')}
                                             </td>
-                                            <td className="px-4 py-3 break-words">{job.location}</td>
-                                            <td className="px-3 py-3 text-right">{job.hours_worked}</td>
-                                            <td className="px-3 py-3 text-right">{formatCurrency(job.cost_spent)}</td>
-                                            <td className="px-3 py-3 text-right font-bold text-green-700 dark:text-green-400">
+                                            <td className="px-4 py-3 break-words text-right whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
+                                            <td className="px-4 py-3 text-right">{job.hours_worked}</td>
+                                            <td className="px-4 py-3 text-right">{formatCurrency(job.cost_spent)}</td>
+                                            <td className="px-4 py-3 text-right font-bold text-green-700 dark:text-green-400">
                                               {formatCurrency(job.amount_to_charge)}
                                             </td>
                                             <td className="px-4 py-3 text-center">

@@ -92,7 +92,7 @@ export default function GroupsPage() {
               {groups.map(group => {
                   const isCreator = group.created_by === user.id;
                   const isMember = !!group.isMember;
-                  const isGroupAdmin = isCreator; // Solo el creador administra (elimina y ve solicitudes)
+                  const isGroupAdmin = isCreator || isAdmin; // Admin global o creador pueden gestionar miembros
                   const memberCountRaw = typeof group.memberCount === 'number'
                     ? group.memberCount
                     : group.group_members?.[0]?.count || 0;
@@ -166,6 +166,9 @@ export default function GroupsPage() {
                                                 onMembersUpdated={(count) => {
                                                   setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, memberCount: count } : g));
                                                 }}
+                                                onGroupUpdated={(updated) => {
+                                                  setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, ...updated } : g));
+                                                }}
                                               />
                                           </div>
                                   </DialogContent>
@@ -219,6 +222,9 @@ export default function GroupsPage() {
                                               isMember={isMember}
                                               onMembersUpdated={(count) => {
                                                 setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, memberCount: count } : g));
+                                              }}
+                                              onGroupUpdated={(updated) => {
+                                                setGroups((prev) => prev.map((g) => g.id === group.id ? { ...g, ...updated } : g));
                                               }}
                                             />
                                         </div>

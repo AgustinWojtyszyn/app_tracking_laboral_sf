@@ -21,7 +21,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none items-center w-full px-4">
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
@@ -34,10 +34,10 @@ export const ToastProvider = ({ children }) => {
 
 const Toast = ({ message, type, onClose }) => {
   const bgColors = {
-    success: 'bg-green-100 border-green-500 text-green-800',
-    error: 'bg-red-100 border-red-500 text-red-800',
-    warning: 'bg-yellow-100 border-yellow-500 text-yellow-800',
-    info: 'bg-blue-100 border-blue-500 text-blue-800',
+    success: 'bg-white border-green-500 text-green-800 dark:bg-green-950 dark:border-green-400 dark:text-green-50',
+    error: 'bg-white border-red-500 text-red-800 dark:bg-red-950 dark:border-red-400 dark:text-red-50',
+    warning: 'bg-white border-yellow-500 text-yellow-800 dark:bg-amber-950 dark:border-amber-400 dark:text-amber-50',
+    info: 'bg-white border-blue-500 text-blue-800 dark:bg-slate-900 dark:border-blue-400 dark:text-blue-50',
   };
 
   const Icons = {
@@ -54,12 +54,12 @@ const Toast = ({ message, type, onClose }) => {
       initial={{ opacity: 0, x: 50, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 50, scale: 0.95 }}
-      className={`pointer-events-auto flex items-center p-4 rounded shadow-lg border-l-4 min-w-[300px] max-w-sm ${bgColors[type] || bgColors.info}`}
+      className={`pointer-events-auto flex items-center p-4 md:p-5 rounded-xl shadow-xl border min-w-[280px] max-w-lg w-full md:w-auto ${bgColors[type] || bgColors.info}`}
     >
-      <Icon className="w-5 h-5 mr-3 shrink-0" />
-      <span className="flex-1 text-sm font-medium break-words">{message}</span>
-      <button onClick={onClose} className="ml-3 hover:opacity-70 transition-opacity">
-        <X className="w-4 h-4" />
+      <Icon className="w-6 h-6 mr-3 shrink-0" />
+      <span className="flex-1 text-base font-semibold break-words">{message}</span>
+      <button onClick={onClose} className="ml-3 hover:opacity-70 transition-opacity text-sm font-medium">
+        <X className="w-4 h-4" aria-label="Cerrar" />
       </button>
     </motion.div>
   );

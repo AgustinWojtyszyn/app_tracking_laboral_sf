@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { groupsService } from '@/services/groups.service';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/contexts/ToastContext';
 import { Loader2, Trash2, UserPlus, Shield } from 'lucide-react';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { DialogClose } from '@/components/ui/dialog';
 
 export default function GroupMembers({
   group,
@@ -13,7 +14,8 @@ export default function GroupMembers({
   isGroupAdmin = false,
   isCreator = false,
   isMember = false,
-  onMembersUpdated = () => {}
+  onMembersUpdated = () => {},
+  onGroupUpdated = () => {}
 }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,13 +23,22 @@ export default function GroupMembers({
   const [adding, setAdding] = useState(false);
     const [joinRequests, setJoinRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
-  const { toast } = useToast();
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [editName, setEditName] = useState(group.name || '');
+  const [editDescription, setEditDescription] = useState(group.description || '');
+  const closeRef = useRef(null);
+  const { addToast } = useToast();
   const { user } = useAuth();
   const canSeeRequests = isCreator || isMember;
 
   useEffect(() => {
     fetchMembers();
   }, [group.id]);
+
+  useEffect(() => {
+    setEditName(group.name || '');
+    setEditDescription(group.description || '');
+  }, [group.id, group.name, group.description]);
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -90,36 +101,36 @@ export default function GroupMembers({
     setAdding(false);
 
     if (result.success) {
-      toast({ title: "Éxito", description: result.message });
+      addToast(result.message, 'success');
       setNewEmail('');
       await fetchMembers();
     } else {
-      toast({ variant: "destructive", description: result.error });
+      addToast(result.error, 'error');
     }
   };
 
   const handleRemoveMember = async (userId) => {
     if (!isGroupAdmin) {
-      toast({ variant: 'destructive', description: 'Solo el administrador puede eliminar miembros.' });
+      addToast('Solo el administrador puede eliminar miembros.', 'error');
       return;
     }
 
     // Bloquear que el creador (o el propio usuario) se elimine a sí mismo
     if (group.created_by === userId) {
-      toast({ variant: 'destructive', description: 'El creador no puede eliminarse del grupo.' });
+      addToast('El creador no puede eliminarse del grupo.', 'error');
       return;
     }
     if (user?.id === userId) {
-      toast({ variant: 'destructive', description: 'No puedes auto-eliminarte de este grupo.' });
+      addToast('No puedes auto-eliminarte de este grupo.', 'error');
       return;
     }
 
     const result = await groupsService.removeMember(group.id, userId);
     if (result.success) {
-      toast({ description: result.message });
+      addToast(result.message, 'success');
       await fetchMembers();
     } else {
-      toast({ variant: "destructive", description: result.error });
+      addToast(result.error, 'error');
     }
   };
 
@@ -137,25 +148,52 @@ export default function GroupMembers({
         }
       );
       if (result.success) {
-        toast({ description: result.message });
+        addToast(result.message, 'success');
         await fetchMembers();
         await fetchJoinRequests();
       } else {
-        toast({ variant: 'destructive', description: result.error });
+        addToast(result.error, 'error');
       }
+  };
+
+  const handleUpdateGroup = async (e) => {
+    e.preventDefault();
+    if (!isGroupAdmin) {
+      addToast('Solo administradores pueden editar el grupo.', 'error');
+      return;
+    }
+
+    const trimmedName = (editName || '').trim();
+    const trimmedDesc = (editDescription || '').trim();
+    if (!trimmedName) {
+      addToast('El nombre no puede estar vacío.', 'error');
+      return;
+    }
+
+    setSavingGroup(true);
+    const result = await groupsService.updateGroup(group.id, { name: trimmedName, description: trimmedDesc });
+    setSavingGroup(false);
+
+    if (result.success) {
+      addToast('Grupo actualizado', 'success');
+      onGroupUpdated({ id: group.id, name: trimmedName, description: trimmedDesc });
+      closeRef.current?.click();
+    } else {
+      addToast(result.error || 'No se pudo actualizar el grupo.', 'error');
+    }
   };
 
   const handleDeleteRequest = async (requestId) => {
       if (!isGroupAdmin) {
-        toast({ variant: 'destructive', description: 'Solo el administrador puede eliminar solicitudes.' });
+        addToast('Solo el administrador puede eliminar solicitudes.', 'error');
         return;
       }
       const result = await groupsService.deleteJoinRequest(requestId);
       if (result.success) {
-        toast({ description: result.message });
+        addToast(result.message, 'success');
         await fetchJoinRequests();
       } else {
-        toast({ variant: 'destructive', description: result.error });
+        addToast(result.error, 'error');
       }
   };
 
@@ -165,6 +203,7 @@ export default function GroupMembers({
 
   return (
     <div className="space-y-6 text-gray-900 dark:text-slate-50">
+        <DialogClose ref={closeRef} className="hidden" />
         <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -191,6 +230,44 @@ export default function GroupMembers({
             </div>
           </div>
         </div>
+
+        {isGroupAdmin && (
+          <div className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-gray-800 dark:text-slate-50">Editar grupo</h4>
+            <form onSubmit={handleUpdateGroup} className="space-y-3">
+              <div>
+                <label className="text-xs uppercase text-gray-600 dark:text-slate-300 font-semibold block mb-1">Nombre</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full p-2 border border-gray-300 dark:border-slate-700 rounded text-sm focus:ring-2 focus:ring-blue-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-500 dark:placeholder:text-slate-400"
+                  placeholder="Nombre del grupo"
+                />
+              </div>
+              <div>
+                <label className="text-xs uppercase text-gray-600 dark:text-slate-300 font-semibold block mb-1">Descripción</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  rows={3}
+                  className="w-full p-2 border border-gray-300 dark:border-slate-700 rounded text-sm focus:ring-2 focus:ring-blue-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-500 dark:placeholder:text-slate-400"
+                  placeholder="Describe el propósito del grupo"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={savingGroup}
+                  size="sm"
+                  className="bg-blue-700 hover:bg-blue-700 text-white"
+                >
+                  {savingGroup ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Guardar cambios
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {isGroupAdmin && (
           <form onSubmit={handleAddMember} className="flex gap-2">
