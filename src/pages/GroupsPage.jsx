@@ -5,12 +5,17 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Users, Trash2, Calendar, ShieldCheck, User } from 'lucide-react';
+import { Users, Trash2, Calendar, ShieldCheck, User, Eye, Edit2 } from 'lucide-react';
 import GroupForm from '@/components/groups/GroupForm';
 import GroupMembers from '@/components/groups/GroupMembers';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { jobsService } from '@/services/jobs.service';
+import { formatCurrency, formatDate } from '@/utils/formatters';
+import JobDetailModal from '@/components/jobs/JobDetailModal';
+import JobForm from '@/components/jobs/JobForm';
+import { getMonthStart, getMonthEnd } from '@/utils/dates';
 
 export default function GroupsPage() {
     const { user, isAdmin } = useAuth();
@@ -21,6 +26,12 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
     const [joiningGroupId, setJoiningGroupId] = useState(null);
+  const [jobsModalOpen, setJobsModalOpen] = useState(false);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [groupJobs, setGroupJobs] = useState([]);
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [editingJob, setEditingJob] = useState(null);
 
   useEffect(() => {
     if (user) fetchGroups();
@@ -64,6 +75,21 @@ export default function GroupsPage() {
       } else {
           addToast(result.error, 'error');
       }
+  };
+
+  const openGroupJobs = async (group) => {
+    setActiveGroup(group);
+    setJobsModalOpen(true);
+    setJobsLoading(true);
+    const start = getMonthStart();
+    const end = getMonthEnd();
+    const result = await jobsService.getJobsByDateRange(start, end, { groupId: group.id, currentUserId: user?.id });
+    if (result.success) {
+      setGroupJobs(result.data || []);
+    } else {
+      addToast(result.error || 'No se pudieron cargar las solicitudes.', 'error');
+    }
+    setJobsLoading(false);
   };
 
   return (
@@ -194,6 +220,107 @@ export default function GroupsPage() {
                               </Button>
                             )}
 
+                            {(isMember || isCreator) && (
+                              <Dialog open={jobsModalOpen && activeGroup?.id === group.id} onOpenChange={(open) => {
+                                if (!open) {
+                                  setJobsModalOpen(false);
+                                  setActiveGroup(null);
+                                  setGroupJobs([]);
+                                  setSelectedJob(null);
+                                  setEditingJob(null);
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 text-sm md:text-base py-2.5 flex items-center justify-center gap-2 border-blue-200 text-[#1e3a8a]"
+                                    onClick={() => openGroupJobs(group)}
+                                  >
+                                    <Eye className="w-5 h-5" />
+                                    Ver solicitudes
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-5xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
+                                  <DialogHeader className="p-0">
+                                    <div className="p-6 bg-[#1e3a8a] text-white">
+                                      <DialogTitle className="text-xl font-bold">Solicitudes del grupo</DialogTitle>
+                                      <p className="text-blue-200 text-sm">{group.name}</p>
+                                    </div>
+                                  </DialogHeader>
+                                  <div className="p-6 bg-white dark:bg-slate-900">
+                                    {jobsLoading ? (
+                                      <div className="py-10 flex justify-center">
+                                        <LoadingSpinner />
+                                      </div>
+                                    ) : groupJobs.length === 0 ? (
+                                      <div className="text-center text-gray-500 dark:text-slate-300 py-10">
+                                        No hay solicitudes en este rango.
+                                      </div>
+                                    ) : (
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full text-sm text-left">
+                                          <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
+                                            <tr>
+                                              <th className="px-3 py-3">Fecha</th>
+                                              <th className="px-3 py-3">Descripción</th>
+                                              <th className="px-3 py-3">Lugar</th>
+                                              <th className="px-3 py-3">Trabajador</th>
+                                              <th className="px-3 py-3 text-right">Horas</th>
+                                              <th className="px-3 py-3 text-right">Cobrar</th>
+                                              <th className="px-3 py-3 text-center">Estado</th>
+                                              <th className="px-3 py-3 text-center">Acciones</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                                            {groupJobs.map((job) => (
+                                              <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
+                                                <td className="px-3 py-3">{formatDate(job.date)}</td>
+                                                <td className="px-3 py-3 font-semibold">{job.description}</td>
+                                                <td className="px-3 py-3">{job.location || '-'}</td>
+                                                <td className="px-3 py-3">{job.workers?.display_name || job.workers?.alias || '-'}</td>
+                                                <td className="px-3 py-3 text-right">{job.hours_worked}</td>
+                                                <td className="px-3 py-3 text-right">{formatCurrency(job.amount_to_charge)}</td>
+                                                <td className="px-3 py-3 text-center">
+                                                  <span className={`text-[11px] px-3 py-1.5 rounded-full font-semibold ${
+                                                    job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                    job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                                                    'bg-yellow-100 text-yellow-700'
+                                                  }`}>
+                                                    {job.status === 'pending' ? 'Pendiente' : job.status === 'completed' ? 'Completado' : 'Archivado'}
+                                                  </span>
+                                                </td>
+                                                <td className="px-3 py-3 text-center">
+                                                  <div className="flex justify-center gap-2">
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      onClick={() => setSelectedJob(job)}
+                                                      className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs font-semibold shadow-sm"
+                                                    >
+                                                      <Eye className="w-4 h-4 mr-1" /> Ver
+                                                    </Button>
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      onClick={() => setEditingJob(job)}
+                                                      disabled={!job.editable_by_group && job.user_id !== user?.id}
+                                                      className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs font-semibold shadow-sm disabled:opacity-50"
+                                                    >
+                                                      <Edit2 className="w-4 h-4 mr-1" /> Editar
+                                                    </Button>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            )}
                             {!canManageGroup && (
                               <Dialog>
                                 <DialogTrigger asChild>
@@ -250,6 +377,28 @@ export default function GroupsPage() {
                   );
               })}
           </div>
+      )}
+      {editingJob && (
+        <JobForm
+          jobToEdit={editingJob}
+          onSuccess={() => {
+            setEditingJob(null);
+            // refresh jobs modal data if open
+            if (activeGroup) {
+              openGroupJobs(activeGroup);
+            }
+          }}
+        />
+      )}
+      {selectedJob && (
+        <JobDetailModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onEdit={(job) => {
+            setSelectedJob(null);
+            setEditingJob(job);
+          }}
+        />
       )}
     </div>
   );
