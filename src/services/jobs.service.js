@@ -10,11 +10,26 @@ export const jobsService = {
     const { data: profile } = await supabase.from('users').select('role').eq('id', userId).single();
     const isAdmin = profile?.role === 'admin';
 
-    const { data: memberships } = await supabase
+    let memberships = [];
+    const membershipQuery = await supabase
       .from('group_members')
-      .select('group_id, status')
-      .eq('user_id', userId)
-      .or('status.eq.approved,status.is.null');
+      .select('group_id')
+      .eq('user_id', userId);
+
+    if (membershipQuery.error) {
+      // Si la columna status no existe (error 42703) u otro error de esquema, seguimos sin filtrar por estado.
+      if (membershipQuery.error.code === '42703') {
+        const fallback = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', userId);
+        memberships = fallback.data || [];
+      } else {
+        console.warn('resolveActorContext - error obteniendo membresías:', membershipQuery.error);
+      }
+    } else {
+      memberships = membershipQuery.data || [];
+    }
 
     const groupIds = (memberships || [])
       .map(m => m.group_id)

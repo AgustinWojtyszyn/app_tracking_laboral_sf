@@ -24,8 +24,10 @@ export default function DailyJobsPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
+  const [clearingPending, setClearingPending] = useState(false);
   const hasJobs = jobs.length > 0;
   const clearDisabled = clearing || loading;
+  const clearPendingDisabled = clearingPending || loading;
 
   useEffect(() => {
     if (user) fetchJobs();
@@ -73,6 +75,28 @@ export default function DailyJobsPage() {
       addToast(result.error, 'error');
     }
     setClearing(false);
+  };
+
+  const handleClearPending = async () => {
+    if (!isAdmin) {
+      addToast(isEn ? 'Only administrators can clean pending jobs.' : 'Solo los administradores pueden limpiar trabajos pendientes.', 'error');
+      return;
+    }
+    setClearingPending(true);
+    const result = await jobsService.deletePendingJobs(date, date);
+    if (result.success) {
+      const removed = result.removed || 0;
+      addToast(
+        removed === 0
+          ? (isEn ? 'No pending jobs to remove.' : 'No hay trabajos pendientes para eliminar.')
+          : (isEn ? `Removed ${removed} pending jobs.` : `Se eliminaron ${removed} trabajos pendientes.`),
+        'success'
+      );
+      fetchJobs();
+    } else {
+      addToast(result.error, 'error');
+    }
+    setClearingPending(false);
   };
 
   const totals = jobs.reduce((acc, job) => {
@@ -128,6 +152,22 @@ export default function DailyJobsPage() {
                 disabled={clearDisabled}
               >
                 <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
+              </Button>
+            }
+          />
+          <ConfirmationModal
+            title={isEn ? 'Clean pending?' : '¿Limpiar pendientes?'}
+            description={isEn ? 'Delete all pending jobs for this day.' : 'Eliminar todos los trabajos pendientes de esta fecha.'}
+            confirmLabel={isEn ? 'Delete pending' : 'Eliminar pendientes'}
+            onConfirm={handleClearPending}
+            trigger={
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto min-w-[120px] sm:min-w-[140px] h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                disabled={clearPendingDisabled}
+              >
+                <Trash2 className="w-5 h-5 mr-2" /> {clearingPending ? (isEn ? 'Cleaning pending...' : 'Limpiando pendientes...') : (isEn ? 'Clear pending' : 'Limpiar pendientes')}
               </Button>
             }
           />
