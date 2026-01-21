@@ -5,24 +5,21 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, Edit2, Calendar, MapPin, DollarSign, User, Eye, MessageCircle, FileSpreadsheet } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import JobDetailModal from '@/components/jobs/JobDetailModal';
 
 export default function DailyJobsPage() {
-    const { user, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { addToast } = useToast();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isEn = language === 'en';
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingJob, setEditingJob] = useState(null);
-  const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const hasJobs = jobs.length > 0;
   const clearDisabled = clearing || loading;
@@ -51,21 +48,6 @@ export default function DailyJobsPage() {
       ? `Daily jobs - ${date}`
       : `Trabajos diarios - ${date}`;
     exportService.shareJobsViaWhatsApp(jobs, title);
-  };
-
-    const handleDelete = async (id) => {
-        if (!isAdmin) {
-            addToast(isEn ? 'Only administrators can delete jobs.' : 'Solo los administradores pueden eliminar trabajos.', 'error');
-            return;
-        }
-
-    const result = await jobsService.deleteJob(id);
-    if (result.success) {
-        addToast(result.message, 'success');
-        fetchJobs();
-    } else {
-        addToast(result.error, 'error');
-    }
   };
 
   const handleClearCompleted = async () => {
@@ -173,215 +155,75 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow border border-gray-200 dark:border-slate-800 overflow-hidden card-lg">
-                {loading ? (
-                    <LoadingSpinner />
-                ) : jobs.length === 0 ? (
-                    <div className="p-14 text-center flex flex-col items-center text-gray-500 dark:text-slate-300 gap-3">
-                        <Calendar className="w-16 h-16 mb-2 text-gray-300" />
-                        <p className="text-lg font-medium">{isEn ? 'No jobs for this date.' : 'No hay trabajos para esta fecha.'}</p>
-                    </div>
-                ) : (
-                    <>
-            {/* Desktop View */}
-            <div className="hidden md:block">
-              <table className="min-w-full text-xs md:text-sm text-left">
-                <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg">
+        <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
+          <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{jobs.length} {isEn ? 'records' : 'registros'}</span>
+        </div>
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="py-10 flex justify-center">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <table className="min-w-full text-xs md:text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
+                  <th className="px-3 md:px-4 py-3">{isEn ? 'Description' : 'Descripción'}</th>
+                  <th className="px-3 md:px-4 py-3">{isEn ? 'Workplace' : 'Lugar de trabajo'}</th>
+                  <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
+                  <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
+                  <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
+                  <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Hours' : 'Horas'}</th>
+                  <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
+                  <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
+                  <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                {jobs.length === 0 ? (
                   <tr>
-                    <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
-                    <th className="px-3 md:px-4 py-3">{isEn ? 'Description' : 'Descripción'}</th>
-                    <th className="px-3 md:px-4 py-3">{isEn ? 'Workplace' : 'Lugar de trabajo'}</th>
-                    <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
-                    <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
-                    <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
-                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Hours' : 'Horas'}</th>
-                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
-                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
-                    <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
-                    <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
+                    <td colSpan={10} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                      {t('monthlyPage.emptyDesc')}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {jobs.map((job) => (
-                    <tr
-                      key={job.id}
-                      className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors"
-                    >
-                      <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date || date)}</td>
-                      <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50 break-words">{job.description}</td>
-                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words">{job.location || '-'}</td>
-                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.workers?.display_name || job.workers?.alias || '-'}</td>
-                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words">{job.job_type || job.type || '-'}</td>
-                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.groups?.name || '-'}</td>
-                      <td className="px-3 md:px-4 py-3 text-right tabular-nums whitespace-nowrap text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
-                      <td className="px-3 md:px-4 py-3 text-right tabular-nums whitespace-nowrap text-gray-900 dark:text-slate-50">{formatCurrency(job.cost_spent)}</td>
-                      <td className="px-3 md:px-4 py-3 text-right tabular-nums whitespace-nowrap font-semibold text-green-700 dark:text-green-300">
-                        {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
-                      </td>
-                      <td className="px-3 md:px-4 py-3 text-center">
-                        <span
-                          className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
-                            job.status === 'completed'
-                              ? 'bg-green-100 text-green-700'
-                              : job.status === 'archived'
-                              ? 'bg-gray-100 text-gray-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
-                        >
-                          {job.status === 'pending'
-                            ? (isEn ? 'Pending' : 'Pendiente')
-                            : job.status === 'completed'
-                            ? (isEn ? 'Completed' : 'Completado')
-                            : (isEn ? 'Archived' : 'Archivado')}
-                        </span>
-                      </td>
-                      <td className="px-3 md:px-4 py-3 text-center">
-                        <div className="flex justify-center gap-4 flex-wrap">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedJob(job)}
-                            className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-sm font-semibold shadow-sm"
-                          >
-                            <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingJob(job)}
-                            className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm font-semibold shadow-sm"
-                          >
-                            <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                          </Button>
-                          {isAdmin && (
-                            <ConfirmationModal
-                              title={isEn ? 'Delete job?' : '¿Eliminar trabajo?'}
-                              onConfirm={() => handleDelete(job.id)}
-                              trigger={
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 text-red-600"
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </Button>
-                              }
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-{/* Mobile View (Cards) */}
-                        <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
-                            {jobs.map((job) => (
-                                <div
-                                            key={job.id}
-                                            className="p-4 bg-white dark:bg-slate-900 flex flex-col gap-2"
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <p className="font-medium text-base md:text-lg text-gray-900 dark:text-slate-50">{job.description || (isEn ? 'No description' : 'Sin descripción')}</p>
-                                                    <div className="flex items-center text-sm text-gray-500 dark:text-slate-300 mt-1">
-                                                        <MapPin className="w-4 h-4 mr-1" />
-                                                        {job.location || (isEn ? 'No location' : 'Sin ubicación')}
-                                                    </div>
-                                                    <div className="flex items-center text-sm text-gray-500 dark:text-slate-300 mt-1">
-                                                        <User className="w-4 h-4 mr-1" />
-                                                        {job.workers?.display_name || job.workers?.alias || (isEn ? 'No worker' : 'Sin trabajador')}
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                            <p className="font-bold text-green-700 dark:text-green-400 text-lg md:text-xl">
-                                              {formatCurrency(job.amount_to_charge)}
-                                            </p>
-                                                    <span
-                                                className={`text-xs md:text-sm px-3 py-1.5 rounded-full uppercase font-bold ${
-                                                    job.status === 'completed'
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : job.status === 'archived'
-                                                        ? 'bg-gray-100 text-gray-700'
-                                                        : 'bg-yellow-100 text-yellow-700'
-                                                }`}
-                                                    >
-                                                        {job.status === 'pending'
-                                                          ? (isEn ? 'Pending' : 'Pendiente')
-                                                          : job.status === 'completed'
-                                                          ? (isEn ? 'Completed' : 'Completado')
-                                                          : (isEn ? 'Archived' : 'Archivado')}
-                                                    </span>
-                                                </div>
-                                            </div>
+                ) : jobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
+                    <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
+                    <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>
+                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.location || '-'}</td>
+                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
+                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
+                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
+                    <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
+                    <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">
+                      {formatCurrency(job.cost_spent)}
+                    </td>
+                    <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
+                      {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
+                    </td>
+                    <td className="px-3 md:px-4 py-3 text-center">
+                      <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
+                        job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {job.status === 'pending'
+                          ? (isEn ? 'Pending' : 'Pendiente')
+                          : job.status === 'completed'
+                          ? (isEn ? 'Completed' : 'Completado')
+                          : (isEn ? 'Archived' : 'Archivado')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
 
-                                            <div className="flex items-center justify-between text-sm md:text-base text-gray-600 dark:text-slate-200 mt-2 bg-gray-50 dark:bg-slate-800 p-2.5 rounded-lg">
-                                                <span>{job.groups ? `${isEn ? 'Group' : 'Grupo'}: ${job.groups.name}` : (isEn ? 'Personal' : 'Personal')}</span>
-                                                <span className="flex items-center">
-                                                    <DollarSign className="w-4 h-4 mr-1" /> {isEn ? 'Cost' : 'Costo'}: {formatCurrency(job.cost_spent)}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setSelectedJob(job)}
-                                                    className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs font-semibold shadow-sm"
-                                                >
-                                                    <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setEditingJob(job)}
-                                                    className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs font-semibold shadow-sm"
-                                                >
-                                                    <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                                                </Button>
-                                                {isAdmin && (
-                                                  <ConfirmationModal
-                                                      title={isEn ? 'Delete?' : '¿Eliminar?'}
-                                                      onConfirm={() => handleDelete(job.id)}
-                                                      trigger={
-                                                          <Button
-                                                              variant="outline"
-                                                              size="sm"
-                                                              className="h-9 text-red-600 border-red-200"
-                                                          >
-                                                              <Trash2 className="w-4 h-4 mr-1" /> {isEn ? 'Delete' : 'Eliminar'}
-                                                          </Button>
-                                                      }
-                                                  />
-                                                )}
-                                            </div>
-                                        </div>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
-
-            {editingJob && (
-                <JobForm
-                    jobToEdit={editingJob}
-                    onSuccess={() => {
-                        setEditingJob(null);
-                        fetchJobs();
-                    }}
-                />
-            )}
-            {selectedJob && (
-              <JobDetailModal
-                job={selectedJob}
-                onClose={() => setSelectedJob(null)}
-                onEdit={(job) => {
-                  setSelectedJob(null);
-                  setEditingJob(job);
-                }}
-              />
-            )}
         </div>
     );
 }

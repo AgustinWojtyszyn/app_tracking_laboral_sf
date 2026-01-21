@@ -2,8 +2,35 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
 export const jobsService = {
+  async resolveActorContext(providedUserId = null) {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = providedUserId || authData?.user?.id || null;
+    if (!userId) return { userId: null, groupIds: [], isAdmin: false };
+
+    const { data: profile } = await supabase.from('users').select('role').eq('id', userId).single();
+    const isAdmin = profile?.role === 'admin';
+
+    const { data: memberships } = await supabase
+      .from('group_members')
+      .select('group_id, status')
+      .eq('user_id', userId)
+      .or('status.eq.approved,status.is.null');
+
+    const groupIds = (memberships || [])
+      .map(m => m.group_id)
+      .filter(Boolean);
+
+    return { userId, groupIds, isAdmin };
+  },
+
   async getJobsByDateRange(startDate, endDate, filters = {}) {
     try {
+      const { userId, groupIds, isAdmin } = await this.resolveActorContext(filters.currentUserId);
+      if (!userId) return { success: true, data: [] };
+      if (!isAdmin && filters.groupId && filters.groupId !== 'all' && !groupIds.includes(filters.groupId)) {
+        return { success: true, data: [] };
+      }
+
       // Consulta principal intentando incluir relaciones de grupos y trabajadores internos.
       // Usamos la FK explícita jobs_group_id_fkey para que PostgREST no
       // intente usar una columna inexistente llamada "groups" en jobs.
@@ -13,6 +40,16 @@ export const jobsService = {
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: false });
+
+      let orFilters = [];
+      if (!isAdmin) {
+        if (groupIds.length > 0) {
+          const groupList = groupIds.join(',');
+          orFilters.push(`group_id.in.(${groupList})`);
+        }
+        orFilters.push(`user_id.eq.${userId}`);
+        baseQuery = baseQuery.or(orFilters.join(','));
+      }
 
       if (filters.status && filters.status !== 'all') baseQuery = baseQuery.eq('status', filters.status);
       if (filters.groupId && filters.groupId !== 'all') baseQuery = baseQuery.eq('group_id', filters.groupId);
@@ -34,6 +71,10 @@ export const jobsService = {
           .gte('date', startDate)
           .lte('date', endDate)
           .order('date', { ascending: false });
+
+        if (!isAdmin) {
+          fallbackQuery = fallbackQuery.or(orFilters.join(','));
+        }
 
         if (filters.status && filters.status !== 'all') fallbackQuery = fallbackQuery.eq('status', filters.status);
         if (filters.groupId && filters.groupId !== 'all') fallbackQuery = fallbackQuery.eq('group_id', filters.groupId);
@@ -69,8 +110,25 @@ export const jobsService = {
     }
   },
 
-  async updateJob(id, jobData) {
+  async updateJob(id, jobData, actorId = null) {
     try {
+      const { userId, groupIds, isAdmin } = await this.resolveActorContext(actorId);
+      if (!userId) return { success: false, error: "No hay sesión activa." };
+
+      const { data: existing, error: fetchError } = await supabase
+        .from('jobs')
+        .select('user_id, group_id, editable_by_group')
+        .eq('id', id)
+        .single();
+      if (fetchError) throw fetchError;
+      if (!existing) return { success: false, error: "Trabajo no encontrado." };
+
+      const isCreator = existing.user_id === userId;
+      const canEditByGroup = existing.editable_by_group && existing.group_id && groupIds.includes(existing.group_id);
+      if (!isCreator && !canEditByGroup && !isAdmin) {
+        return { success: false, error: "No tienes permisos para editar este trabajo." };
+      }
+
       const { error } = await supabase.from('jobs').update(jobData).eq('id', id);
       if (error) throw error;
       return { success: true, message: "Trabajo actualizado exitosamente" };
@@ -79,8 +137,25 @@ export const jobsService = {
     }
   },
 
-  async deleteJob(id) {
+  async deleteJob(id, { actorId = null, allowAdmin = true } = {}) {
     try {
+      const { userId, isAdmin } = await this.resolveActorContext(actorId);
+      if (!userId) return { success: false, error: "No hay sesión activa." };
+
+      const { data: existing, error: fetchError } = await supabase
+        .from('jobs')
+        .select('user_id')
+        .eq('id', id)
+        .single();
+      if (fetchError) throw fetchError;
+      if (!existing) return { success: false, error: "Trabajo no encontrado." };
+
+      const isCreator = existing.user_id === userId;
+      const adminAllowed = allowAdmin && isAdmin;
+      if (!isCreator && !adminAllowed) {
+        return { success: false, error: "Solo el creador puede eliminar este trabajo." };
+      }
+
       const { error } = await supabase.from('jobs').delete().eq('id', id);
       if (error) throw error;
       return { success: true, message: "Trabajo eliminado exitosamente" };

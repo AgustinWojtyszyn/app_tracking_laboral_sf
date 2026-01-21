@@ -114,8 +114,10 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       hours_worked: Number(formData.hours_worked),
       cost_spent: Number(formData.cost_spent),
       amount_to_charge: Number(formData.amount_to_charge),
-      user_id: user?.id || null,
     };
+    if (!jobToEdit) {
+      payload.user_id = user?.id || null;
+    }
 
     let result;
     if (jobToEdit) {
