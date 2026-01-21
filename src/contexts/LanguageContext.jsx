@@ -103,6 +103,7 @@ const translations = {
       columns: {
         date: 'Fecha',
         description: 'Descripción',
+        creator: 'Creado por',
         location: 'Lugar de trabajo',
         worker: 'Trabajador',
         type: 'Tipo de trabajo',
@@ -219,6 +220,7 @@ const translations = {
       columns: {
         date: 'Date',
         description: 'Description',
+        creator: 'Created by',
         location: 'Workplace',
         worker: 'Worker',
         type: 'Job type',

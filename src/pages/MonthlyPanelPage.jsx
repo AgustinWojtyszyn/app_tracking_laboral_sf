@@ -200,13 +200,14 @@ export default function MonthlyPanelPage() {
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
           <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{filteredJobs.length} {isEn ? 'records' : 'registros'}</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs md:text-sm text-left">
+        <div>
+          <table className="w-full text-xs md:text-sm text-left">
             <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
               <tr>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.date')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.description')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.location')}</th>
+                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.creator')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.worker')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.type')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.group')}</th>
@@ -229,6 +230,7 @@ export default function MonthlyPanelPage() {
                   <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
                   <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.location || '-'}</td>
+                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.creator?.full_name || job.creator?.email || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
@@ -312,6 +314,9 @@ export default function MonthlyPanelPage() {
                                             <div className="flex items-center gap-2 mt-2 flex-wrap">
                                                 <span className="text-base md:text-lg text-gray-500 dark:text-slate-300">{job.location || '-'}</span>
                                                 <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
+                                                    {job.creator?.full_name || job.creator?.email || (isEn ? 'Creator' : 'Creador')}
+                                                </span>
+                                                <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
                                                     {job.workers?.display_name || job.workers?.alias || (isEn ? 'No worker' : 'Sin trabajador')}
                                                 </span>
                                                 {job.groups && (
@@ -340,24 +345,6 @@ export default function MonthlyPanelPage() {
                                                 }`}>
                                                     {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
                                                 </span>
-                                                <div className="flex justify-end gap-2 mt-3">
-                                                  <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setSelectedJob(job)}
-                                                    className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
-                                                  >
-                                                    <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
-                                                  </Button>
-                                                  <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setEditingJob(job)}
-                                                    className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
-                                                  >
-                                                    <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                                                  </Button>
-                                                </div>
                                             </div>
                                          </div>
                                      </div>

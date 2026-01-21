@@ -265,6 +265,7 @@ export default function GroupsPage() {
                                               <th className="px-3 py-3">Fecha</th>
                                               <th className="px-3 py-3">Descripción</th>
                                               <th className="px-3 py-3">Lugar</th>
+                                              <th className="px-3 py-3">Creador</th>
                                               <th className="px-3 py-3">Trabajador</th>
                                               <th className="px-3 py-3 text-right">Horas</th>
                                               <th className="px-3 py-3 text-right">Cobrar</th>
@@ -278,6 +279,7 @@ export default function GroupsPage() {
                                                 <td className="px-3 py-3">{formatDate(job.date)}</td>
                                                 <td className="px-3 py-3 font-semibold">{job.description}</td>
                                                 <td className="px-3 py-3">{job.location || '-'}</td>
+                                                <td className="px-3 py-3">{job.creator?.full_name || job.creator?.email || '-'}</td>
                                                 <td className="px-3 py-3">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                                                 <td className="px-3 py-3 text-right">{job.hours_worked}</td>
                                                 <td className="px-3 py-3 text-right">{formatCurrency(job.amount_to_charge)}</td>

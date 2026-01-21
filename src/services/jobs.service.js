@@ -46,12 +46,12 @@ export const jobsService = {
         return { success: true, data: [] };
       }
 
-      // Consulta principal intentando incluir relaciones de grupos y trabajadores internos.
+      // Consulta principal intentando incluir relaciones de grupos, trabajadores y creador.
       // Usamos la FK explícita jobs_group_id_fkey para que PostgREST no
       // intente usar una columna inexistente llamada "groups" en jobs.
       let baseQuery = supabase
         .from('jobs')
-        .select('*, groups:groups!jobs_group_id_fkey(name), workers:workers!jobs_worker_id_fkey(display_name, alias)')
+        .select('*, groups:groups!jobs_group_id_fkey(name), workers:workers!jobs_worker_id_fkey(display_name, alias), creator:users!jobs_user_id_fkey(full_name, email)')
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: false });
@@ -82,7 +82,7 @@ export const jobsService = {
 
         let fallbackQuery = supabase
           .from('jobs')
-          .select('*')
+          .select('*, creator:users!jobs_user_id_fkey(full_name, email)')
           .gte('date', startDate)
           .lte('date', endDate)
           .order('date', { ascending: false });
