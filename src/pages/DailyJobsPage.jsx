@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, formatDate } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
 
 export default function DailyJobsPage() {
@@ -183,82 +183,98 @@ export default function DailyJobsPage() {
                     </div>
                 ) : (
                     <>
-                                {/* Desktop View */}
-                        <div className="hidden md:block">
-                            <table className="w-full table-fixed text-base md:text-lg text-left">
-                                <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
-                                    <tr>
-                                        <th className="px-4 py-3 w-[22%] break-words">{isEn ? 'Description' : 'Descripción'}</th>
-                                        <th className="px-4 py-3 text-right w-[8%] min-w-[80px]">{isEn ? 'Hours' : 'Horas'}</th>
-                                        <th className="px-4 py-3 w-[16%] break-words">{isEn ? 'Worker' : 'Trabajador'}</th>
-                                        <th className="px-4 py-3 w-[14%] break-words">{isEn ? 'Group' : 'Grupo'}</th>
-                                        <th className="px-4 py-3 text-center w-[10%] min-w-[110px] whitespace-nowrap">{isEn ? 'Status' : 'Estado'}</th>
-                                        <th className="px-4 py-3 text-right w-[10%] min-w-[120px]">{isEn ? 'Cost' : 'Costo'}</th>
-                                        <th className="px-4 py-3 w-[14%] break-words text-center">{isEn ? 'Location' : 'Ubicación'}</th>
-                                        <th className="px-4 py-3 text-right w-[10%] min-w-[130px]">{isEn ? 'Charge' : 'Cobrar'}</th>
-                                        <th className="px-4 py-3 text-center w-[11%]">{isEn ? 'Actions' : 'Acciones'}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                                    {jobs.map((job) => (
-                                        <tr
-                                            key={job.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
-                                        >
-                                            <td className="px-4 py-3 font-semibold text-gray-900 dark:text-slate-50 break-words">{job.description}</td>
-                                            <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{job.hours_worked}</td>
-                                            <td className="px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.workers?.display_name || job.workers?.alias || '-'}</td>
-                                            <td className="px-4 py-3 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.groups?.name || '-'}</td>
-                                            <td className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-slate-100 whitespace-nowrap min-w-[110px]">
-                                              {job.status === 'completed'
-                                                ? (isEn ? 'Completed' : 'Completado')
-                                                : job.status === 'archived'
-                                                ? (isEn ? 'Archived' : 'Archivado')
-                                                : (isEn ? 'Pending' : 'Pendiente')}
-                                            </td>
-                                            <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(job.cost_spent)}</td>
-                                            <td className="px-4 py-3 break-words text-center whitespace-nowrap overflow-hidden text-ellipsis">{job.location}</td>
-                                            <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{formatCurrency(job.amount_to_charge)}</td>
-                                            <td className="px-4 py-3 text-center">
-                                                <div className="flex justify-center gap-4 flex-wrap">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => setSelectedJob(job)}
-                                                        className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-sm font-semibold shadow-sm"
-                                                    >
-                                                        <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => setEditingJob(job)}
-                                                        className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm font-semibold shadow-sm"
-                                                    >
-                                                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                                                    </Button>
-                                                    {isAdmin && (
-                                                      <ConfirmationModal
-                                                          title={isEn ? 'Delete job?' : '¿Eliminar trabajo?'}
-                                                          onConfirm={() => handleDelete(job.id)}
-                                                          trigger={
-                                                              <Button
-                                                                  variant="ghost"
-                                                                  size="icon"
-                                                                  className="h-9 w-9 text-red-600"
-                                                              >
-                                                                  <Trash2 className="w-5 h-5" />
-                                                              </Button>
-                                                          }
-                                                      />
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+            {/* Desktop View */}
+            <div className="hidden md:block">
+              <table className="min-w-full text-xs md:text-sm text-left">
+                <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Description' : 'Descripción'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Workplace' : 'Lugar de trabajo'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Hours' : 'Horas'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
+                    <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
+                    <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {jobs.map((job) => (
+                    <tr
+                      key={job.id}
+                      className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors"
+                    >
+                      <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date || date)}</td>
+                      <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50 break-words">{job.description}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words">{job.location || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.workers?.display_name || job.workers?.alias || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words">{job.job_type || job.type || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200 break-words whitespace-nowrap overflow-hidden text-ellipsis">{job.groups?.name || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-right tabular-nums whitespace-nowrap text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
+                      <td className="px-3 md:px-4 py-3 text-right tabular-nums whitespace-nowrap text-gray-900 dark:text-slate-50">{formatCurrency(job.cost_spent)}</td>
+                      <td className="px-3 md:px-4 py-3 text-right tabular-nums whitespace-nowrap font-semibold text-green-700 dark:text-green-300">
+                        {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
+                      </td>
+                      <td className="px-3 md:px-4 py-3 text-center">
+                        <span
+                          className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
+                            job.status === 'completed'
+                              ? 'bg-green-100 text-green-700'
+                              : job.status === 'archived'
+                              ? 'bg-gray-100 text-gray-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {job.status === 'pending'
+                            ? (isEn ? 'Pending' : 'Pendiente')
+                            : job.status === 'completed'
+                            ? (isEn ? 'Completed' : 'Completado')
+                            : (isEn ? 'Archived' : 'Archivado')}
+                        </span>
+                      </td>
+                      <td className="px-3 md:px-4 py-3 text-center">
+                        <div className="flex justify-center gap-4 flex-wrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedJob(job)}
+                            className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-sm font-semibold shadow-sm"
+                          >
+                            <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Ver detalle'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingJob(job)}
+                            className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-sm font-semibold shadow-sm"
+                          >
+                            <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                          </Button>
+                          {isAdmin && (
+                            <ConfirmationModal
+                              title={isEn ? 'Delete job?' : '¿Eliminar trabajo?'}
+                              onConfirm={() => handleDelete(job.id)}
+                              trigger={
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-9 w-9 text-red-600"
+                                >
+                                  <Trash2 className="w-5 h-5" />
+                                </Button>
+                              }
+                            />
+                          )}
                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 {/* Mobile View (Cards) */}
                         <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
                             {jobs.map((job) => (
