@@ -203,13 +203,13 @@ export default function DailyJobsPage() {
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
           <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{jobs.length} {isEn ? 'records' : 'registros'}</span>
         </div>
-        <div className="overflow-x-auto">
+        <div>
           {loading ? (
             <div className="py-10 flex justify-center">
               <LoadingSpinner />
             </div>
           ) : (
-            <table className="min-w-full text-xs md:text-sm text-left">
+            <table className="w-full text-xs md:text-sm text-left">
               <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
                 <tr>
                   <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
