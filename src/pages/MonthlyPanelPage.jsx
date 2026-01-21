@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/contexts/ToastContext';
 import { formatCurrency, formatNumber, formatDate } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
-import { CalendarDays, Briefcase, DollarSign, Clock, Share2, Trash2, MessageCircle, FileSpreadsheet } from 'lucide-react';
+import { CalendarDays, Briefcase, DollarSign, Clock, Share2, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
 import { jobsService } from '@/services/jobs.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
+import JobDetailModal from '@/components/jobs/JobDetailModal';
+import JobForm from '@/components/jobs/JobForm';
 
 export default function MonthlyPanelPage() {
   const { user, isAdmin } = useAuth();
@@ -25,6 +27,8 @@ export default function MonthlyPanelPage() {
   const [jobs, setJobs] = useState([]);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [editingJob, setEditingJob] = useState(null);
   
   // Use filter hook for state management
   const { filters, setFilter } = useFilters({
@@ -210,12 +214,13 @@ export default function MonthlyPanelPage() {
                 <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.cost')}</th>
                 <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.charge')}</th>
                 <th className="px-3 md:px-4 py-3 text-center">{t('monthlyPage.columns.status')}</th>
+                <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                  <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                     {t('monthlyPage.emptyDesc')}
                   </td>
                 </tr>
@@ -242,6 +247,26 @@ export default function MonthlyPanelPage() {
                     }`}>
                       {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
                     </span>
+                  </td>
+                  <td className="px-3 md:px-4 py-3 text-center">
+                    <div className="flex justify-center gap-3 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedJob(job)}
+                        className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
+                      >
+                        <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingJob(job)}
+                        className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -307,15 +332,33 @@ export default function MonthlyPanelPage() {
                                                     {isEn ? 'Hours' : 'Horas'}: {job.hours_worked}
                                                  </span>
                                              </div>
-                                             <div className="text-right w-24">
-                                                 <span className={`text-base md:text-lg px-4 py-2 rounded-full font-medium ${
-                                                     job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                     job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                                                     'bg-yellow-100 text-yellow-700'
-                                                 }`}>
-                                                     {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
-                                                 </span>
-                                             </div>
+                                            <div className="text-right w-24">
+                                                <span className={`text-base md:text-lg px-4 py-2 rounded-full font-medium ${
+                                                    job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                    job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                                                    'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                    {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
+                                                </span>
+                                                <div className="flex justify-end gap-2 mt-3">
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setSelectedJob(job)}
+                                                    className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
+                                                  >
+                                                    <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setEditingJob(job)}
+                                                    className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
+                                                  >
+                                                    <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                                                  </Button>
+                                                </div>
+                                            </div>
                                          </div>
                                      </div>
                                  ))}
@@ -325,6 +368,25 @@ export default function MonthlyPanelPage() {
                  })
              )}
           </div>
+      )}
+      {editingJob && (
+        <JobForm
+          jobToEdit={editingJob}
+          onSuccess={() => {
+            setEditingJob(null);
+            fetchJobs();
+          }}
+        />
+      )}
+      {selectedJob && (
+        <JobDetailModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onEdit={(job) => {
+            setSelectedJob(null);
+            setEditingJob(job);
+          }}
+        />
       )}
     </div>
   );

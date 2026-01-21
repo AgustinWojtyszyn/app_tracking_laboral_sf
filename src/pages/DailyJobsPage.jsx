@@ -5,12 +5,13 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, MessageCircle, FileSpreadsheet } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import JobDetailModal from '@/components/jobs/JobDetailModal';
 
 export default function DailyJobsPage() {
   const { user, isAdmin } = useAuth();
@@ -20,6 +21,8 @@ export default function DailyJobsPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingJob, setEditingJob] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const hasJobs = jobs.length > 0;
   const clearDisabled = clearing || loading;
@@ -179,16 +182,17 @@ export default function DailyJobsPage() {
                   <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
                   <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
                   <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
+                  <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {jobs.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                    {t('monthlyPage.emptyDesc')}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                {jobs.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
-                      {t('monthlyPage.emptyDesc')}
-                    </td>
-                  </tr>
-                ) : jobs.map((job) => (
+              ) : jobs.map((job) => (
                   <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                     <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
                     <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>
@@ -200,29 +204,68 @@ export default function DailyJobsPage() {
                     <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">
                       {formatCurrency(job.cost_spent)}
                     </td>
-                    <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
-                      {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
-                    </td>
-                    <td className="px-3 md:px-4 py-3 text-center">
-                      <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
+                  <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
+                    {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
+                  </td>
+                  <td className="px-3 md:px-4 py-3 text-center">
+                    <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
                         job.status === 'completed' ? 'bg-green-100 text-green-700' :
                         job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
                         'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {job.status === 'pending'
-                          ? (isEn ? 'Pending' : 'Pendiente')
-                          : job.status === 'completed'
-                          ? (isEn ? 'Completed' : 'Completado')
-                          : (isEn ? 'Archived' : 'Archivado')}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    }`}>
+                      {job.status === 'pending'
+                        ? (isEn ? 'Pending' : 'Pendiente')
+                        : job.status === 'completed'
+                        ? (isEn ? 'Completed' : 'Completado')
+                        : (isEn ? 'Archived' : 'Archivado')}
+                    </span>
+                  </td>
+                  <td className="px-3 md:px-4 py-3 text-center">
+                    <div className="flex justify-center gap-3 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedJob(job)}
+                        className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
+                      >
+                        <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingJob(job)}
+                        className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           )}
         </div>
       </div>
+      {editingJob && (
+        <JobForm
+          jobToEdit={editingJob}
+          onSuccess={() => {
+            setEditingJob(null);
+            fetchJobs();
+          }}
+        />
+      )}
+      {selectedJob && (
+        <JobDetailModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onEdit={(job) => {
+            setSelectedJob(null);
+            setEditingJob(job);
+          }}
+        />
+      )}
 
         </div>
     );
