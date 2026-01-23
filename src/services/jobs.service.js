@@ -31,9 +31,11 @@ export const jobsService = {
       memberships = membershipQuery.data || [];
     }
 
+    // Normalizar a string para evitar problemas de comparación (p. ej. bigint vs string)
     const groupIds = (memberships || [])
       .map(m => m.group_id)
-      .filter(Boolean);
+      .filter(Boolean)
+      .map((id) => id.toString());
 
     return { userId, groupIds, isAdmin };
   },
@@ -41,8 +43,9 @@ export const jobsService = {
   async getJobsByDateRange(startDate, endDate, filters = {}) {
     try {
       const { userId, groupIds, isAdmin } = await this.resolveActorContext(filters.currentUserId);
+      const requestedGroupId = filters.groupId ? filters.groupId.toString() : null;
       if (!userId) return { success: true, data: [] };
-      if (!isAdmin && filters.groupId && filters.groupId !== 'all' && !groupIds.includes(filters.groupId)) {
+      if (!isAdmin && requestedGroupId && requestedGroupId !== 'all' && !groupIds.includes(requestedGroupId)) {
         return { success: true, data: [] };
       }
 
@@ -59,7 +62,8 @@ export const jobsService = {
       let orFilters = [];
       if (!isAdmin) {
         if (groupIds.length > 0) {
-          const groupList = groupIds.join(',');
+          // Comillas para soportar UUID/strings y evitar comparaciones fallidas
+          const groupList = groupIds.map((id) => `"${id}"`).join(',');
           orFilters.push(`group_id.in.(${groupList})`);
         }
         orFilters.push(`user_id.eq.${userId}`);
