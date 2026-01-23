@@ -175,7 +175,7 @@ export default function GroupsPage() {
                                           {t('groupsPage.manageMembers')}
                                       </Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
+                                  <DialogContent className="top-[5vh] translate-y-0 -translate-x-1/2 left-1/2 w-[95vw] sm:w-[860px] max-w-5xl bg-white dark:bg-slate-900 p-0 max-h-[90vh] overflow-y-auto">
                                           <DialogHeader className="p-0">
                                               <div className="p-6 bg-[#1e3a8a] text-white">
                                                   <DialogTitle className="text-xl font-bold">Gestionar Grupo</DialogTitle>
@@ -335,7 +335,7 @@ export default function GroupsPage() {
                                     Ver grupo
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 p-0 overflow-hidden">
+                                <DialogContent className="top-[5vh] translate-y-0 -translate-x-1/2 left-1/2 w-[95vw] sm:w-[860px] max-w-5xl bg-white dark:bg-slate-900 p-0 max-h-[90vh] overflow-y-auto">
                                         <DialogHeader className="p-0">
                                             <div className="p-6 bg-[#1e3a8a] text-white">
                                                 <DialogTitle className="text-xl font-bold">Grupo</DialogTitle>

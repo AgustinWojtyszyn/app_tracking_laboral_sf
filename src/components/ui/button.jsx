@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 
 const buttonVariants = cva(
 	'inline-flex items-center justify-center rounded-md text-base font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
@@ -32,16 +32,66 @@ const buttonVariants = cva(
 	},
 );
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
-	const Comp = asChild ? Slot : 'button';
-	return (
-		<Comp
-			className={cn(buttonVariants({ variant, size, className }))}
-			ref={ref}
-			{...props}
-		/>
-	);
-});
+const Button = React.forwardRef(
+	(
+		{
+			className,
+			variant,
+			size,
+			asChild = false,
+			onClick,
+			disabled,
+			lockOnClick = true,
+			lockDuration = 600,
+			...props
+		},
+		ref,
+	) => {
+		const Comp = asChild ? Slot : 'button';
+		const [busy, setBusy] = useState(false);
+
+		const handleClick = useCallback(
+			(event) => {
+				if (busy || disabled) return;
+				if (!onClick) return;
+
+				// Evita múltiples disparos; libera después de la promesa o un breve timeout.
+				setBusy(true);
+				try {
+					const result = onClick(event);
+					if (lockOnClick && result?.then) {
+						result.finally(() => setBusy(false));
+						return result;
+					}
+				} catch (err) {
+					setBusy(false);
+					throw err;
+				}
+
+				if (!lockOnClick) {
+					setBusy(false);
+				} else {
+					setTimeout(() => setBusy(false), lockDuration);
+				}
+			},
+			[busy, disabled, lockOnClick, lockDuration, onClick],
+		);
+
+		return (
+			<Comp
+				className={cn(
+					buttonVariants({ variant, size, className }),
+					busy ? 'cursor-wait' : '',
+				)}
+				ref={ref}
+				onClick={handleClick}
+				disabled={disabled || (lockOnClick && busy)}
+				data-busy={busy ? 'true' : 'false'}
+				{...props}
+			/>
+		);
+	},
+);
 Button.displayName = 'Button';
 
 export { Button, buttonVariants };

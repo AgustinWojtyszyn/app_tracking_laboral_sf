@@ -26,6 +26,8 @@ export default function GroupMembers({
   const [savingGroup, setSavingGroup] = useState(false);
   const [editName, setEditName] = useState(group.name || '');
   const [editDescription, setEditDescription] = useState(group.description || '');
+  const [processingRequests, setProcessingRequests] = useState([]);
+  const [removingMemberId, setRemovingMemberId] = useState(null);
   const closeRef = useRef(null);
   const { addToast } = useToast();
   const { user } = useAuth();
@@ -110,22 +112,28 @@ export default function GroupMembers({
   };
 
   const handleRemoveMember = async (userId) => {
+    if (removingMemberId === userId) return;
+    setRemovingMemberId(userId);
     if (!isGroupAdmin) {
       addToast('Solo el administrador puede eliminar miembros.', 'error');
+      setRemovingMemberId(null);
       return;
     }
 
     // Bloquear que el creador (o el propio usuario) se elimine a sí mismo
     if (group.created_by === userId) {
       addToast('El creador no puede eliminarse del grupo.', 'error');
+      setRemovingMemberId(null);
       return;
     }
     if (user?.id === userId) {
       addToast('No puedes auto-eliminarte de este grupo.', 'error');
+      setRemovingMemberId(null);
       return;
     }
 
     const result = await groupsService.removeMember(group.id, userId);
+    setRemovingMemberId(null);
     if (result.success) {
       addToast(result.message, 'success');
       await fetchMembers();
@@ -135,6 +143,8 @@ export default function GroupMembers({
   };
 
   const handleRespondRequest = async (request, accept) => {
+      if (processingRequests.includes(request.id)) return;
+      setProcessingRequests((prev) => [...prev, request.id]);
       const result = await groupsService.respondToJoinRequest(
         request.id,
         request.group_id,
@@ -147,6 +157,7 @@ export default function GroupMembers({
           memberName: request.users?.full_name
         }
       );
+      setProcessingRequests((prev) => prev.filter((id) => id !== request.id));
       if (result.success) {
         addToast(result.message, 'success');
         await fetchMembers();
@@ -184,11 +195,15 @@ export default function GroupMembers({
   };
 
   const handleDeleteRequest = async (requestId) => {
+      if (processingRequests.includes(requestId)) return;
+      setProcessingRequests((prev) => [...prev, requestId]);
       if (!isGroupAdmin) {
         addToast('Solo el administrador puede eliminar solicitudes.', 'error');
+        setProcessingRequests((prev) => prev.filter((id) => id !== requestId));
         return;
       }
       const result = await groupsService.deleteJoinRequest(requestId);
+      setProcessingRequests((prev) => prev.filter((id) => id !== requestId));
       if (result.success) {
         addToast(result.message, 'success');
         await fetchJoinRequests();
@@ -326,7 +341,12 @@ export default function GroupMembers({
                                                       description="El usuario perderá acceso al grupo."
                                                       onConfirm={() => handleRemoveMember(m.user_id)}
                                                       trigger={
-                                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50">
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled={removingMemberId === m.user_id}
+                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-60"
+                                                      >
                                                               <Trash2 className="w-4 h-4" />
                                                       </Button>
                                               }
@@ -370,6 +390,7 @@ export default function GroupMembers({
                                                     <Button
                                                         size="sm"
                                                         className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                                                        disabled={processingRequests.includes(r.id)}
                                                         onClick={() => handleRespondRequest(r, true)}
                                                     >
                                                         Aceptar
@@ -378,6 +399,7 @@ export default function GroupMembers({
                                                         size="sm"
                                                         variant="outline"
                                                         className="text-red-600 border-red-200 text-xs"
+                                                        disabled={processingRequests.includes(r.id)}
                                                         onClick={() => handleRespondRequest(r, false)}
                                                     >
                                                         Rechazar
@@ -390,7 +412,8 @@ export default function GroupMembers({
                                                           <Button
                                                             size="icon"
                                                             variant="ghost"
-                                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                            disabled={processingRequests.includes(r.id)}
+                                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-60"
                                                           >
                                                             <Trash2 className="w-4 h-4" />
                                                           </Button>
