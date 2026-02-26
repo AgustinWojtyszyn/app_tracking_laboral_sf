@@ -29,6 +29,15 @@ This application requires the following environment variables to be set in your 
 - **404 on Refresh**: This is a Single Page Application (SPA). If hosting on Netlify/Vercel, ensure you have a redirect rule `/* /index.html 200`. Locally, Vite handles this.
 - **Styles missing**: Ensure `tailwind.config.js` content paths include all your component files.
 
+## Deployment Checklist (Supabase)
+
+The frontend uses build-time env vars. If a build is done with an old URL, the deployed app will keep pointing to the wrong project.
+
+1. **Set correct env vars in your build environment** (CI/CD, Netlify, Vercel, Hostinger, etc.). Use `VITE_SUPABASE_URL=https://kaprywsyjqmqinyggsjt.supabase.co` and `VITE_SUPABASE_ANON_KEY=<anon key from the same project>`.
+2. **Clear build cache and rebuild.** Netlify: "Deploys" → "Trigger deploy" → "Clear cache and deploy site". Vercel: "Deployments" → "Redeploy" → check "Clear build cache". Manual/Hostinger: delete old `dist/`, run `npm run build`, upload the new `dist/`.
+3. **Avoid accidental prod usage of `.env`.** `.env` is ignored by git and should not be uploaded to the hosting server. The build system must supply the env vars; static hosts do not read `.env` at runtime.
+4. **Verify after deploy.** Open DevTools → Network → verify requests go to `kaprywsyjqmqinyggsjt.supabase.co`.
+
 ## Modified Files
 - `src/main.jsx`: Entry point, wraps app in providers.
 - `src/App.jsx`: Routing logic, protected routes structure.
