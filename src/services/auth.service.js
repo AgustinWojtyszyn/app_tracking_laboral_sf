@@ -9,7 +9,67 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables");
 }
 
+const ensureProfile = async ({ user, fullName, email } = {}) => {
+  try {
+    if (!user?.id) {
+      return { success: false, error: 'Missing user' };
+    }
+
+    const resolvedEmail = email ?? user.email ?? null;
+    const resolvedFullName = fullName ?? user.user_metadata?.full_name ?? null;
+
+    const { data: existing, error: existingError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (existingError) {
+      console.warn('EnsureProfile - error buscando perfil existente:', existingError);
+    }
+
+    if (existing) {
+      const updatePayload = {};
+      if (resolvedEmail) updatePayload.email = resolvedEmail;
+      if (resolvedFullName) updatePayload.full_name = resolvedFullName;
+
+      if (Object.keys(updatePayload).length > 0) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update(updatePayload)
+          .eq('id', user.id);
+
+        if (updateError) {
+          console.warn('EnsureProfile - error actualizando perfil:', updateError);
+          return { success: false, error: updateError.message };
+        }
+      }
+
+      return { success: true, created: false };
+    }
+
+    const insertPayload = { id: user.id };
+    if (resolvedEmail) insertPayload.email = resolvedEmail;
+    if (resolvedFullName) insertPayload.full_name = resolvedFullName;
+
+    const { error: upsertError } = await supabase
+      .from('users')
+      .upsert(insertPayload, { onConflict: 'id' });
+
+    if (upsertError) {
+      console.warn('EnsureProfile - error creando perfil:', upsertError);
+      return { success: false, error: upsertError.message };
+    }
+
+    return { success: true, created: true };
+  } catch (error) {
+    console.error('EnsureProfile - excepción:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const authService = {
+  ensureProfile,
   async signUp(email, password, fullName) {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -21,23 +81,9 @@ export const authService = {
         },
       });
       if (error) throw error;
-      // Asegurar que exista un registro asociado en la tabla `users`
-      try {
-        const authUser = data?.user;
-        if (authUser) {
-          const { error: profileError } = await supabase
-            .from('users')
-            .insert({ id: authUser.id, email, full_name: fullName });
-
-          // Ignorar error si ya existe el registro, pero loguear otros casos
-          if (profileError && profileError.code !== '23505') {
-            console.error('SignUp - error al crear perfil en tabla users:', profileError);
-          }
-        } else {
-          console.warn('SignUp - no se recibió user en la respuesta de Supabase; no se pudo crear fila en users.');
-        }
-      } catch (profileException) {
-        console.error('SignUp - excepción creando perfil en users:', profileException);
+      // Solo crear/asegurar perfil si hay sesión (email confirmado o provider social).
+      if (data?.session?.user) {
+        await ensureProfile({ user: data.session.user, fullName, email });
       }
 
       return { success: true, data, error: null };

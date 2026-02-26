@@ -23,12 +23,15 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const handleSession = useCallback(async (currentSession) => {
+  const handleSession = useCallback(async (currentSession, { ensureProfile: shouldEnsureProfile = false } = {}) => {
     setSession(currentSession);
     const currentUser = currentSession?.user ?? null;
     setUser(currentUser);
     
     if (currentUser) {
+       if (shouldEnsureProfile) {
+         await authService.ensureProfile({ user: currentUser });
+       }
        await fetchProfile(currentUser.id);
     } else {
        setProfile(null);
@@ -51,7 +54,11 @@ export const AuthProvider = ({ children }) => {
     initAuth();
 
     // Subscription
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        handleSession(session, { ensureProfile: true });
+        return;
+      }
       handleSession(session);
     });
 
