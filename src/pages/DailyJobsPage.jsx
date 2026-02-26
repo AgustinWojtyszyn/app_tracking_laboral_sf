@@ -125,7 +125,7 @@ export default function DailyJobsPage() {
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch justify-end gap-3 w-full">
           <Button
             variant="default"
-            className="w-full sm:w-auto min-w-[150px] sm:min-w-[170px] h-12 md:h-14 text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
+            className="w-full sm:w-auto md:min-w-[170px] h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
             onClick={() => exportService.exportDayToExcel(date, jobs)}
             disabled={!hasJobs || loading}
           >
@@ -133,7 +133,7 @@ export default function DailyJobsPage() {
           </Button>
           <Button
             variant="default"
-            className="w-full sm:w-auto min-w-[150px] sm:min-w-[170px] h-12 md:h-14 text-base md:text-lg shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2"
+            className="w-full sm:w-auto md:min-w-[170px] h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2"
             onClick={handleShare}
             disabled={!hasJobs || loading}
           >
@@ -148,7 +148,7 @@ export default function DailyJobsPage() {
               <Button
                 type="button"
                 variant="destructive"
-                className="w-full sm:w-auto min-w-[120px] sm:min-w-[140px] h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                className="w-full sm:w-auto md:min-w-[140px] h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
                 disabled={clearDisabled}
               >
                 <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
@@ -164,14 +164,14 @@ export default function DailyJobsPage() {
               <Button
                 type="button"
                 variant="secondary"
-                className="w-full sm:w-auto min-w-[120px] sm:min-w-[140px] h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                className="w-full sm:w-auto md:min-w-[140px] h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
                 disabled={clearPendingDisabled}
               >
                 <Trash2 className="w-5 h-5 mr-2" /> {clearingPending ? (isEn ? 'Cleaning pending...' : 'Limpiando pendientes...') : (isEn ? 'Clear pending' : 'Limpiar pendientes')}
               </Button>
             }
           />
-          <div className="w-full sm:w-auto min-w-[120px] sm:min-w-[140px]">
+          <div className="w-full sm:w-auto md:min-w-[140px]">
             <JobForm onSuccess={fetchJobs} />
           </div>
         </div>
@@ -209,81 +209,83 @@ export default function DailyJobsPage() {
               <LoadingSpinner />
             </div>
           ) : (
-            <table className="w-full text-xs md:text-sm text-left">
-              <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
-                  <th className="px-3 md:px-4 py-3">{isEn ? 'Description' : 'Descripción'}</th>
-                  <th className="px-3 md:px-4 py-3">{isEn ? 'Workplace' : 'Lugar de trabajo'}</th>
-                  <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
-                  <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
-                  <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
-                  <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Hours' : 'Horas'}</th>
-                  <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
-                  <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
-                  <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
-                  <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-              {jobs.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
-                    {t('monthlyPage.emptyDesc')}
-                  </td>
-                </tr>
-              ) : jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
-                    <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>
-                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.location || '-'}</td>
-                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
-                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
-                    <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
-                    <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
-                    <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">
-                      {formatCurrency(job.cost_spent)}
-                    </td>
-                  <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
-                    {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
-                  </td>
-                  <td className="px-3 md:px-4 py-3 text-center">
-                    <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
-                        job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                        'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {job.status === 'pending'
-                        ? (isEn ? 'Pending' : 'Pendiente')
-                        : job.status === 'completed'
-                        ? (isEn ? 'Completed' : 'Completado')
-                        : (isEn ? 'Archived' : 'Archivado')}
-                    </span>
-                  </td>
-                  <td className="px-3 md:px-4 py-3 text-center">
-                    <div className="flex justify-center gap-3 flex-wrap">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedJob(job)}
-                        className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
-                      >
-                        <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingJob(job)}
-                        className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
-                      >
-                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px] text-xs md:text-sm text-left">
+                <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Description' : 'Descripción'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Workplace' : 'Lugar de trabajo'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
+                    <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Hours' : 'Horas'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
+                    <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
+                    <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {jobs.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                        {t('monthlyPage.emptyDesc')}
+                      </td>
+                    </tr>
+                  ) : jobs.map((job) => (
+                    <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
+                      <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
+                      <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.location || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
+                      <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">
+                        {formatCurrency(job.cost_spent)}
+                      </td>
+                      <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
+                        {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
+                      </td>
+                      <td className="px-3 md:px-4 py-3 text-center">
+                        <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
+                          job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {job.status === 'pending'
+                            ? (isEn ? 'Pending' : 'Pendiente')
+                            : job.status === 'completed'
+                              ? (isEn ? 'Completed' : 'Completado')
+                              : (isEn ? 'Archived' : 'Archivado')}
+                        </span>
+                      </td>
+                      <td className="px-3 md:px-4 py-3 text-center">
+                        <div className="flex justify-center gap-3 flex-wrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedJob(job)}
+                            className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
+                          >
+                            <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingJob(job)}
+                            className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
+                          >
+                            <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

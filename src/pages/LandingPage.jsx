@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Briefcase, TrendingUp, Users, Download, ArrowRight } from 'lucide-react';
+import { Helmet } from 'react-helmet';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import LanguageToggle from '@/components/layout/LanguageToggle';
@@ -29,6 +30,9 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
+      <Helmet>
+        <title>App de seguimiento laboral</title>
+      </Helmet>
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

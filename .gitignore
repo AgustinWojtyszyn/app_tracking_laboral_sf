@@ -9,3 +9,8 @@ dist/
 *:Zone.Identifier
 .DS_Store
 .vscode/
+venv/
+.venv/
+__pycache__/
+*.pyc
+public/llms.txt
