@@ -1,5 +1,6 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { TRACKING_REDIRECT_URL } from '@/config/urls';
 
 // Environment variable validation
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -77,7 +78,7 @@ export const authService = {
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: `${window.location.origin}/login`
+          emailRedirectTo: TRACKING_REDIRECT_URL
         },
       });
       if (error) throw error;
@@ -133,7 +134,7 @@ export const authService = {
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/login`
+          emailRedirectTo: TRACKING_REDIRECT_URL
         }
       });
       if (error) throw error;
@@ -178,7 +179,7 @@ export const authService = {
   async resetPassword(email) {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`
+        redirectTo: `${TRACKING_REDIRECT_URL}/login`
       });
       if (error) throw error;
       return { success: true, message: "Te enviamos un email para restablecer tu contraseña." };

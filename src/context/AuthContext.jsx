@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/customSupabaseClient';
+import { TRACKING_REDIRECT_URL } from '@/config/urls';
 
 const AuthContext = createContext({});
 
@@ -59,6 +60,7 @@ export const AuthProvider = ({ children }) => {
     password,
     options: {
       data: { full_name: fullName },
+      emailRedirectTo: TRACKING_REDIRECT_URL,
     },
   });
 
