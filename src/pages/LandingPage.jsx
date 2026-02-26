@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/layout/ThemeToggle';
 import LanguageToggle from '@/components/layout/LanguageToggle';
 import { useLanguage } from '@/contexts/LanguageContext';
-import heroDashboard from '../assets/hero-dashboard.svg';
 import BrandHeader from '@/components/layout/BrandHeader';
 
 export default function LandingPage() {
@@ -33,13 +32,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0 flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/40">
-                <Briefcase className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-semibold tracking-tight">Job Tracker</span>
-            </div>
+          <div className="flex h-16 items-center justify-between sm:justify-end">
             <div className="flex sm:hidden items-center gap-2">
               <LanguageToggle />
               <ThemeToggle />
@@ -86,10 +79,10 @@ export default function LandingPage() {
             animate="visible"
             transition={{ duration: 0.6 }}
             variants={fadeIn}
-            className="grid gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] items-center"
+            className="grid gap-12 items-center"
           >
             {/* Left column - copy */}
-            <div>
+            <div className="text-center flex flex-col items-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white/90 px-3 py-1 text-xs sm:text-sm text-slate-700 mb-4 shadow-sm shadow-slate-900/10 dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-300 dark:shadow-slate-900/40">
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-semibold">
                   ●
@@ -112,7 +105,7 @@ export default function LandingPage() {
                   : 'Registra trabajos, controla costos, gestiona equipos y genera reportes listos para enviar a tu estudio contable. Pensado para profesionales y equipos que quieren dejar atrás las planillas manuales.'}
               </p>
 
-              <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center">
                 <Link to="/register" className="sm:w-auto">
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                     <Button className="w-full sm:w-auto h-12 sm:h-14 text-sm sm:text-base rounded-full px-7 sm:px-8 shadow-xl shadow-blue-900/40">
@@ -135,32 +128,13 @@ export default function LandingPage() {
               </div>
 
               {/* Stats */}
-              <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 max-w-lg">
+              <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 max-w-lg mx-auto">
                 <StatsCard value="+30%" label={isEn ? 'Better work visibility' : 'Mejor visibilidad del trabajo'} />
                 <StatsCard value="-6h" label={isEn ? 'Less time on spreadsheets/month' : 'Menos tiempo en planillas al mes'} />
                 <StatsCard value="100%" label={isEn ? 'Data ready for accounting' : 'Datos listos para contabilidad'} className="hidden sm:flex" />
               </div>
             </div>
 
-            {/* Right column - hero image */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.25 }}
-              className="relative flex justify-center lg:justify-end"
-            >
-              <div className="relative max-w-md w-full">
-                <div className="absolute -inset-6 rounded-[2.1rem] bg-gradient-to-tr from-sky-500/25 via-blue-500/18 to-indigo-500/25 blur-2xl opacity-80 dark:opacity-90" />
-                <div className="relative rounded-[1.8rem] border border-slate-200/70 bg-white/95 shadow-xl shadow-slate-900/15 overflow-hidden dark:border-slate-700/80 dark:bg-slate-950/95 dark:shadow-[0_24px_60px_rgba(15,23,42,0.9)]">
-                  <img
-                    src={heroDashboard}
-                    alt="Panel mensual de trabajos y facturación"
-                    className="w-full h-auto block"
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-            </motion.div>
           </motion.div>
         </div>
       </section>

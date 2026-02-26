@@ -1,5 +1,4 @@
 import React from 'react';
-import servifoodLogo from '@/assets/servifood_logo.png';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BrandHeader() {
@@ -11,7 +10,7 @@ export default function BrandHeader() {
         <div className="absolute inset-0 opacity-60 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.14),transparent_35%),radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.1),transparent_35%),radial-gradient(circle_at_50%_80%,rgba(255,255,255,0.08),transparent_35%)]" />
         <div className="relative flex flex-col items-center text-center gap-2">
           <img
-            src={servifoodLogo}
+            src="/servifood_logo_white_text_HQ.png"
             alt="Servifood Catering"
             className="h-20 sm:h-24 md:h-28 w-auto drop-shadow-xl"
             loading="lazy"
