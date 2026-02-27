@@ -104,6 +104,19 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = useCallback(async (email) => {
     return await authService.resetPassword(email);
   }, []);
+
+  const deleteAccount = useCallback(async () => {
+    const result = await authService.deleteAccount();
+    if (result.success) {
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      addToast('Cuenta eliminada.', 'success');
+    } else {
+      addToast(result.message || 'No se pudo eliminar la cuenta.', 'error');
+    }
+    return result;
+  }, [addToast]);
   
   const updateProfile = useCallback(async (userId, fullName) => {
       const result = await authService.updateProfile(userId, fullName);
@@ -131,8 +144,9 @@ export const AuthProvider = ({ children }) => {
     resendVerification,
     changePassword,
     updateProfile,
-    resetPassword
-  }), [user, profile, session, loading, isEmailConfirmed, signUp, signIn, signOut, resendVerification, changePassword, updateProfile, resetPassword]);
+    resetPassword,
+    deleteAccount
+  }), [user, profile, session, loading, isEmailConfirmed, signUp, signIn, signOut, resendVerification, changePassword, updateProfile, resetPassword, deleteAccount]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

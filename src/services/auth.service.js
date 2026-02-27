@@ -187,5 +187,26 @@ export const authService = {
       console.error("ResetPassword Error:", error);
       return { success: false, message: error.message };
     }
+  },
+
+  async deleteAccount() {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw userError || new Error('No hay sesión activa.');
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+
+      return { success: true, message: "Cuenta eliminada." };
+    } catch (error) {
+      return { success: false, message: error.message || 'No se pudo eliminar la cuenta.' };
+    }
   }
 };
