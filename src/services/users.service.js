@@ -300,12 +300,13 @@ export const usersService = {
         .eq('id', userId)
         .maybeSingle();
 
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userId }
+      });
 
-      if (error) throw error;
+      if (error || data?.success === false) {
+        throw new Error(data?.error || error?.message || 'No se pudo eliminar el usuario.');
+      }
 
       await this.logAuditEvent({
         action: 'user_deleted',
