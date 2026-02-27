@@ -204,7 +204,11 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   const filteredLocationOptions = useMemo(() => {
     const query = normalizeText(locationSearch);
     if (!query) return locationOptions;
-    return locationOptions.filter((option) => normalizeText(option).includes(query));
+    return locationOptions.filter((option) => {
+      const normalizedOption = normalizeText(option);
+      const words = normalizedOption.split(' ').filter(Boolean);
+      return words.some((word) => word.startsWith(query));
+    });
   }, [locationOptions, locationSearch]);
 
   return (
