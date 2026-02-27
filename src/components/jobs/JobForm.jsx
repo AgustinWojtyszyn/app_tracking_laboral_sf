@@ -18,6 +18,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   const [groups, setGroups] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [workerId, setWorkerId] = useState('');
+  const [locationSearch, setLocationSearch] = useState('');
   
   const initialForm = {
     date: new Date().toISOString().split('T')[0],
@@ -46,10 +47,12 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         amount_to_charge: jobToEdit.amount_to_charge || ''
       });
       setWorkerId(jobToEdit.worker_id || '');
+      setLocationSearch('');
       setOpen(true);
     } else {
         setFormData(initialForm);
         setWorkerId('');
+        setLocationSearch('');
     }
     setErrors({});
   }, [jobToEdit]);
@@ -188,6 +191,12 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     return base;
   }, [formData.location]);
 
+  const filteredLocationOptions = useMemo(() => {
+    const query = locationSearch.trim().toLowerCase();
+    if (!query) return locationOptions;
+    return locationOptions.filter((option) => option.toLowerCase().includes(query));
+  }, [locationOptions, locationSearch]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!jobToEdit && (
@@ -231,16 +240,26 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
           <div>
             <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Ubicación</label>
+            <input
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+              value={locationSearch}
+              onChange={e => setLocationSearch(e.target.value)}
+              placeholder="Buscar empresa..."
+            />
             <select
-              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
+              className="w-full mt-2 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
               value={formData.location || ''}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
               required
             >
               <option value="">Seleccionar empresa...</option>
-              {locationOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
+              {filteredLocationOptions.length === 0 ? (
+                <option value="" disabled>Sin resultados</option>
+              ) : (
+                filteredLocationOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))
+              )}
             </select>
             {errors.location && <span className="text-xs text-red-500">{errors.location}</span>}
           </div>
