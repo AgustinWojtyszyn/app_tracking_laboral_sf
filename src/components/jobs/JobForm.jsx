@@ -184,11 +184,13 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       'Baez Laspiur'
     ];
 
-    if (formData.location && !base.includes(formData.location)) {
-      return [formData.location, ...base];
+    const sorted = [...base].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+    if (formData.location && !sorted.includes(formData.location)) {
+      return [formData.location, ...sorted];
     }
 
-    return base;
+    return sorted;
   }, [formData.location]);
 
   const normalizeText = (value) => (
@@ -260,21 +262,32 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               onChange={e => setLocationSearch(e.target.value)}
               placeholder="Buscar empresa..."
             />
-            <select
-              className="w-full mt-2 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
-              value={formData.location || ''}
-              onChange={e => setFormData({ ...formData, location: e.target.value })}
-              required
-            >
-              <option value="">Seleccionar empresa...</option>
+            <div className="mt-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 max-h-40 overflow-y-auto">
               {filteredLocationOptions.length === 0 ? (
-                <option value="" disabled>Sin resultados</option>
+                <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">Sin resultados</div>
               ) : (
                 filteredLocationOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, location: option });
+                      setLocationSearch(option);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 dark:hover:bg-slate-800 ${
+                      formData.location === option ? 'bg-blue-100 dark:bg-slate-800' : ''
+                    }`}
+                  >
+                    {option}
+                  </button>
                 ))
               )}
-            </select>
+            </div>
+            {formData.location && (
+              <div className="mt-1 text-xs text-gray-600 dark:text-slate-300">
+                Seleccionado: <span className="font-semibold">{formData.location}</span>
+              </div>
+            )}
             {errors.location && <span className="text-xs text-red-500">{errors.location}</span>}
           </div>
 
