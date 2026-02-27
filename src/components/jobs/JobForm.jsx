@@ -191,10 +191,20 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     return base;
   }, [formData.location]);
 
+  const normalizeText = (value) => (
+    value
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+
   const filteredLocationOptions = useMemo(() => {
-    const query = locationSearch.trim().toLowerCase();
+    const query = normalizeText(locationSearch);
     if (!query) return locationOptions;
-    return locationOptions.filter((option) => option.toLowerCase().includes(query));
+    return locationOptions.filter((option) => normalizeText(option).includes(query));
   }, [locationOptions, locationSearch]);
 
   return (
