@@ -17,11 +17,21 @@ export const AuthProvider = ({ children }) => {
   const fetchProfile = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
-      if (!error && data) setProfile(data);
+      if (!error && data) {
+        if (data.deleted_at) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+          setSession(null);
+          addToast('Tu usuario fue desactivado.', 'error');
+          return;
+        }
+        setProfile(data);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
-  }, []);
+  }, [addToast]);
 
   const handleSession = useCallback(async (currentSession, { ensureProfile: shouldEnsureProfile = false } = {}) => {
     setSession(currentSession);

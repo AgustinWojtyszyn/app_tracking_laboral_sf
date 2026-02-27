@@ -12,6 +12,7 @@ export const usersService = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return { success: true, data };
@@ -300,13 +301,12 @@ export const usersService = {
         .eq('id', userId)
         .maybeSingle();
 
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: userId }
-      });
+      const { error } = await supabase
+        .from('users')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', userId);
 
-      if (error || data?.success === false) {
-        throw new Error(data?.error || error?.message || 'No se pudo eliminar el usuario.');
-      }
+      if (error) throw error;
 
       await this.logAuditEvent({
         action: 'user_deleted',
