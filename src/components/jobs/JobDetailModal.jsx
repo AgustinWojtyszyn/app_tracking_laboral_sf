@@ -50,6 +50,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
             <div className="space-y-2 text-gray-800 dark:text-slate-100">
               <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {job.location || 'Sin ubicación'}</p>
               <p className="flex items-center gap-2"><User className="w-4 h-4" /> {job.workers?.display_name || job.workers?.alias || 'Sin trabajador'}</p>
+              <p className="flex items-center gap-2">Solicita: {job.requested_by || 'Sin solicitante'}</p>
               <p className="flex items-center gap-2">Grupo: {job.groups?.name || 'Personal'}</p>
               <p>Tipo: {job.job_type || job.type || '-'}</p>
             </div>

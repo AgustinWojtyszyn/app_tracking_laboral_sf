@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -22,6 +22,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   const initialForm = {
     date: new Date().toISOString().split('T')[0],
     location: '',
+    requested_by: '',
     description: '',
     hours_worked: '',
     cost_spent: '',
@@ -39,6 +40,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       setFormData({
         ...jobToEdit,
         group_id: jobToEdit.group_id || '',
+        requested_by: jobToEdit.requested_by || '',
         hours_worked: jobToEdit.hours_worked || '',
         cost_spent: jobToEdit.cost_spent || '',
         amount_to_charge: jobToEdit.amount_to_charge || ''
@@ -78,12 +80,14 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     const cost = formData.cost_spent === '' ? 0 : parseFloat(formData.cost_spent);
     const amount = formData.amount_to_charge === '' ? 0 : parseFloat(formData.amount_to_charge);
     const location = (formData.location || '').trim();
+    const requester = (formData.requested_by || '').trim();
     const description = (formData.description || '').trim();
     const status = (formData.status || '').trim();
 
     if (!formData.date) newErrors.date = "La fecha es requerida";
     if (!status) newErrors.status = "Seleccioná un estado";
     if (!location) newErrors.location = "La ubicación es requerida";
+    if (!requester) newErrors.requested_by = "Indicá quién solicita";
     if (!description) newErrors.description = "La descripción es requerida";
     if (!workerId) newErrors.worker_id = "Seleccioná un trabajador";
     if (!formData.group_id) newErrors.group_id = "Seleccioná un grupo";
@@ -106,6 +110,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     const payload = {
       date: formData.date,
       location: formData.location || '',
+      requested_by: formData.requested_by || '',
       description: formData.description || '',
       status: formData.status,
       editable_by_group: formData.editable_by_group,
@@ -137,6 +142,51 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         addToast(result.error, 'error');
     }
   };
+
+  const locationOptions = useMemo(() => {
+    const base = [
+      'Genneia',
+      'ServiFood',
+      'Adium (Monteverde)',
+      'Padre Bueno',
+      'Los Berros',
+      'CCP (Calidra)',
+      'Greif',
+      'Easy (Better)',
+      'Clorox',
+      'Ferva',
+      'Aes Ullum',
+      'Aes Sarmiento',
+      'Proviser Sarmiento',
+      'Proviser Ullum',
+      'Ceramica San Lorenzo',
+      'Vicunha',
+      'Igarreta',
+      'La Segunda Seguros',
+      'Molinos',
+      'Bodegas Callia',
+      'Grupo Comeca',
+      'Argentilemon',
+      'Saint Gobain (Placo)',
+      'Micro Hospital Berros',
+      'Centro Por La Vida',
+      'Hospital Sarmiento',
+      'Hospital Pocito',
+      'Hospital Calingasta',
+      'Hospital Barreal',
+      'Hosp Valle Fertil',
+      'CAPS Bermejo',
+      'Caps Tamberia',
+      'CARF',
+      'Baez Laspiur'
+    ];
+
+    if (formData.location && !base.includes(formData.location)) {
+      return [formData.location, ...base];
+    }
+
+    return base;
+  }, [formData.location]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -181,14 +231,30 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
           <div>
             <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Ubicación</label>
-            <input
-              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+            <select
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
               value={formData.location || ''}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
-              placeholder="Ej: Oficina central, Depósito, Cliente, Remoto"
+              required
+            >
+              <option value="">Seleccionar empresa...</option>
+              {locationOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            {errors.location && <span className="text-xs text-red-500">{errors.location}</span>}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Quién solicita</label>
+            <input
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+              value={formData.requested_by || ''}
+              onChange={e => setFormData({ ...formData, requested_by: e.target.value })}
+              placeholder="Nombre del solicitante"
               required
             />
-            {errors.location && <span className="text-xs text-red-500">{errors.location}</span>}
+            {errors.requested_by && <span className="text-xs text-red-500">{errors.requested_by}</span>}
           </div>
 
           <div>
@@ -198,7 +264,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               rows="3"
               value={formData.description || ''}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Detalles del trabajo, quién lo solicita, referencias, etc."
+              placeholder="Detalles del trabajo, referencias, etc."
               required
             />
             {errors.description && <span className="text-xs text-red-500">{errors.description}</span>}

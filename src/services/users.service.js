@@ -288,5 +288,41 @@ export const usersService = {
     } catch (error) {
       return { success: false, error: "No se pudieron guardar los permisos para este usuario." };
     }
+  },
+
+  async deleteUser(userId) {
+    try {
+      const actingUserId = await this.resolveCurrentUserId();
+
+      const { data: targetUser } = await supabase
+        .from('users')
+        .select('id, email, full_name, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      await this.logAuditEvent({
+        action: 'user_deleted',
+        entityType: 'users',
+        newValue: null,
+        oldValue: {
+          user_id: userId,
+          user_email: targetUser?.email || null,
+          user_name: targetUser?.full_name || null,
+          role: targetUser?.role || null
+        },
+        userId: actingUserId
+      });
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: "No se pudo eliminar el usuario. Revisa tus permisos." };
+    }
   }
 };

@@ -7,7 +7,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, UserCog, History, Mail, Search, Sparkles } from 'lucide-react';
+import { UserCog, History, Mail, Search, Sparkles, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -47,6 +47,10 @@ const ACTION_META = {
   user_permissions_updated: {
     label: { es: 'Permisos actualizados', en: 'Permissions updated' },
     tone: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-100'
+  },
+  user_deleted: {
+    label: { es: 'Usuario eliminado', en: 'User deleted' },
+    tone: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-100'
   }
 };
 
@@ -184,6 +188,13 @@ const formatAuditDetail = (log, language = 'es') => {
       : `Permisos actualizados para ${targetName}${perms ? `: ${perms}` : ''}.`;
   }
 
+  if (log.action && normalizeActionKey(log.action) === 'user_deleted') {
+    const deletedName = oldValue?.user_name || oldValue?.user_email || targetName;
+    return lang === 'en'
+      ? `User deleted: ${deletedName}.`
+      : `Usuario eliminado: ${deletedName}.`;
+  }
+
   if (newValue && oldValue && typeof newValue === 'object' && typeof oldValue === 'object') {
     const diffs = Object.keys(newValue).slice(0, 3).map((key) => {
       if (key === 'user_id' || key.endsWith('_id')) return null;
@@ -251,6 +262,8 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState(null);
+  const [revokingUserId, setRevokingUserId] = useState(null);
+  const [deletingUserId, setDeletingUserId] = useState(null);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [clearingAudit, setClearingAudit] = useState(false);
@@ -385,6 +398,63 @@ export default function AdminPage() {
       addToast(error.message || 'No se pudieron guardar los cambios', 'error');
     } finally {
       setSavingUserId(null);
+    }
+  };
+
+  const handleRevokeAdmin = async (targetUser) => {
+    if (!targetUser || targetUser.id === user?.id) return;
+
+    setRevokingUserId(targetUser.id);
+
+    try {
+      const result = await usersService.updateUserRole(targetUser.id, 'user');
+      if (!result.success) throw new Error(result.error);
+
+      setUsers((prev) => prev.map((u) => u.id === targetUser.id ? { ...u, role: 'user' } : u));
+      setDrafts((prev) => ({
+        ...prev,
+        [targetUser.id]: {
+          role: 'user',
+          permissions: normalizePermissions(targetUser.permissions)
+        }
+      }));
+
+      addToast('Admin removido correctamente.', 'success');
+      await fetchAuditLogs();
+    } catch (error) {
+      addToast(error.message || 'No se pudo quitar admin', 'error');
+    } finally {
+      setRevokingUserId(null);
+    }
+  };
+
+  const handleDeleteUser = async (targetUser) => {
+    if (!targetUser || targetUser.id === user?.id) return;
+
+    setDeletingUserId(targetUser.id);
+
+    try {
+      const result = await usersService.deleteUser(targetUser.id);
+      if (!result.success) throw new Error(result.error);
+
+      setUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
+      setDrafts((prev) => {
+        const next = { ...prev };
+        delete next[targetUser.id];
+        return next;
+      });
+
+      if (selectedUser === targetUser.id) {
+        const nextNonAdmin = users.find((u) => u.id !== targetUser.id && u.role !== 'admin');
+        setSelectedUser(nextNonAdmin?.id || '');
+      }
+
+      addToast('Usuario eliminado correctamente.', 'success');
+      await fetchAuditLogs();
+    } catch (error) {
+      addToast(error.message || 'No se pudo eliminar el usuario', 'error');
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -550,6 +620,32 @@ export default function AdminPage() {
 
                       {!isCurrentUser && (
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                          {isAdmin && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleRevokeAdmin(u)}
+                              disabled={revokingUserId === u.id}
+                            >
+                              {revokingUserId === u.id ? 'Quitando admin...' : 'Quitar admin'}
+                            </Button>
+                          )}
+                          <ConfirmationModal
+                            title="¿Eliminar usuario?"
+                            description="El usuario será eliminado definitivamente y esta acción quedará registrada en la auditoría."
+                            confirmLabel="Sí, eliminar"
+                            onConfirm={() => handleDeleteUser(u)}
+                            trigger={
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                disabled={deletingUserId === u.id}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                {deletingUserId === u.id ? 'Eliminando...' : 'Eliminar'}
+                              </Button>
+                            }
+                          />
                           <Button
                             variant="outline"
                             disabled={savingUserId === u.id}
