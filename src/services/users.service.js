@@ -14,7 +14,19 @@ export const usersService = {
         .select('*')
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
-      if (error) throw error;
+      if (error) {
+        const errorMessage = error.message || '';
+        const missingColumn = error.code === '42703' || errorMessage.includes('deleted_at');
+        if (missingColumn) {
+          const fallback = await supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (fallback.error) throw fallback.error;
+          return { success: true, data: fallback.data };
+        }
+        throw error;
+      }
       return { success: true, data };
     } catch (error) {
       return { success: false, error: "Error al cargar usuarios." };
