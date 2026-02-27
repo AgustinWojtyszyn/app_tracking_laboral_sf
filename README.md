@@ -1,5 +1,5 @@
 
-# Job Tracker - Sistema de Gestión de Trabajos
+# Panel de Mantenimiento - Sistema de Gestión de Trabajos
 
 Aplicación web para la gestión de trabajos diarios, control de horas, costos y facturación, con soporte para grupos de trabajo y roles de usuario.
 

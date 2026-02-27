@@ -4,7 +4,7 @@ const LanguageContext = createContext({ language: 'es', toggleLanguage: () => {}
 
 const translations = {
   es: {
-    brand: 'Aplicación de Seguimiento Laboral',
+    brand: 'Panel de Mantenimiento',
     nav: {
       daily: 'Trabajos Diarios',
       monthly: 'Panel Mensual',
@@ -19,9 +19,9 @@ const translations = {
     auth: {
       backHome: 'Volver al inicio',
       loginTitle: 'Iniciar Sesión',
-      loginSubtitle: 'Accede a tu cuenta de Job Tracker',
+      loginSubtitle: 'Accede a tu cuenta de Panel de Mantenimiento',
       registerTitle: 'Crear Cuenta',
-      registerSubtitle: 'Únete a Job Tracker para gestionar tu negocio',
+      registerSubtitle: 'Únete a Panel de Mantenimiento para gestionar tu negocio',
       noAccount: '¿No tienes cuenta?',
       yesAccount: '¿Ya tienes cuenta?',
       registerCta: 'Regístrate aquí',
@@ -121,7 +121,7 @@ const translations = {
     },
   },
   en: {
-    brand: 'Job Tracker',
+    brand: 'Maintenance Panel',
     nav: {
       daily: 'Daily Jobs',
       monthly: 'Monthly Panel',
@@ -136,9 +136,9 @@ const translations = {
     auth: {
       backHome: 'Back to home',
       loginTitle: 'Sign in',
-      loginSubtitle: 'Access your Job Tracker account',
+      loginSubtitle: 'Access your Maintenance Panel account',
       registerTitle: 'Create Account',
-      registerSubtitle: 'Join Job Tracker to run your business',
+      registerSubtitle: 'Join Maintenance Panel to run your business',
       noAccount: "Don't have an account?",
       yesAccount: 'Already have an account?',
       registerCta: 'Register here',
