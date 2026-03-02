@@ -101,6 +101,23 @@ export const authService = {
         password,
       });
       if (error) throw error;
+      const userId = data?.user?.id;
+      if (userId) {
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('deleted_at')
+          .eq('id', userId)
+          .maybeSingle();
+        if (profileError) throw profileError;
+        if (!profile) {
+          await supabase.auth.signOut();
+          return { success: false, data: null, error: 'Tu perfil no existe. Contacta a soporte.' };
+        }
+        if (profile.deleted_at) {
+          await supabase.auth.signOut();
+          return { success: false, data: null, error: 'Tu usuario fue desactivado.' };
+        }
+      }
       return { success: true, data, error: null };
     } catch (error) {
       console.error("SignIn Error:", error);
