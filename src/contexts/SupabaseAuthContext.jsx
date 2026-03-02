@@ -16,20 +16,43 @@ export const AuthProvider = ({ children }) => {
   // Fetch public user profile
   const fetchProfile = useCallback(async (userId) => {
     try {
-      const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
-      if (!error && data) {
-        if (data.deleted_at) {
-          await supabase.auth.signOut();
-          setUser(null);
-          setProfile(null);
-          setSession(null);
-          addToast('Tu usuario fue desactivado.', 'error');
-          return;
-        }
-        setProfile(data);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        await supabase.auth.signOut();
+        setUser(null);
+        setProfile(null);
+        setSession(null);
+        addToast('No se pudo validar tu perfil. Inicia sesión nuevamente.', 'error');
+        return;
       }
+
+      if (!data || data.deleted_at) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setProfile(null);
+        setSession(null);
+        if (data?.deleted_at) {
+          addToast('Tu usuario fue desactivado.', 'error');
+        } else {
+          addToast('Tu perfil no existe. Contacta a soporte.', 'error');
+        }
+        return;
+      }
+
+      setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      addToast('No se pudo validar tu perfil. Inicia sesión nuevamente.', 'error');
     }
   }, [addToast]);
 

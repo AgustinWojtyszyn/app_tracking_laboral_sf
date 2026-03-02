@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import LanguageToggle from '@/components/layout/LanguageToggle';
 import ThemeToggle from '@/components/layout/ThemeToggle';
+import { isOnboardingInProgress, markManualNavNow, clearOnboardingState } from '@/onboarding/onboardingStorage';
 import { 
   Calendar, CalendarDays, Users, UserCog, BookOpen,
   Settings, ShieldAlert, LogOut, Menu, X 
@@ -33,6 +34,13 @@ export default function Sidebar() {
   const currentLabel = activeItem?.label ?? t('nav.daily');
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+  const handleNavClick = () => {
+    markManualNavNow();
+    if (isOnboardingInProgress()) {
+      clearOnboardingState();
+    }
+    setIsOpen(false);
+  };
 
   return (
     <>
@@ -73,7 +81,7 @@ export default function Sidebar() {
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setIsOpen(false)}
+                onClick={handleNavClick}
                 className={`
                   flex items-center px-4 py-3 sm:px-6 sm:py-4 font-semibold rounded-xl transition-all duration-200 text-base sm:text-lg
                   ${isActive ? "bg-blue-800 text-white shadow-md translate-x-1" : "text-blue-100 hover:bg-blue-800/50 hover:text-white hover:translate-x-1"}

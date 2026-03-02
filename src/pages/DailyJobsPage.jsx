@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
@@ -125,6 +126,7 @@ export default function DailyJobsPage() {
     const inProgress = window.sessionStorage.getItem('onboarding_in_progress') === '1';
 
     if (shouldRestart || shouldReplay || inProgress) {
+      if (wasRecentManualNav()) return;
       const handled = resumeTourIfNeeded({
         role,
         onComplete: () => {

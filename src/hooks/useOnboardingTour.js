@@ -2,14 +2,11 @@ import { useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { driver } from 'driver.js';
 import { getPlanByRole } from '@/onboarding/tourPlan';
-
-const STORAGE_KEYS = {
-  restart: 'onboarding_restart',
-  replay: 'onboarding_replay',
-  stepIndex: 'onboarding_step_index',
-  mode: 'onboarding_mode',
-  inProgress: 'onboarding_in_progress'
-};
+import {
+  STORAGE_KEYS,
+  wasRecentManualNav,
+  clearOnboardingState
+} from '@/onboarding/onboardingStorage';
 
 const normalizeRole = (role) => {
   if (role === 'admin' || role === 'trabajador' || role === 'solicitante') return role;
@@ -39,15 +36,30 @@ const parseStoredIndex = () => {
 };
 
 const clearProgress = () => {
-  window.sessionStorage.removeItem(STORAGE_KEYS.inProgress);
-  window.sessionStorage.removeItem(STORAGE_KEYS.stepIndex);
-  window.sessionStorage.removeItem(STORAGE_KEYS.mode);
+  clearOnboardingState();
 };
+
+const isRouteInPlan = (route, plan) => (
+  Array.isArray(plan) && plan.some((step) => step.route === route)
+);
 
 export const useOnboardingTour = () => {
   const driverRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const safeNavigate = useCallback((route, plan) => {
+    if (wasRecentManualNav()) return false;
+
+    if (!route || typeof route !== 'string' || !route.startsWith('/app/') || !isRouteInPlan(route, plan)) {
+      clearProgress();
+      return false;
+    }
+
+    if (route === location.pathname) return false;
+    navigate(route, { replace: true });
+    return true;
+  }, [location.pathname, navigate]);
 
   const runSegment = useCallback(async ({ plan, startIndex, mode, onComplete }) => {
     try {
@@ -71,7 +83,7 @@ export const useOnboardingTour = () => {
           return;
         }
         window.sessionStorage.setItem(STORAGE_KEYS.stepIndex, String(index));
-        navigate(plan[index].route);
+        safeNavigate(plan[index].route, plan);
         return;
       }
 
@@ -134,7 +146,7 @@ export const useOnboardingTour = () => {
           }
 
           window.sessionStorage.setItem(STORAGE_KEYS.stepIndex, String(nextIndex));
-          navigate(plan[nextIndex].route);
+          safeNavigate(plan[nextIndex].route, plan);
         }
       });
 
@@ -143,7 +155,7 @@ export const useOnboardingTour = () => {
     } catch {
       clearProgress();
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, safeNavigate]);
 
   const startTour = useCallback(({ role = 'solicitante', mode = 'auto', stepIndex = null, onComplete } = {}) => {
     if (typeof window === 'undefined') return false;
@@ -165,8 +177,7 @@ export const useOnboardingTour = () => {
       window.sessionStorage.setItem(STORAGE_KEYS.stepIndex, String(index));
 
       if (target.route !== location.pathname) {
-        navigate(target.route);
-        return true;
+        return safeNavigate(target.route, plan);
       }
 
       runSegment({ plan, startIndex: index, mode, onComplete });
@@ -174,7 +185,7 @@ export const useOnboardingTour = () => {
     } catch {
       return false;
     }
-  }, [location.pathname, navigate, runSegment]);
+  }, [location.pathname, runSegment, safeNavigate]);
 
   const resumeTourIfNeeded = useCallback(({ role = 'solicitante', onComplete } = {}) => {
     if (typeof window === 'undefined') return false;
