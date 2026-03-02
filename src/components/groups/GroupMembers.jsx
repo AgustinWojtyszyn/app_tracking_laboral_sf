@@ -285,9 +285,10 @@ export default function GroupMembers({
         )}
 
         {isGroupAdmin && (
-          <form onSubmit={handleAddMember} className="flex gap-2">
+          <form onSubmit={handleAddMember} className="flex gap-2" data-tour="grupos-invitar">
               <input 
                   type="email" 
+                  autoComplete="off"
                   placeholder="Email del usuario a agregar"
                   className="flex-1 w-full p-2 border border-gray-300 dark:border-slate-700 rounded text-sm focus:ring-2 focus:ring-blue-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-500 dark:placeholder:text-slate-400"
                   value={newEmail}
@@ -301,7 +302,7 @@ export default function GroupMembers({
           </form>
         )}
 
-        <div className="border rounded-md overflow-hidden border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+        <div className="border rounded-md overflow-hidden border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900" data-tour="grupos-miembros">
             {loading ? (
                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-blue-900" /></div>
             ) : members.length === 0 ? (

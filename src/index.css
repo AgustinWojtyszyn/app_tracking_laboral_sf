@@ -1,3 +1,4 @@
+@import "driver.js/dist/driver.css";
 
 @tailwind base;
 @tailwind components;
@@ -129,4 +130,92 @@
   .dark .text-gray-700 { @apply text-slate-200; }
   .dark .text-gray-600 { @apply text-slate-300; }
   .dark .text-gray-500 { @apply text-slate-300; }
+}
+
+.driver-popover {
+  max-width: 92vw;
+  padding: 18px;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #0b1220 100%);
+  color: #f8fafc;
+  border: 1px solid #1f2937;
+  border-radius: 14px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.35);
+}
+
+@media (min-width: 769px) {
+  .driver-popover {
+    max-width: 600px;
+    padding: 22px;
+  }
+}
+
+.driver-popover-title {
+  font-size: 18px;
+  line-height: 1.4;
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+@media (min-width: 769px) {
+  .driver-popover-title {
+    font-size: 20px;
+  }
+}
+
+.driver-popover-description {
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: #cbd5f5;
+}
+
+@media (min-width: 769px) {
+  .driver-popover-description {
+    font-size: 16px;
+  }
+}
+
+.driver-popover-footer {
+  margin-top: 14px;
+  gap: 10px;
+}
+
+.driver-popover-btn {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 15px;
+  line-height: 1.2;
+  border-radius: 10px;
+}
+
+.driver-popover-close-btn {
+  color: #e2e8f0;
+  background: transparent;
+  border: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.driver-popover-close-btn:hover {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.driver-popover-btn-next {
+  background: #1e3a8a;
+  color: #ffffff;
+  border: 1px solid #1e3a8a;
+}
+
+.driver-popover-btn-prev {
+  background: transparent;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+}
+
+.driver-popover-btn:hover {
+  filter: brightness(1.05);
 }

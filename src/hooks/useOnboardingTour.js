@@ -1,0 +1,206 @@
+import { useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { driver } from 'driver.js';
+import { getPlanByRole } from '@/onboarding/tourPlan';
+
+const STORAGE_KEYS = {
+  restart: 'onboarding_restart',
+  replay: 'onboarding_replay',
+  stepIndex: 'onboarding_step_index',
+  mode: 'onboarding_mode',
+  inProgress: 'onboarding_in_progress'
+};
+
+const normalizeRole = (role) => {
+  if (role === 'admin' || role === 'trabajador' || role === 'solicitante') return role;
+  return 'solicitante';
+};
+
+const waitForSelector = (selector, timeoutMs = 5000) => new Promise((resolve) => {
+  const start = Date.now();
+  const timer = setInterval(() => {
+    const element = document.querySelector(selector);
+    if (element) {
+      clearInterval(timer);
+      resolve(element);
+      return;
+    }
+    if (Date.now() - start >= timeoutMs) {
+      clearInterval(timer);
+      resolve(null);
+    }
+  }, 100);
+});
+
+const parseStoredIndex = () => {
+  const raw = window.sessionStorage.getItem(STORAGE_KEYS.stepIndex);
+  const parsed = raw ? Number.parseInt(raw, 10) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const clearProgress = () => {
+  window.sessionStorage.removeItem(STORAGE_KEYS.inProgress);
+  window.sessionStorage.removeItem(STORAGE_KEYS.stepIndex);
+  window.sessionStorage.removeItem(STORAGE_KEYS.mode);
+};
+
+export const useOnboardingTour = () => {
+  const driverRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const runSegment = useCallback(async ({ plan, startIndex, mode, onComplete }) => {
+    try {
+      const route = location.pathname;
+      let index = startIndex;
+      const segmentSteps = [];
+
+      while (index < plan.length && plan[index].route === route) {
+        const step = plan[index];
+        const element = await waitForSelector(step.selector, 5000);
+        if (element) {
+          segmentSteps.push(step);
+        }
+        index += 1;
+      }
+      const nextIndex = index;
+
+      if (segmentSteps.length === 0) {
+        if (index >= plan.length) {
+          clearProgress();
+          return;
+        }
+        window.sessionStorage.setItem(STORAGE_KEYS.stepIndex, String(index));
+        navigate(plan[index].route);
+        return;
+      }
+
+      if (driverRef.current) {
+        try {
+          driverRef.current.destroy();
+        } catch {
+          // noop
+        }
+        driverRef.current = null;
+      }
+
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      let shouldContinue = true;
+
+      const handleStop = () => {
+        shouldContinue = false;
+        if (driverRef.current) {
+          try {
+            driverRef.current.destroy();
+          } catch {
+            // noop
+          }
+        }
+      };
+
+      const driverObj = driver({
+        showProgress: true,
+        stagePadding: isMobile ? 16 : 20,
+        allowClose: true,
+        disableActiveInteraction: false,
+        steps: segmentSteps.map((step) => ({
+          element: step.selector,
+          popover: {
+            title: step.title,
+            description: step.description,
+            side: isMobile ? 'bottom' : 'right',
+            align: 'center'
+          }
+        })),
+        onHighlightStarted: (element) => {
+          if (element && element.scrollIntoView) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        },
+        onCloseClick: handleStop,
+        onSkipClick: handleStop,
+        onDestroyed: () => {
+          if (!shouldContinue) {
+            clearProgress();
+            return;
+          }
+
+          if (nextIndex >= plan.length) {
+            clearProgress();
+            if (mode !== 'replay' && typeof onComplete === 'function') {
+              onComplete();
+            }
+            return;
+          }
+
+          window.sessionStorage.setItem(STORAGE_KEYS.stepIndex, String(nextIndex));
+          navigate(plan[nextIndex].route);
+        }
+      });
+
+      driverRef.current = driverObj;
+      driverObj.drive();
+    } catch {
+      clearProgress();
+    }
+  }, [location.pathname, navigate]);
+
+  const startTour = useCallback(({ role = 'solicitante', mode = 'auto', stepIndex = null, onComplete } = {}) => {
+    if (typeof window === 'undefined') return false;
+
+    try {
+      const normalizedRole = normalizeRole(role);
+      const plan = getPlanByRole(normalizedRole);
+      if (!plan || plan.length === 0) return false;
+
+      const index = Number.isFinite(stepIndex) ? stepIndex : parseStoredIndex();
+      const target = plan[index];
+      if (!target) {
+        clearProgress();
+        return false;
+      }
+
+      window.sessionStorage.setItem(STORAGE_KEYS.inProgress, '1');
+      window.sessionStorage.setItem(STORAGE_KEYS.mode, mode);
+      window.sessionStorage.setItem(STORAGE_KEYS.stepIndex, String(index));
+
+      if (target.route !== location.pathname) {
+        navigate(target.route);
+        return true;
+      }
+
+      runSegment({ plan, startIndex: index, mode, onComplete });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [location.pathname, navigate, runSegment]);
+
+  const resumeTourIfNeeded = useCallback(({ role = 'solicitante', onComplete } = {}) => {
+    if (typeof window === 'undefined') return false;
+
+    const shouldRestart = window.sessionStorage.getItem(STORAGE_KEYS.restart) === '1';
+    const shouldReplay = window.sessionStorage.getItem(STORAGE_KEYS.replay) === '1';
+    const inProgress = window.sessionStorage.getItem(STORAGE_KEYS.inProgress) === '1';
+
+    if (shouldRestart) {
+      window.sessionStorage.removeItem(STORAGE_KEYS.restart);
+      return startTour({ role, mode: 'restart', stepIndex: 0, onComplete });
+    }
+
+    if (shouldReplay) {
+      window.sessionStorage.removeItem(STORAGE_KEYS.replay);
+      return startTour({ role, mode: 'replay', stepIndex: 0 });
+    }
+
+    if (inProgress) {
+      const mode = window.sessionStorage.getItem(STORAGE_KEYS.mode) || 'auto';
+      const index = parseStoredIndex();
+      return startTour({ role, mode, stepIndex: index, onComplete });
+    }
+
+    return false;
+  }, [startTour]);
+
+  return { startTour, resumeTourIfNeeded };
+};

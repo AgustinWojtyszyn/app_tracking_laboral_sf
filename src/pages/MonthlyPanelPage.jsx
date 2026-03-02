@@ -4,6 +4,7 @@ import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { formatCurrency, formatNumber, formatDate } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
 import { CalendarDays, Briefcase, DollarSign, Clock, Share2, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
@@ -14,16 +15,21 @@ import { useFilters } from '@/hooks/useFilters';
 import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
 import { jobsService } from '@/services/jobs.service';
+import { onboardingService } from '@/services/onboarding.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
 import JobForm from '@/components/jobs/JobForm';
 
 export default function MonthlyPanelPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, userRole } = useAuth();
   const { getJobsByDateRange, loading } = useJobs();
   const { t, language } = useLanguage();
   const { addToast } = useToast();
+  const { resumeTourIfNeeded } = useOnboardingTour();
   const isEn = language === 'en';
+  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+    ? userRole
+    : (isAdmin ? 'admin' : 'solicitante');
   const [jobs, setJobs] = useState([]);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
@@ -44,6 +50,14 @@ export default function MonthlyPanelPage() {
         fetchJobs();
     }
   }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId]);
+
+  useEffect(() => {
+    if (!user) return;
+    resumeTourIfNeeded({
+      role,
+      onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
+    });
+  }, [user, role, resumeTourIfNeeded]);
 
   const fetchJobs = async () => {
     // Pass filters including search for backend filtering if supported or client side filtering later
@@ -192,10 +206,12 @@ export default function MonthlyPanelPage() {
         </div>
       </div>
 
-      <JobFilters filters={filters} onChange={setFilter} />
+      <div data-tour="panel-mensual-filtros">
+        <JobFilters filters={filters} onChange={setFilter} />
+      </div>
 
       {/* Tabla consolidada */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="panel-mensual-tabla">
         <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
           <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{filteredJobs.length} {isEn ? 'records' : 'registros'}</span>
@@ -278,7 +294,7 @@ export default function MonthlyPanelPage() {
       </div>
 
       {loading ? <LoadingSpinner /> : (
-          <div className="grid gap-6">
+          <div className="grid gap-6" data-tour="panel-mensual-resumen">
              {Object.keys(jobsByDay).length === 0 ? (
                  <div className="bg-white dark:bg-slate-900 p-14 rounded-2xl shadow-sm border border-dashed border-gray-300 dark:border-slate-800 text-center text-xl">
                      <CalendarDays className="w-14 h-14 mx-auto text-gray-300 dark:text-slate-600 mb-4" />

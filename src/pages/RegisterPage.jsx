@@ -169,6 +169,7 @@ export default function RegisterPage() {
                 id="email"
                 label="Email"
                 type="email"
+                autoComplete="off"
                 placeholder="tu@email.com"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -181,6 +182,7 @@ export default function RegisterPage() {
                 id="password"
                 label="Contraseña"
                 type="password"
+                autoComplete="new-password"
                 placeholder="Mínimo 8 caracteres"
                 hint="Mínimo 8 caracteres"
                 value={formData.password}
@@ -194,6 +196,7 @@ export default function RegisterPage() {
                 id="confirmPassword"
                 label="Confirmar Contraseña"
                 type="password"
+                autoComplete="new-password"
                 placeholder="Repite tu contraseña"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}

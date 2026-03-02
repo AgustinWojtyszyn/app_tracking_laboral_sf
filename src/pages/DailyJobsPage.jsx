@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { jobsService } from '@/services/jobs.service';
 import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -12,12 +12,15 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
+import { onboardingService } from '@/services/onboarding.service';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 
 export default function DailyJobsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, userRole } = useAuth();
   const { addToast } = useToast();
   const { language, t } = useLanguage();
   const isEn = language === 'en';
+  const { startTour, resumeTourIfNeeded } = useOnboardingTour();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +31,10 @@ export default function DailyJobsPage() {
   const hasJobs = jobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
+  const autoTourStartedRef = useRef(false);
+  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+    ? userRole
+    : (isAdmin ? 'admin' : 'solicitante');
 
   useEffect(() => {
     if (user) fetchJobs();
@@ -108,6 +115,63 @@ export default function DailyJobsPage() {
     };
   }, { hours: 0, cost: 0, charge: 0 });
 
+  useEffect(() => {
+    if (!user || loading) return;
+    if (typeof window === 'undefined') return;
+
+    const autostartKey = `onboarding_autostart_done:${user.id}:${role}`;
+    const shouldRestart = window.sessionStorage.getItem('onboarding_restart') === '1';
+    const shouldReplay = window.sessionStorage.getItem('onboarding_replay') === '1';
+    const inProgress = window.sessionStorage.getItem('onboarding_in_progress') === '1';
+
+    if (shouldRestart || shouldReplay || inProgress) {
+      const handled = resumeTourIfNeeded({
+        role,
+        onComplete: () => {
+          onboardingService.setOnboardingCompleted(user.id, role);
+          window.localStorage.setItem(autostartKey, '1');
+        }
+      });
+      if (handled) {
+        autoTourStartedRef.current = true;
+        return;
+      }
+    }
+
+    if (autoTourStartedRef.current) return;
+
+    const createdAt = user?.created_at ? new Date(user.created_at).getTime() : null;
+    const isNewUser = createdAt ? (Date.now() - createdAt) <= 7 * 24 * 60 * 60 * 1000 : false;
+    if (jobs.length !== 0 && !isNewUser) return;
+    if (window.localStorage.getItem(autostartKey) === '1') return;
+
+    let cancelled = false;
+    const run = async () => {
+      const progress = await onboardingService.getOnboardingProgress(user.id);
+      if (cancelled) return;
+      const completed = (progress?.data || []).some((entry) => entry.role === role && entry.completed);
+      if (!completed) {
+        const started = startTour({
+          role,
+          mode: 'auto',
+          onComplete: () => {
+            onboardingService.setOnboardingCompleted(user.id, role);
+            window.localStorage.setItem(autostartKey, '1');
+          }
+        });
+        if (started) {
+          window.localStorage.setItem(autostartKey, '1');
+          autoTourStartedRef.current = true;
+        }
+      }
+    };
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, loading, jobs.length, role, startTour, resumeTourIfNeeded]);
+
   return (
     <div className="space-y-8">
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 p-5 md:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
@@ -116,6 +180,7 @@ export default function DailyJobsPage() {
               {isEn ? 'Daily Jobs' : 'Trabajos Diarios'}
             </h1>
             <input 
+                data-tour="filtro-fecha"
                 type="date" 
                 className="w-full md:w-48 py-2.5 px-3 border border-gray-300 dark:border-slate-700 rounded-lg focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 text-sm md:text-base"
                 value={date}
@@ -177,7 +242,7 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-tour="metricas">
         <div className="bg-blue-50 dark:bg-slate-900 p-5 rounded-xl border border-blue-100 dark:border-slate-700 text-center card-lg">
             <span className="text-sm md:text-base text-blue-600 dark:text-blue-200 font-semibold uppercase tracking-wide">
               {isEn ? 'Total Hours' : 'Total Horas'}
@@ -198,7 +263,7 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="tabla-trabajos">
         <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
           <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{jobs.length} {isEn ? 'records' : 'registros'}</span>

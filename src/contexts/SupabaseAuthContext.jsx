@@ -85,10 +85,13 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     const result = await authService.signOut();
-    if (result.success) {
+    const errorMessage = result?.error?.message || result?.message || '';
+    const isSessionMissing = result?.error?.status === 403 || errorMessage.includes('session_not_found');
+    if (result?.success || isSessionMissing) {
         setUser(null);
         setProfile(null);
         setSession(null);
+        return { ...result, success: true };
     }
     return result;
   }, []);

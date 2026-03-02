@@ -157,6 +157,7 @@ export default function LoginPage() {
                 id="email"
                 label="Email"
                 type="email"
+                autoComplete="off"
                 placeholder="tu@email.com"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -174,6 +175,7 @@ export default function LoginPage() {
                 id="password"
                 label="Contraseña"
                 type="password"
+                autoComplete="off"
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}

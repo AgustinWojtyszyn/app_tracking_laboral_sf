@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { authService } from '@/services/auth.service';
 import { useToast } from '@/contexts/ToastContext';
@@ -7,10 +8,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { User, Lock, Loader2, LogOut, Eye, EyeOff } from 'lucide-react';
 import { validatePassword } from '@/utils/validators';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
+import { onboardingService } from '@/services/onboarding.service';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 
 export default function SettingsPage() {
-    const { user, profile, signOut, updateProfile: updateProfileCtx } = useAuth();
+    const { user, profile, isAdmin, userRole, signOut, deleteAccount, updateProfile: updateProfileCtx } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
+  const { resumeTourIfNeeded } = useOnboardingTour();
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || '');
   
@@ -23,6 +28,16 @@ export default function SettingsPage() {
   const [showCurrentPwd, setShowCurrentPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+    ? userRole
+    : (isAdmin ? 'admin' : 'solicitante');
+  useEffect(() => {
+    if (!user) return;
+    resumeTourIfNeeded({
+      role,
+      onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
+    });
+  }, [user, role, resumeTourIfNeeded]);
     const updateProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -83,6 +98,23 @@ export default function SettingsPage() {
       }
   };
 
+  const handleReplayTour = () => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem('onboarding_replay', '1');
+    }
+    navigate('/app/trabajos-diarios');
+  };
+
+  const handleRestartTour = async () => {
+    if (!user?.id) return;
+    await onboardingService.resetOnboarding(user.id, role);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(`onboarding_autostart_done:${user.id}:${role}`);
+      window.sessionStorage.setItem('onboarding_restart', '1');
+    }
+    navigate('/app/trabajos-diarios');
+  };
+
     return (
         <div className="space-y-10 max-w-4xl mx-auto py-8 animate-in fade-in duration-500">
             <div>
@@ -92,7 +124,7 @@ export default function SettingsPage() {
 
             <div className="grid gap-8">
                 {/* Profile Card */}
-	    <Card className="shadow-md border-gray-100 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 card-lg">
+	    <Card className="shadow-md border-gray-100 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 card-lg" data-tour="configuracion-perfil">
                     <CardHeader className="flex flex-row items-center gap-4 bg-gray-50/50 dark:bg-slate-800/60 border-b border-gray-100 dark:border-slate-800">
                         <div className="bg-blue-100 dark:bg-blue-900/40 p-2 rounded-lg">
                             <User className="w-5 h-5 text-[#1e3a8a] dark:text-blue-100" />
@@ -136,7 +168,7 @@ export default function SettingsPage() {
                 </Card>
 
                 {/* Security Card */}
-	    <Card className="shadow-md border-gray-100 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 card-lg">
+	    <Card className="shadow-md border-gray-100 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 card-lg" data-tour="configuracion-seguridad">
                     <CardHeader className="flex flex-row items-center gap-4 bg-gray-50/50 dark:bg-slate-800/60 border-b border-gray-100 dark:border-slate-800">
                         <div className="bg-red-100 dark:bg-red-900/40 p-2 rounded-lg">
                             <Lock className="w-5 h-5 text-red-700 dark:text-red-200" />
@@ -154,6 +186,7 @@ export default function SettingsPage() {
                                                                         <div className="relative">
                                                                             <input 
                                                                                     type={showCurrentPwd ? "text" : "password"}
+                                                                                    autoComplete="current-password"
                                                                                     value={pwdData.currentPassword}
                                                                                     onChange={(e) => setPwdData({...pwdData, currentPassword: e.target.value})}
                                                                                     className="w-full p-2.5 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent outline-none transition-all bg-white text-gray-900 placeholder:text-gray-400 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400"
@@ -174,6 +207,7 @@ export default function SettingsPage() {
                                                                         <div className="relative">
                                                                             <input 
                                                                                     type={showNewPwd ? "text" : "password"}
+                                                                                    autoComplete="new-password"
                                                                                     value={pwdData.newPassword}
                                                                                     onChange={(e) => setPwdData({...pwdData, newPassword: e.target.value})}
                                                                                     className="w-full p-2.5 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent outline-none transition-all bg-white text-gray-900 placeholder:text-gray-400 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400"
@@ -195,6 +229,7 @@ export default function SettingsPage() {
                                                                         <div className="relative">
                                                                             <input 
                                                                                     type={showConfirmPwd ? "text" : "password"}
+                                                                                    autoComplete="new-password"
                                                                                     value={pwdData.confirmPassword}
                                                                                     onChange={(e) => setPwdData({...pwdData, confirmPassword: e.target.value})}
                                                                                     className="w-full p-2.5 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent outline-none transition-all bg-white text-gray-900 placeholder:text-gray-400 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400"
@@ -221,6 +256,28 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
 
+                <Card className="shadow-md border-gray-100 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 card-lg">
+                    <CardHeader className="flex flex-row items-center gap-4 bg-gray-50/50 dark:bg-slate-800/60 border-b border-gray-100 dark:border-slate-800">
+                        <div className="bg-amber-100 dark:bg-amber-900/40 p-2 rounded-lg">
+                            <span className="text-amber-700 dark:text-amber-100 font-semibold">?</span>
+                        </div>
+                        <div>
+                            <CardTitle className="text-xl md:text-2xl font-bold text-gray-800 dark:text-slate-50">Ayuda</CardTitle>
+                            <p className="text-sm md:text-base text-gray-500 dark:text-slate-300">Volvé a ver la guía paso a paso</p>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <Button onClick={handleReplayTour} className="bg-[#1e3a8a] hover:bg-blue-900 text-white">
+                                Repetir guía
+                            </Button>
+                            <Button onClick={handleRestartTour} variant="outline" className="border-gray-300 hover:bg-gray-50 text-gray-700">
+                                Reiniciar guía
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <div className="flex justify-center pt-8 pb-8">
                     <ConfirmationModal
                         title="¿Cerrar Sesión?"
@@ -230,6 +287,20 @@ export default function SettingsPage() {
                         trigger={
                             <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 px-8 text-base md:text-lg">
                                 <LogOut className="w-4 h-4 mr-2" /> Cerrar Sesión
+                            </Button>
+                        }
+                    />
+                </div>
+
+                <div className="flex justify-center pb-10">
+                    <ConfirmationModal
+                        title="Eliminar cuenta"
+                        description="Esta acción es irreversible. Se eliminará tu cuenta y no podrás recuperar tus datos."
+                        confirmLabel="Eliminar definitivamente"
+                        onConfirm={deleteAccount}
+                        trigger={
+                            <Button variant="destructive" className="px-8 text-base md:text-lg">
+                                Eliminar cuenta
                             </Button>
                         }
                     />

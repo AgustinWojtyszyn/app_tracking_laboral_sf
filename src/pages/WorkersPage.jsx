@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
@@ -8,13 +10,19 @@ import { Users, Mail, Trash2, Edit2, Search } from 'lucide-react';
 import { formatDate } from '@/utils/formatters';
 import { workersService } from '@/services/workers.service';
 import WorkerFormModal from '@/components/workers/WorkerFormModal';
+import { onboardingService } from '@/services/onboarding.service';
 
 export default function WorkersPage() {
   const { addToast } = useToast();
   const { t } = useLanguage();
+  const { user, isAdmin, userRole } = useAuth();
+  const { resumeTourIfNeeded } = useOnboardingTour();
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+    ? userRole
+    : (isAdmin ? 'admin' : 'solicitante');
 
   const fetchWorkers = async () => {
     setLoading(true);
@@ -31,6 +39,14 @@ export default function WorkersPage() {
     fetchWorkers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  useEffect(() => {
+    if (!user) return;
+    resumeTourIfNeeded({
+      role,
+      onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
+    });
+  }, [user, role, resumeTourIfNeeded]);
 
   const handleDeleted = async (id) => {
     const result = await workersService.deleteWorker(id);
@@ -61,11 +77,13 @@ export default function WorkersPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <WorkerFormModal onSaved={fetchWorkers} />
+          <div data-tour="trabajadores-crear">
+            <WorkerFormModal onSaved={fetchWorkers} />
+          </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-gray-100 dark:border-slate-800 overflow-hidden card-lg">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-gray-100 dark:border-slate-800 overflow-hidden card-lg" data-tour="trabajadores-lista">
         {workers.length === 0 ? (
           <div className="p-12 text-center text-gray-500 dark:text-slate-300 flex flex-col items-center gap-4">
             <Users className="w-12 h-12 text-gray-300 dark:text-slate-500" />

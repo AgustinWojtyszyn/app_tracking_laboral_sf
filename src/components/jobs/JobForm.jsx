@@ -217,7 +217,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     <Dialog open={open} onOpenChange={setOpen}>
       {!jobToEdit && (
         <DialogTrigger asChild>
-          <Button className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white">
+          <Button className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white" data-tour="nuevo-trabajo">
             Nuevo Trabajo
           </Button>
         </DialogTrigger>

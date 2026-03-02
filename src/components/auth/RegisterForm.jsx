@@ -92,6 +92,7 @@ export default function RegisterForm() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 type="email"
+                autoComplete="off"
                 required
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-shadow"
                 value={formData.email}
@@ -102,6 +103,7 @@ export default function RegisterForm() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
               <input
                 type="password"
+                autoComplete="new-password"
                 required
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-shadow"
                 value={formData.password}
@@ -113,6 +115,7 @@ export default function RegisterForm() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña</label>
               <input
                 type="password"
+                autoComplete="new-password"
                 required
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-shadow"
                 value={formData.confirmPassword}

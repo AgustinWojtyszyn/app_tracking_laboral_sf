@@ -4,6 +4,7 @@ import { useGroups } from '@/hooks/useGroups';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { Button } from '@/components/ui/button';
 import { Users, Trash2, Calendar, ShieldCheck, User, Eye, Edit2 } from 'lucide-react';
 import GroupForm from '@/components/groups/GroupForm';
@@ -12,16 +13,21 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { jobsService } from '@/services/jobs.service';
+import { onboardingService } from '@/services/onboarding.service';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
 import JobForm from '@/components/jobs/JobForm';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
 
 export default function GroupsPage() {
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, userRole } = useAuth();
   const { addToast } = useToast();
     const { getGroups, deleteGroup, requestToJoin } = useGroups();
   const { t } = useLanguage();
+  const { resumeTourIfNeeded } = useOnboardingTour();
+  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+    ? userRole
+    : (isAdmin ? 'admin' : 'solicitante');
   
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +42,14 @@ export default function GroupsPage() {
   useEffect(() => {
     if (user) fetchGroups();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    resumeTourIfNeeded({
+      role,
+      onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
+    });
+  }, [user, role, resumeTourIfNeeded]);
 
   const fetchGroups = async () => {
     setLoading(true);
@@ -99,7 +113,9 @@ export default function GroupsPage() {
 	        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-slate-50">{t('groupsPage.title')}</h1>
 	        <p className="text-base md:text-lg text-gray-500 dark:text-slate-300">{t('groupsPage.subtitle')}</p>
         </div>
-        <GroupForm onSuccess={fetchGroups} />
+        <div data-tour="grupos-crear">
+          <GroupForm onSuccess={fetchGroups} />
+        </div>
       </div>
 
       {loading ? (

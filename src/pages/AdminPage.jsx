@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { UserCog, History, Mail, Search, Sparkles, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+import { onboardingService } from '@/services/onboarding.service';
 
 const FEATURE_OPTIONS = [
   { key: 'jobs', label: 'Trabajos y reportes' },
@@ -255,7 +257,11 @@ const getActionMeta = (action, language = 'es') => {
 export default function AdminPage() {
   const { addToast } = useToast();
   const { language } = useLanguage();
-  const { user } = useAuth();
+  const { user, isAdmin, userRole } = useAuth();
+  const { resumeTourIfNeeded } = useOnboardingTour();
+  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+    ? userRole
+    : (isAdmin ? 'admin' : 'solicitante');
   const [users, setUsers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [drafts, setDrafts] = useState({});
@@ -277,6 +283,14 @@ export default function AdminPage() {
 
     load();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    resumeTourIfNeeded({
+      role,
+      onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
+    });
+  }, [user, role, resumeTourIfNeeded]);
 
   const fetchUsers = async () => {
     try {
@@ -499,7 +513,7 @@ export default function AdminPage() {
         {/* USERS TAB */}
         <TabsContent value="users" className="mt-4">
           <div className="grid lg:grid-cols-[2fr,1fr] gap-4 lg:gap-6">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden text-gray-900 dark:text-white">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden text-gray-900 dark:text-white" data-tour="admin-usuarios">
               <div className="p-4 border-b border-gray-200 dark:border-slate-800 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold">USUARIOS</p>
@@ -568,7 +582,7 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        <div>
+                        <div data-tour="admin-roles">
                           <label className="text-xs uppercase text-gray-700 dark:text-slate-200 font-semibold mb-2 block">
                             Funciones activas
                           </label>

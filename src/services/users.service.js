@@ -13,17 +13,25 @@ export const usersService = {
         .from('users')
         .select('*')
         .is('deleted_at', null)
+        .not('email_confirmed_at', 'is', null)
         .order('created_at', { ascending: false });
       if (error) {
         const errorMessage = error.message || '';
-        const missingColumn = error.code === '42703' || errorMessage.includes('deleted_at');
+        const missingColumn = error.code === '42703' || errorMessage.includes('deleted_at') || errorMessage.includes('email_confirmed_at');
         if (missingColumn) {
           const fallback = await supabase
             .from('users')
             .select('*')
+            .is('deleted_at', null)
             .order('created_at', { ascending: false });
-          if (fallback.error) throw fallback.error;
-          return { success: true, data: fallback.data };
+          if (!fallback.error) return { success: true, data: fallback.data };
+
+          const legacy = await supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (legacy.error) throw legacy.error;
+          return { success: true, data: legacy.data };
         }
         throw error;
       }

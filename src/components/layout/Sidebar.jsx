@@ -23,9 +23,9 @@ export default function Sidebar() {
     { label: t('nav.monthly'), path: '/app/panel-mensual', icon: CalendarDays },
     { label: t('nav.workers'), path: '/app/trabajadores', icon: UserCog },
     { label: t('nav.groups'), path: '/app/grupos', icon: Users, adminOnly: true },
+    { label: t('nav.settings'), path: '/app/configuracion', icon: Settings },
     { label: t('nav.admin'), path: '/app/admin', icon: ShieldAlert, adminOnly: true },
     { label: t('nav.tutorial'), path: '/app/tutorial', icon: BookOpen },
-    { label: t('nav.settings'), path: '/app/configuracion', icon: Settings },
   ];
 
   const navItems = baseNavItems.filter((item) => (item.adminOnly ? isAdmin : true));
