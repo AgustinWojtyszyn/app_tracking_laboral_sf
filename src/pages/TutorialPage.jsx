@@ -261,11 +261,11 @@ export default function TutorialPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         {stepItems.map((step) => (
           <div
             key={step.key}
-            className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col gap-4"
+            className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-7 shadow-sm flex flex-col gap-5 min-h-[150px] md:min-h-[170px]"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -273,7 +273,7 @@ export default function TutorialPage() {
                 <p className="text-sm md:text-base text-gray-500 dark:text-slate-300">{step.description}</p>
               </div>
               <span
-                className={`text-xs md:text-sm font-semibold px-3 py-1 rounded-full ${
+                className={`text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full ${
                   step.completed
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100'
                     : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-100'
@@ -284,7 +284,7 @@ export default function TutorialPage() {
             </div>
             <Button
               onClick={() => handleNavigate(step.path)}
-              className="w-full bg-[#1e3a8a] hover:bg-blue-900 text-white"
+              className="w-full bg-[#1e3a8a] hover:bg-blue-900 text-white mt-auto"
             >
               Ir
             </Button>

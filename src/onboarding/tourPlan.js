@@ -63,13 +63,15 @@ const basePlanEs = [
     route: '/app/grupos',
     selector: '[data-tour="grupos-miembros"]',
     title: 'Miembros',
-    description: 'Gestiona miembros del grupo.'
+    description: 'Gestiona miembros del grupo.',
+    timeoutMs: 1200
   },
   {
     route: '/app/grupos',
     selector: '[data-tour="grupos-invitar"]',
     title: 'Invitar',
-    description: 'Invita usuarios al grupo.'
+    description: 'Invita usuarios al grupo.',
+    timeoutMs: 1200
   },
   {
     route: '/app/admin',
@@ -164,13 +166,15 @@ const basePlanEn = [
     route: '/app/grupos',
     selector: '[data-tour="grupos-miembros"]',
     title: 'Members',
-    description: 'Manage group members.'
+    description: 'Manage group members.',
+    timeoutMs: 1200
   },
   {
     route: '/app/grupos',
     selector: '[data-tour="grupos-invitar"]',
     title: 'Invite',
-    description: 'Invite users to the group.'
+    description: 'Invite users to the group.',
+    timeoutMs: 1200
   },
   {
     route: '/app/admin',
