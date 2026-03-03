@@ -133,8 +133,8 @@
 }
 
 .driver-popover {
-  max-width: 94vw;
-  padding: 22px;
+  max-width: 95vw;
+  padding: 26px;
   overflow-wrap: anywhere;
   box-sizing: border-box;
   overflow: hidden;
@@ -147,13 +147,13 @@
 
 @media (min-width: 769px) {
   .driver-popover {
-    max-width: 680px;
-    padding: 26px;
+    max-width: 560px;
+    padding: 30px;
   }
 }
 
 .driver-popover-title {
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1.4;
   color: #f8fafc;
   font-weight: 700;
@@ -161,13 +161,13 @@
 
 @media (min-width: 769px) {
   .driver-popover-title {
-    font-size: 22px;
+    font-size: 24px;
   }
 }
 
 .driver-popover-description {
   font-size: 16.5px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: #cbd5f5;
 }
 
@@ -183,8 +183,8 @@
 }
 
 .driver-popover-btn {
-  min-height: 44px;
-  padding: 8px 16px;
+  min-height: 48px;
+  padding: 10px 20px;
   font-size: 15px;
   line-height: 1.2;
   border-radius: 10px;
