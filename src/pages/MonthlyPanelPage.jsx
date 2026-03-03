@@ -295,22 +295,15 @@ export default function MonthlyPanelPage() {
 
       {loading ? <LoadingSpinner /> : (
           <div className="grid gap-6" data-tour="panel-mensual-resumen">
-             {Object.keys(jobsByDay).length === 0 ? (
-                 <div className="bg-white dark:bg-slate-900 p-14 rounded-2xl shadow-sm border border-dashed border-gray-300 dark:border-slate-800 text-center text-xl">
-                     <CalendarDays className="w-14 h-14 mx-auto text-gray-300 dark:text-slate-600 mb-4" />
-                     <h3 className="text-3xl font-semibold text-gray-900 dark:text-slate-50">{t('monthlyPage.emptyTitle')}</h3>
-                     <p className="text-lg text-gray-500 dark:text-slate-300 mt-1">{t('monthlyPage.emptyDesc')}</p>
-                 </div>
-             ) : (
-                 Object.keys(jobsByDay).sort().reverse().map(date => {
-                     const dayJobs = jobsByDay[date];
-                     const dayTotal = dayJobs.reduce((sum, j) => {
-                        const status = (j.status || '').trim().toLowerCase();
-                        return sum + (status === 'completed' ? 0 : Number(j.amount_to_charge) || 0);
-                     }, 0);
-                     
-                     return (
-                         <div key={date} className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow card-lg">
+              {Object.keys(jobsByDay).sort().reverse().map(date => {
+                  const dayJobs = jobsByDay[date];
+                  const dayTotal = dayJobs.reduce((sum, j) => {
+                    const status = (j.status || '').trim().toLowerCase();
+                    return sum + (status === 'completed' ? 0 : Number(j.amount_to_charge) || 0);
+                  }, 0);
+                  
+                  return (
+                      <div key={date} className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow card-lg">
                              <div className="bg-gray-50/80 dark:bg-slate-800/80 p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center backdrop-blur-sm">
                                  <div className="flex items-center font-bold text-gray-800 dark:text-slate-50 text-xl md:text-2xl">
                                      <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl shadow-sm mr-3 border border-gray-100 dark:border-slate-800">
@@ -366,10 +359,9 @@ export default function MonthlyPanelPage() {
                                      </div>
                                  ))}
                              </div>
-                         </div>
-                     )
-                 })
-             )}
+                      </div>
+                  )
+              })}
           </div>
       )}
       {editingJob && (

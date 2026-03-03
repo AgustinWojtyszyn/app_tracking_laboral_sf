@@ -8,7 +8,7 @@ import { workersService } from '@/services/workers.service';
 import WorkerFormModal from '@/components/workers/WorkerFormModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 export default function JobForm({ jobToEdit = null, onSuccess }) {
   const { user } = useAuth();
@@ -263,6 +263,19 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               placeholder="Buscar empresa..."
             />
             <div className="mt-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 max-h-40 overflow-y-auto">
+              {formData.location && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, location: '' });
+                    setLocationSearch('');
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-slate-800"
+                >
+                  <span>Quitar selección</span>
+                  <X className="w-4 h-4" />
+                </button>
+              )}
               {filteredLocationOptions.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">Sin resultados</div>
               ) : (
