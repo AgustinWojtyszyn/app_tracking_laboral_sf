@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { driver } from 'driver.js';
 import { getPlanByRole } from '@/onboarding/tourPlan';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   STORAGE_KEYS,
   wasRecentManualNav,
@@ -47,6 +48,7 @@ export const useOnboardingTour = () => {
   const driverRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { language } = useLanguage();
 
   const safeNavigate = useCallback((route, plan) => {
     if (wasRecentManualNav()) return false;
@@ -110,8 +112,14 @@ export const useOnboardingTour = () => {
         }
       };
 
+      const isEn = language === 'en';
       const driverObj = driver({
         showProgress: true,
+        nextBtnText: isEn ? 'Next' : 'Siguiente',
+        prevBtnText: isEn ? 'Previous' : 'Anterior',
+        doneBtnText: isEn ? 'Done' : 'Finalizar',
+        closeBtnText: isEn ? 'Close' : 'Cerrar',
+        progressText: isEn ? 'Step {{current}} of {{total}}' : 'Paso {{current}} de {{total}}',
         stagePadding: isMobile ? 16 : 20,
         allowClose: true,
         disableActiveInteraction: false,
@@ -155,14 +163,14 @@ export const useOnboardingTour = () => {
     } catch {
       clearProgress();
     }
-  }, [location.pathname, safeNavigate]);
+  }, [language, location.pathname, safeNavigate]);
 
   const startTour = useCallback(({ role = 'solicitante', mode = 'auto', stepIndex = null, onComplete } = {}) => {
     if (typeof window === 'undefined') return false;
 
     try {
       const normalizedRole = normalizeRole(role);
-      const plan = getPlanByRole(normalizedRole);
+      const plan = getPlanByRole(normalizedRole, language);
       if (!plan || plan.length === 0) return false;
 
       const index = Number.isFinite(stepIndex) ? stepIndex : parseStoredIndex();
@@ -185,7 +193,7 @@ export const useOnboardingTour = () => {
     } catch {
       return false;
     }
-  }, [location.pathname, runSegment, safeNavigate]);
+  }, [language, location.pathname, runSegment, safeNavigate]);
 
   const resumeTourIfNeeded = useCallback(({ role = 'solicitante', onComplete } = {}) => {
     if (typeof window === 'undefined') return false;

@@ -1,4 +1,4 @@
-const basePlan = [
+const basePlanEs = [
   {
     route: '/app/trabajos-diarios',
     selector: '[data-tour="nuevo-trabajo"]',
@@ -99,7 +99,114 @@ const basePlan = [
   }
 ];
 
-export const getPlanByRole = (role) => {
-  if (role === 'admin') return basePlan;
-  return basePlan.filter((step) => !step.requiresAdmin);
+const basePlanEn = [
+  {
+    route: '/app/trabajos-diarios',
+    selector: '[data-tour="nuevo-trabajo"]',
+    title: 'New job',
+    description: 'Create your first job from here.'
+  },
+  {
+    route: '/app/trabajos-diarios',
+    selector: '[data-tour="tabla-trabajos"]',
+    title: 'Table',
+    description: 'Review the jobs you logged.'
+  },
+  {
+    route: '/app/trabajos-diarios',
+    selector: '[data-tour="metricas"]',
+    title: 'Metrics',
+    description: 'Quick summary of hours and costs.'
+  },
+  {
+    route: '/app/trabajos-diarios',
+    selector: '[data-tour="filtro-fecha"]',
+    title: 'Date',
+    description: 'Filter the work day.'
+  },
+  {
+    route: '/app/panel-mensual',
+    selector: '[data-tour="panel-mensual-filtros"]',
+    title: 'Filters',
+    description: 'Select range and status.'
+  },
+  {
+    route: '/app/panel-mensual',
+    selector: '[data-tour="panel-mensual-resumen"]',
+    title: 'Summary',
+    description: 'Monthly consolidated view.'
+  },
+  {
+    route: '/app/panel-mensual',
+    selector: '[data-tour="panel-mensual-tabla"]',
+    title: 'Table',
+    description: 'Monthly job details.'
+  },
+  {
+    route: '/app/trabajadores',
+    selector: '[data-tour="trabajadores-crear"]',
+    title: 'Workers',
+    description: 'Add new workers.'
+  },
+  {
+    route: '/app/trabajadores',
+    selector: '[data-tour="trabajadores-lista"]',
+    title: 'List',
+    description: 'Manage your workers.'
+  },
+  {
+    route: '/app/grupos',
+    selector: '[data-tour="grupos-crear"]',
+    title: 'Groups',
+    description: 'Create and organize teams.'
+  },
+  {
+    route: '/app/grupos',
+    selector: '[data-tour="grupos-miembros"]',
+    title: 'Members',
+    description: 'Manage group members.'
+  },
+  {
+    route: '/app/grupos',
+    selector: '[data-tour="grupos-invitar"]',
+    title: 'Invite',
+    description: 'Invite users to the group.'
+  },
+  {
+    route: '/app/admin',
+    selector: '[data-tour="admin-usuarios"]',
+    title: 'Users',
+    description: 'Manage system users.',
+    requiresAdmin: true
+  },
+  {
+    route: '/app/admin',
+    selector: '[data-tour="admin-roles"]',
+    title: 'Roles',
+    description: 'Define permissions per role.',
+    requiresAdmin: true
+  },
+  {
+    route: '/app/tutorial',
+    selector: '[data-tour="tutorial-hub"]',
+    title: 'Guide',
+    description: 'Review the steps from here.'
+  },
+  {
+    route: '/app/tutorial',
+    selector: '[data-tour="tutorial-replay"]',
+    title: 'Replay',
+    description: 'Run the guide again anytime.'
+  }
+];
+
+const planByLang = {
+  es: basePlanEs,
+  en: basePlanEn
+};
+
+export const getPlanByRole = (role, language = 'es') => {
+  const plan = planByLang[language] || planByLang.es;
+  if (role === 'admin') return plan;
+  return plan.filter((step) => !step.requiresAdmin);
 };
