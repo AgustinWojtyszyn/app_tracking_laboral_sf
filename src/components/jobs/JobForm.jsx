@@ -209,7 +209,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     return locationOptions.filter((option) => {
       const normalizedOption = normalizeText(option);
       const words = normalizedOption.split(' ').filter(Boolean);
-      return words.some((word) => word.startsWith(query));
+      return normalizedOption.includes(query) || words.some((word) => word.startsWith(query));
     });
   }, [locationOptions, locationSearch]);
 
