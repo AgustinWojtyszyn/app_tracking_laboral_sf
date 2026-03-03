@@ -108,10 +108,11 @@ export const jobsService = {
       }
 
       if (error) throw error;
-      return { success: true, data };
+      const safeData = Array.isArray(data) ? data : [];
+      return { success: true, data: safeData };
     } catch (error) {
       console.error("GetJobs Error:", error);
-      return { success: false, error: "Error al cargar trabajos. Verifique su conexión." };
+      return { success: false, data: [], error: "Error al cargar trabajos. Verifique su conexión." };
     }
   },
 

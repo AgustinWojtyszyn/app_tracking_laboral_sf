@@ -29,6 +29,7 @@ export default function DailyJobsPage() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
+  const reqIdRef = useRef(0);
   const hasJobs = jobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
@@ -41,15 +42,40 @@ export default function DailyJobsPage() {
     if (user) fetchJobs();
   }, [date, user]);
 
+  const withTimeout = (promise, ms = 12000) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+    ]);
+
   const fetchJobs = async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
-    const result = await jobsService.getJobsByDay(date);
-    if (result.success) {
-      setJobs(result.data);
-    } else {
-      addToast(result.error, 'error');
+    try {
+      const result = await withTimeout(jobsService.getJobsByDay(date), 12000);
+      if (reqId !== reqIdRef.current) return;
+      if (result?.success) {
+        const nextJobs = Array.isArray(result.data) ? result.data : [];
+        setJobs(nextJobs);
+      } else {
+        setJobs([]);
+        addToast(result?.error || (isEn ? 'Failed to load jobs.' : 'No se pudieron cargar los trabajos.'), 'error');
+      }
+    } catch (error) {
+      if (reqId !== reqIdRef.current) return;
+      console.error('[DailyJobsPage] fetchJobs failed:', error);
+      setJobs([]);
+      addToast(
+        error?.message === 'timeout'
+          ? (isEn ? 'Request timed out.' : 'La carga tardó demasiado (timeout).')
+          : (isEn ? 'Failed to load jobs.' : 'No se pudieron cargar los trabajos.'),
+        'error'
+      );
+    } finally {
+      if (reqId === reqIdRef.current) {
+        setLoading(false);
+      }
     }
-    setLoading(false);
   };
 
   const handleShare = () => {
