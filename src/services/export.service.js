@@ -1,6 +1,6 @@
 
 import * as XLSX from 'xlsx';
-import { formatDate, formatCurrency } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters';
 
 export const exportService = {
   // Helper to get formatted job object
@@ -11,9 +11,6 @@ export const exportService = {
       Descripción: job.description || '',
       Grupo: job.groups?.name || '-',
       Trabajador: job.workers?.display_name || job.workers?.alias || '-',
-      'Horas': Number(job.hours_worked) || 0,
-      'Costo': Number(job.cost_spent) || 0,
-      'Monto': Number(job.amount_to_charge) || 0,
       Estado: job.status === 'pending' ? 'Pendiente' : job.status === 'completed' ? 'Completado' : 'Archivado'
     };
   },
@@ -24,7 +21,7 @@ export const exportService = {
     
     // Auto-width columns approximation
     const wscols = [
-        {wch:12}, {wch:25}, {wch:40}, {wch:15}, {wch:25}, {wch:10}, {wch:12}, {wch:12}, {wch:15}
+        {wch:12}, {wch:25}, {wch:40}, {wch:15}, {wch:25}, {wch:15}
     ];
     worksheet['!cols'] = wscols;
 
@@ -39,16 +36,9 @@ export const exportService = {
     const data = jobs.map(this._mapJobToRow);
 
     // Calculate totals
-    const totalHours = data.reduce((sum, item) => sum + item['Horas'], 0);
-    const totalCost = data.reduce((sum, item) => sum + item['Costo'], 0);
-    const totalCharge = data.reduce((sum, item) => sum + item['Monto'], 0);
-
     data.push({}); // Spacer
     data.push({
-      Fecha: 'TOTAL GENERAL',
-      'Horas': totalHours,
-      'Costo': totalCost,
-      'Monto': totalCharge
+      Fecha: 'TOTAL GENERAL'
     });
 
     this._saveWorkbook(data, filename);
@@ -71,10 +61,6 @@ export const exportService = {
 
     const sortedDates = Object.keys(grouped).sort();
     let finalData = [];
-    let grandTotalHours = 0;
-    let grandTotalCost = 0;
-    let grandTotalCharge = 0;
-
     sortedDates.forEach(date => {
         const dayJobs = grouped[date];
         const dayData = dayJobs.map(this._mapJobToRow);
@@ -82,21 +68,9 @@ export const exportService = {
         // Add daily rows
         finalData = [...finalData, ...dayData];
 
-        // Calculate daily totals
-        const dayHours = dayData.reduce((sum, item) => sum + item['Horas'], 0);
-        const dayCost = dayData.reduce((sum, item) => sum + item['Costo'], 0);
-        const dayCharge = dayData.reduce((sum, item) => sum + item['Monto'], 0);
-
-        grandTotalHours += dayHours;
-        grandTotalCost += dayCost;
-        grandTotalCharge += dayCharge;
-
         // Add daily total row
         finalData.push({
             Fecha: `TOTAL ${formatDate(date)}`,
-            'Horas': dayHours,
-            'Costo': dayCost,
-            'Monto': dayCharge,
             Estado: '' // Empty to avoid confusion
         });
         
@@ -106,10 +80,7 @@ export const exportService = {
 
     // Grand Total
     finalData.push({
-        Fecha: 'TOTAL PERÍODO',
-        'Horas': grandTotalHours,
-        'Costo': grandTotalCost,
-        'Monto': grandTotalCharge
+        Fecha: 'TOTAL PERÍODO'
     });
 
     const filename = `trabajos_${startDate}_a_${endDate}.xls`;
@@ -132,8 +103,7 @@ export const exportService = {
         `Lugar: ${job.location || '-'}`,
         `Trabajador: ${job.workers?.display_name || job.workers?.alias || '-'}`,
         `Grupo: ${job.groups?.name || '-'}`,
-        `Estado: ${statusLabel}`,
-        `Horas: ${job.hours_worked || 0} | Costo: ${formatCurrency(job.cost_spent)} | Cobrar: ${formatCurrency(job.amount_to_charge)}`
+        `Estado: ${statusLabel}`
       ].join('\n');
     });
 
