@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -11,6 +11,7 @@ import { CalendarDays, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
+import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { useFilters } from '@/hooks/useFilters';
 import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
@@ -49,7 +50,7 @@ export default function MonthlyPanelPage() {
     if (user && filters.startDate && filters.endDate) {
         fetchJobs();
     }
-  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId]);
+  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId, filters.workerId]);
 
   useEffect(() => {
     if (!user) return;
@@ -74,6 +75,25 @@ export default function MonthlyPanelPage() {
   const hasJobs = filteredJobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
+  const groupOptions = useMemo(() => (
+    jobs.reduce((acc, job) => {
+      if (!job?.group_id) return acc;
+      if (!acc.some((g) => g.id === job.group_id)) {
+        acc.push({ id: job.group_id, name: job.groups?.name || job.group_id });
+      }
+      return acc;
+    }, [])
+  ), [jobs]);
+  const workerOptions = useMemo(() => (
+    jobs.reduce((acc, job) => {
+      if (!job?.worker_id) return acc;
+      if (!acc.some((w) => w.id === job.worker_id)) {
+        const label = job.workers?.display_name || job.workers?.alias || job.worker_id;
+        acc.push({ id: job.worker_id, name: label });
+      }
+      return acc;
+    }, [])
+  ), [jobs]);
 
   // Group by day for calendar view
   const jobsByDay = filteredJobs.reduce((acc, job) => {
@@ -201,6 +221,12 @@ export default function MonthlyPanelPage() {
       <div data-tour="panel-mensual-filtros">
         <JobFilters filters={filters} onChange={setFilter} />
       </div>
+      <QuickFilterChips
+        filters={filters}
+        onChange={setFilter}
+        groups={groupOptions}
+        workers={workerOptions}
+      />
 
       {/* Tabla consolidada */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="panel-mensual-tabla">

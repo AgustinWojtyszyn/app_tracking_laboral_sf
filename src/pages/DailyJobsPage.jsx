@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { jobsService } from '@/services/jobs.service';
 import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -12,6 +12,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
+import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
@@ -29,8 +30,38 @@ export default function DailyJobsPage() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const [workerFilter, setWorkerFilter] = useState('all');
   const reqIdRef = useRef(0);
-  const hasJobs = jobs.length > 0;
+  const groupOptions = useMemo(() => (
+    jobs.reduce((acc, job) => {
+      if (!job?.group_id) return acc;
+      if (!acc.some((g) => g.id === job.group_id)) {
+        acc.push({ id: job.group_id, name: job.groups?.name || job.group_id });
+      }
+      return acc;
+    }, [])
+  ), [jobs]);
+  const workerOptions = useMemo(() => (
+    jobs.reduce((acc, job) => {
+      if (!job?.worker_id) return acc;
+      if (!acc.some((w) => w.id === job.worker_id)) {
+        const label = job.workers?.display_name || job.workers?.alias || job.worker_id;
+        acc.push({ id: job.worker_id, name: label });
+      }
+      return acc;
+    }, [])
+  ), [jobs]);
+  const filteredJobs = useMemo(() => (
+    jobs.filter((job) => {
+      if (statusFilter !== 'all' && job.status !== statusFilter) return false;
+      if (groupFilter !== 'all' && (job.group_id || '') !== groupFilter) return false;
+      if (workerFilter !== 'all' && (job.worker_id || '') !== workerFilter) return false;
+      return true;
+    })
+  ), [jobs, statusFilter, groupFilter, workerFilter]);
+  const hasJobs = filteredJobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
   const autoTourStartedRef = useRef(false);
@@ -79,14 +110,14 @@ export default function DailyJobsPage() {
   };
 
   const handleShare = () => {
-    if (!jobs || jobs.length === 0) {
+    if (!filteredJobs || filteredJobs.length === 0) {
       addToast(isEn ? 'No jobs to share.' : 'No hay trabajos para compartir.', 'error');
       return;
     }
     const title = isEn
       ? `Daily jobs - ${date}`
       : `Trabajos diarios - ${date}`;
-    exportService.shareJobsViaWhatsApp(jobs, title);
+    exportService.shareJobsViaWhatsApp(filteredJobs, title);
   };
 
   const handleClearCompleted = async () => {
@@ -210,7 +241,7 @@ export default function DailyJobsPage() {
           <Button
             variant="default"
             className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
-            onClick={() => exportService.exportDayToExcel(date, jobs)}
+            onClick={() => exportService.exportDayToExcel(date, filteredJobs)}
             disabled={!hasJobs || loading}
           >
             <FileSpreadsheet className="w-5 h-5" /> {isEn ? 'Export to Excel' : 'Exportar a Excel'}
@@ -261,10 +292,21 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
+      <QuickFilterChips
+        filters={{ status: statusFilter, groupId: groupFilter, workerId: workerFilter }}
+        onChange={(key, value) => {
+          if (key === 'status') setStatusFilter(value);
+          if (key === 'groupId') setGroupFilter(value);
+          if (key === 'workerId') setWorkerFilter(value);
+        }}
+        groups={groupOptions}
+        workers={workerOptions}
+      />
+
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="tabla-trabajos">
         <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
-          <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{jobs.length} {isEn ? 'records' : 'registros'}</span>
+          <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{filteredJobs.length} {isEn ? 'records' : 'registros'}</span>
         </div>
         <div>
           {loading ? (
@@ -288,13 +330,13 @@ export default function DailyJobsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {jobs.length === 0 ? (
+                  {filteredJobs.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                         {t('monthlyPage.emptyDesc')}
                       </td>
                     </tr>
-                  ) : jobs.map((job) => (
+                  ) : filteredJobs.map((job) => (
                     <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                       <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
                       <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>

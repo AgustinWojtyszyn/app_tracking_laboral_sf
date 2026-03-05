@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { jobsService } from '@/services/jobs.service';
 import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useFilters } from '@/hooks/useFilters';
 import JobFilters from '@/components/jobs/JobFilters';
+import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { usePagination } from '@/hooks/usePagination';
 import { formatDate } from '@/utils/formatters';
 import { getMonthStart, getTodayDate } from '@/utils/dates';
@@ -30,6 +31,25 @@ export default function HistoryPage() {
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const groupOptions = useMemo(() => (
+    jobs.reduce((acc, job) => {
+      if (!job?.group_id) return acc;
+      if (!acc.some((g) => g.id === job.group_id)) {
+        acc.push({ id: job.group_id, name: job.groups?.name || job.group_id });
+      }
+      return acc;
+    }, [])
+  ), [jobs]);
+  const workerOptions = useMemo(() => (
+    jobs.reduce((acc, job) => {
+      if (!job?.worker_id) return acc;
+      if (!acc.some((w) => w.id === job.worker_id)) {
+        const label = job.workers?.display_name || job.workers?.alias || job.worker_id;
+        acc.push({ id: job.worker_id, name: label });
+      }
+      return acc;
+    }, [])
+  ), [jobs]);
 
   const { 
     currentPage, nextPage, prevPage, goToPage, getPageData, totalPages 
@@ -37,7 +57,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (user) fetchJobs();
-  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId]);
+  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId, filters.workerId]);
 
   useEffect(() => {
     if (!jobs) return;
@@ -97,6 +117,12 @@ export default function HistoryPage() {
       </div>
 
       <JobFilters filters={filters} onChange={setFilter} />
+      <QuickFilterChips
+        filters={filters}
+        onChange={setFilter}
+        groups={groupOptions}
+        workers={workerOptions}
+      />
 
       {loading ? (
         <LoadingSpinner />
