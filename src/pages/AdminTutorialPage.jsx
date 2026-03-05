@@ -1,12 +1,31 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { onboardingService } from '@/services/onboarding.service';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+
+const normalizeRole = (userRole, isAdmin) => {
+  if (['admin', 'solicitante', 'trabajador'].includes(userRole)) return userRole;
+  return isAdmin ? 'admin' : 'solicitante';
+};
 
 export default function AdminTutorialPage() {
+  const { user, isAdmin, userRole } = useAuth();
   const navigate = useNavigate();
   const { language } = useLanguage();
   const isEn = language === 'en';
+  const { resumeTourIfNeeded } = useOnboardingTour();
+  const role = normalizeRole(userRole, isAdmin);
+
+  useEffect(() => {
+    if (!user) return;
+    resumeTourIfNeeded({
+      role,
+      onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
+    });
+  }, [user, role, resumeTourIfNeeded]);
 
   const steps = useMemo(() => ([
     {
@@ -55,7 +74,7 @@ export default function AdminTutorialPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8 space-y-8">
+    <div className="max-w-5xl mx-auto py-8 space-y-8" data-tour="tutorial-admin-hub">
       <div>
         <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-50">
           {isEn ? 'Admin tutorial' : 'Tutorial Admin'}
