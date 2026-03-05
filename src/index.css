@@ -104,6 +104,14 @@
     @apply text-base md:text-lg p-5 md:p-6;
   }
 
+  .table-x-scroll {
+    @apply overflow-x-auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    scrollbar-gutter: stable both-edges;
+  }
+
   .form-lg input,
   .form-lg select,
   .form-lg textarea {
@@ -130,6 +138,28 @@
   .dark .text-gray-700 { @apply text-slate-200; }
   .dark .text-gray-600 { @apply text-slate-300; }
   .dark .text-gray-500 { @apply text-slate-300; }
+}
+
+.table-x-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.table-x-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.2);
+  border-radius: 999px;
+}
+
+.dark .table-x-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.table-x-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.35) transparent;
+}
+
+.dark .table-x-scroll {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
 }
 
 .driver-popover {

@@ -302,8 +302,8 @@ export default function DailyJobsPage() {
               <LoadingSpinner />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-xs md:text-sm text-left">
+            <div className="table-x-scroll overflow-x-auto">
+              <table className="w-full min-w-[1100px] text-xs md:text-sm text-left whitespace-nowrap">
                 <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
                   <tr>
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
