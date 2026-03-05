@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
@@ -132,15 +132,6 @@ export default function DailyJobsPage() {
     }
     setClearingPending(false);
   };
-
-  const totals = jobs.reduce((acc, job) => {
-    const status = (job.status || '').trim().toLowerCase();
-    return {
-      hours: acc.hours + (Number(job.hours_worked) || 0),
-      cost: acc.cost + (status === 'completed' ? 0 : (Number(job.cost_spent) || 0)),
-      charge: acc.charge + (status === 'completed' ? 0 : (Number(job.amount_to_charge) || 0)),
-    };
-  }, { hours: 0, cost: 0, charge: 0 });
 
   useEffect(() => {
     if (!user || loading) return;
@@ -270,27 +261,6 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-tour="metricas">
-        <div className="bg-blue-50 dark:bg-slate-900 p-5 rounded-xl border border-blue-100 dark:border-slate-700 text-center card-lg">
-            <span className="text-sm md:text-base text-blue-600 dark:text-blue-200 font-semibold uppercase tracking-wide">
-              {isEn ? 'Total Hours' : 'Total Horas'}
-            </span>
-            <p className="text-2xl md:text-3xl font-bold text-blue-900 dark:text-blue-100 mt-1">{totals.hours}</p>
-        </div>
-        <div className="bg-green-50 dark:bg-slate-900 p-5 rounded-xl border border-green-100 dark:border-slate-700 text-center card-lg">
-             <span className="text-sm md:text-base text-green-600 dark:text-green-200 font-semibold uppercase tracking-wide">
-               {isEn ? 'Total Cost' : 'Total Costo'}
-             </span>
-             <p className="text-2xl md:text-3xl font-bold text-green-900 dark:text-green-100 mt-1">{formatCurrency(totals.cost)}</p>
-        </div>
-        <div className="bg-purple-50 dark:bg-slate-900 p-5 rounded-xl border border-purple-100 dark:border-slate-700 text-center card-lg">
-             <span className="text-sm md:text-base text-purple-600 dark:text-purple-200 font-semibold uppercase tracking-wide">
-               {isEn ? 'Total to Charge' : 'Total a Cobrar'}
-             </span>
-             <p className="text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100 mt-1">{formatCurrency(totals.charge)}</p>
-        </div>
-      </div>
-
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="tabla-trabajos">
         <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
@@ -313,9 +283,6 @@ export default function DailyJobsPage() {
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
-                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Hours' : 'Horas'}</th>
-                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Cost' : 'Costo'}</th>
-                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
                     <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
                     <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
                   </tr>
@@ -323,7 +290,7 @@ export default function DailyJobsPage() {
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {jobs.length === 0 ? (
                     <tr>
-                      <td colSpan={12} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                      <td colSpan={9} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                         {t('monthlyPage.emptyDesc')}
                       </td>
                     </tr>
@@ -336,13 +303,6 @@ export default function DailyJobsPage() {
                       <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                       <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
                       <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
-                      <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
-                      <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">
-                        {formatCurrency(job.cost_spent)}
-                      </td>
-                      <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
-                        {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
-                      </td>
                       <td className="px-3 md:px-4 py-3 text-center">
                         <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
                           job.status === 'completed' ? 'bg-green-100 text-green-700' :

@@ -25,9 +25,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     location: '',
     requested_by: '',
     description: '',
-    hours_worked: '',
-    cost_spent: '',
-    amount_to_charge: '',
     status: 'pending',
     group_id: '',
     editable_by_group: false
@@ -42,9 +39,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         ...jobToEdit,
         group_id: jobToEdit.group_id || '',
         requested_by: jobToEdit.requested_by || '',
-        hours_worked: jobToEdit.hours_worked || '',
-        cost_spent: jobToEdit.cost_spent || '',
-        amount_to_charge: jobToEdit.amount_to_charge || ''
       });
       setWorkerId(jobToEdit.worker_id || '');
       setLocationSearch('');
@@ -79,9 +73,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
   const validate = () => {
     const newErrors = {};
-    const hours = parseFloat(formData.hours_worked);
-    const cost = formData.cost_spent === '' ? 0 : parseFloat(formData.cost_spent);
-    const amount = formData.amount_to_charge === '' ? 0 : parseFloat(formData.amount_to_charge);
     const location = (formData.location || '').trim();
     const requester = (formData.requested_by || '').trim();
     const description = (formData.description || '').trim();
@@ -94,9 +85,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     if (!description) newErrors.description = "La descripción es requerida";
     if (!workerId) newErrors.worker_id = "Seleccioná un trabajador";
     if (!formData.group_id) newErrors.group_id = "Seleccioná un grupo";
-    if (!Number.isFinite(hours) || hours <= 0) newErrors.hours_worked = "Horas deben ser mayor a 0";
-    if (!Number.isFinite(cost) || cost < 0) newErrors.cost_spent = "Costo no puede ser negativo";
-    if (!Number.isFinite(amount) || amount < 0) newErrors.amount_to_charge = "Monto no puede ser negativo";
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -119,9 +107,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       editable_by_group: formData.editable_by_group,
       worker_id: workerId,
       group_id: formData.group_id || null,
-      hours_worked: Number(formData.hours_worked),
-      cost_spent: Number(formData.cost_spent),
-      amount_to_charge: Number(formData.amount_to_charge),
     };
     if (!jobToEdit) {
       payload.user_id = user?.id || null;
@@ -327,43 +312,6 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               required
             />
             {errors.description && <span className="text-xs text-red-500">{errors.description}</span>}
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Horas *</label>
-              <input
-                type="number"
-                step="0.5"
-                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
-                value={formData.hours_worked}
-                onChange={e => setFormData({ ...formData, hours_worked: e.target.value })}
-                required
-              />
-              {errors.hours_worked && <span className="text-xs text-red-500">{errors.hours_worked}</span>}
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Costo</label>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
-                value={formData.cost_spent}
-                onChange={e => setFormData({ ...formData, cost_spent: e.target.value })}
-              />
-               {errors.cost_spent && <span className="text-xs text-red-500">{errors.cost_spent}</span>}
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">A Cobrar</label>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
-                value={formData.amount_to_charge}
-                onChange={e => setFormData({ ...formData, amount_to_charge: e.target.value })}
-              />
-              {errors.amount_to_charge && <span className="text-xs text-red-500">{errors.amount_to_charge}</span>}
-            </div>
           </div>
 
           <div className="space-y-4">

@@ -16,7 +16,6 @@ import { onboardingService } from '@/services/onboarding.service';
 const FEATURE_OPTIONS = [
   { key: 'jobs', label: 'Trabajos y reportes' },
   { key: 'groups', label: 'Grupos y equipos' },
-  { key: 'billing', label: 'Costos y facturación' },
   { key: 'audit', label: 'Ver auditoría' }
 ];
 
@@ -61,8 +60,7 @@ const ENTITY_LABELS = {
   group_member: 'Miembro de grupo',
   users: 'Usuario',
   user: 'Usuario',
-  job: 'Trabajo',
-  billing: 'Facturación'
+  job: 'Trabajo'
 };
 
 const ROLE_LABELS = {
@@ -73,7 +71,6 @@ const ROLE_LABELS = {
 const PERMISSION_LABELS = {
   jobs: { es: 'Trabajos y reportes', en: 'Jobs & reports' },
   groups: { es: 'Grupos y equipos', en: 'Groups & teams' },
-  billing: { es: 'Costos y facturación', en: 'Billing' },
   audit: { es: 'Auditoría', en: 'Audit' }
 };
 
@@ -90,9 +87,13 @@ const FIELD_LABELS = {
 };
 
 const normalizePermissions = (value) => {
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) return value.filter((p) => p !== 'billing');
   if (typeof value === 'string') {
-    return value.split(',').map((p) => p.trim()).filter(Boolean);
+    return value
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .filter((p) => p !== 'billing');
   }
   return [];
 };

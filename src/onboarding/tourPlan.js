@@ -13,12 +13,6 @@ const basePlanEs = [
   },
   {
     route: '/app/trabajos-diarios',
-    selector: '[data-tour="metricas"]',
-    title: 'Métricas',
-    description: 'Resumen rápido de horas y costos.'
-  },
-  {
-    route: '/app/trabajos-diarios',
     selector: '[data-tour="filtro-fecha"]',
     title: 'Fecha',
     description: 'Filtra el día de trabajo.'
@@ -120,12 +114,6 @@ const basePlanEn = [
     selector: '[data-tour="tabla-trabajos"]',
     title: 'Table',
     description: 'Review the jobs you logged.'
-  },
-  {
-    route: '/app/trabajos-diarios',
-    selector: '[data-tour="metricas"]',
-    title: 'Metrics',
-    description: 'Quick summary of hours and costs.'
   },
   {
     route: '/app/trabajos-diarios',

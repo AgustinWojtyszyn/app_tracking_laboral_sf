@@ -271,7 +271,9 @@ export const usersService = {
   },
 
   async updateUserPermissions(userId, permissions = []) {
-    const cleanPermissions = Array.isArray(permissions) ? permissions : [];
+    const cleanPermissions = Array.isArray(permissions)
+      ? permissions.filter((p) => p !== 'billing')
+      : [];
 
     try {
       const actingUserId = await this.resolveCurrentUserId();

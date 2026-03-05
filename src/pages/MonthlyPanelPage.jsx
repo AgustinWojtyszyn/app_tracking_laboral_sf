@@ -5,9 +5,9 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
-import { formatCurrency, formatNumber, formatDate } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
-import { CalendarDays, Briefcase, DollarSign, Clock, Share2, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
+import { CalendarDays, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
@@ -74,14 +74,6 @@ export default function MonthlyPanelPage() {
   const hasJobs = filteredJobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
-
-  const totals = filteredJobs.reduce((acc, job) => {
-    const status = (job.status || '').trim().toLowerCase();
-    const hours = acc.hours + (Number(job.hours_worked) || 0);
-    const cost = acc.cost + (status === 'completed' ? 0 : (Number(job.cost_spent) || 0));
-    const charge = acc.charge + (status === 'completed' ? 0 : (Number(job.amount_to_charge) || 0));
-    return { hours, cost, charge };
-  }, { hours: 0, cost: 0, charge: 0 });
 
   // Group by day for calendar view
   const jobsByDay = filteredJobs.reduce((acc, job) => {
@@ -227,9 +219,6 @@ export default function MonthlyPanelPage() {
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.worker')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.type')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.group')}</th>
-                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.hours')}</th>
-                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.cost')}</th>
-                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.charge')}</th>
                 <th className="px-3 md:px-4 py-3 text-center">{t('monthlyPage.columns.status')}</th>
                 <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
               </tr>
@@ -237,7 +226,7 @@ export default function MonthlyPanelPage() {
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                  <td colSpan={9} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                     {t('monthlyPage.emptyDesc')}
                   </td>
                 </tr>
@@ -250,13 +239,6 @@ export default function MonthlyPanelPage() {
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
-                  <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">{job.hours_worked}</td>
-                  <td className="px-3 md:px-4 py-3 text-right text-gray-900 dark:text-slate-50">
-                    {formatCurrency(job.cost_spent)}
-                  </td>
-                  <td className="px-3 md:px-4 py-3 text-right font-semibold text-green-700 dark:text-green-300">
-                    {formatCurrency((job.status || '').trim().toLowerCase() === 'completed' ? 0 : job.amount_to_charge)}
-                  </td>
                   <td className="px-3 md:px-4 py-3 text-center">
                     <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
                       job.status === 'completed' ? 'bg-green-100 text-green-700' :
@@ -297,10 +279,6 @@ export default function MonthlyPanelPage() {
           <div className="grid gap-6" data-tour="panel-mensual-resumen">
               {Object.keys(jobsByDay).sort().reverse().map(date => {
                   const dayJobs = jobsByDay[date];
-                  const dayTotal = dayJobs.reduce((sum, j) => {
-                    const status = (j.status || '').trim().toLowerCase();
-                    return sum + (status === 'completed' ? 0 : Number(j.amount_to_charge) || 0);
-                  }, 0);
                   
                   return (
                       <div key={date} className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow card-lg">
@@ -311,9 +289,6 @@ export default function MonthlyPanelPage() {
                                      </div>
                                      <span className="capitalize">{formatDate(date)}</span>
                                  </div>
-                                 <span className="font-bold text-[#1e3a8a] bg-blue-50 dark:bg-blue-900/30 px-5 py-2 rounded-full border border-blue-100 dark:border-blue-800 text-xl md:text-2xl">
-                                     {formatCurrency(dayTotal)}
-                                 </span>
                              </div>
                              <div className="divide-y divide-gray-100 dark:divide-slate-800">
                                  {dayJobs.map(job => (
@@ -338,14 +313,7 @@ export default function MonthlyPanelPage() {
                                                 </span>
                                             </div>
                                          </div>
-                                         <div className="flex items-center justify-between sm:justify-end gap-4 min-w-[170px]">
-                                             <div className="text-right">
-                                                <span className="block text-base md:text-lg text-gray-400 dark:text-slate-400 uppercase tracking-wide">{t('monthlyPage.chargeLabel')}</span>
-                                                 <span className="font-semibold text-gray-900 dark:text-slate-50 text-xl md:text-2xl">{formatCurrency(job.amount_to_charge)}</span>
-                                                 <span className="block text-base text-gray-500 dark:text-slate-300">
-                                                    {isEn ? 'Hours' : 'Horas'}: {job.hours_worked}
-                                                 </span>
-                                             </div>
+                                         <div className="flex items-center justify-end min-w-[170px]">
                                             <div className="text-right w-24">
                                                 <span className={`text-base md:text-lg px-4 py-2 rounded-full font-medium ${
                                                     job.status === 'completed' ? 'bg-green-100 text-green-700' :

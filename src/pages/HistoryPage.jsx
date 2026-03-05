@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useFilters } from '@/hooks/useFilters';
 import JobFilters from '@/components/jobs/JobFilters';
 import { usePagination } from '@/hooks/usePagination';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatDate } from '@/utils/formatters';
 import { getMonthStart, getTodayDate } from '@/utils/dates';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import EmptyState from '@/components/common/EmptyState';
@@ -120,8 +120,6 @@ export default function HistoryPage() {
                   <th className="px-6 py-3 font-medium">Grupo</th>
                   <th className="px-6 py-3 font-medium text-center">Estado</th>
                   <th className="pl-10 pr-6 py-3 font-medium">Ubicación</th>
-                  <th className="px-6 py-3 font-medium text-right">Horas</th>
-                  <th className="px-6 py-3 font-medium text-right">Monto</th>
                   <th className="px-6 py-3 font-medium text-right">Acciones</th>
                 </tr>
               </thead>
@@ -142,8 +140,6 @@ export default function HistoryPage() {
                       </span>
                     </td>
                     <td className="pl-10 pr-6 py-4">{job.location}</td>
-                    <td className="px-6 py-4 text-right">{job.hours_worked}</td>
-                    <td className="px-6 py-4 text-right font-medium">{formatCurrency(job.amount_to_charge)}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setEditingJob(job)}>
@@ -179,7 +175,6 @@ export default function HistoryPage() {
                       <p className="text-sm font-medium text-gray-800 dark:text-slate-100 mt-1">{job.description}</p>
                           </div>
                           <div className="text-right">
-                      <p className="font-bold text-green-700 dark:text-green-400">{formatCurrency(job.amount_to_charge)}</p>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold mt-1 inline-block ${
                                     job.status === 'completed' ? 'bg-green-100 text-green-700' : 
                                     job.status === 'archived' ? 'bg-gray-100 text-gray-700' :

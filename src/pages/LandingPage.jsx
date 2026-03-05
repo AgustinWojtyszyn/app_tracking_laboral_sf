@@ -92,7 +92,7 @@ export default function LandingPage() {
                   ●
                 </span>
                 <span className="font-medium">
-                  {isEn ? 'Organize all your jobs and billing in one place' : 'Organizá tus trabajos y tu facturación en un solo lugar'}
+                  {isEn ? 'Organize all your jobs and costs in one place' : 'Organizá tus trabajos y costos en un solo lugar'}
                 </span>
               </div>
 
