@@ -17,6 +17,7 @@ import SettingsPage from '@/pages/SettingsPage';
 import AdminPage from '@/pages/AdminPage';
 import WorkersPage from '@/pages/WorkersPage';
 import TutorialPage from '@/pages/TutorialPage';
+import AdminTutorialPage from '@/pages/AdminTutorialPage';
 
 // Components
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
@@ -66,6 +67,11 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="tutorial" element={<TutorialPage />} />
+          <Route path="tutorial-admin" element={
+            <ProtectedRoute adminOnly={true}>
+              <AdminTutorialPage />
+            </ProtectedRoute>
+          } />
           <Route path="configuracion" element={<SettingsPage />} />
           <Route path="admin" element={
             <ProtectedRoute adminOnly={true}>

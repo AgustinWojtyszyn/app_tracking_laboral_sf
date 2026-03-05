@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const normalizeRole = (userRole, isAdmin) => {
   if (['admin', 'solicitante', 'trabajador'].includes(userRole)) return userRole;
@@ -16,101 +16,8 @@ export default function TutorialPage() {
   const role = normalizeRole(userRole, isAdmin);
   const navigate = useNavigate();
   const { resumeTourIfNeeded } = useOnboardingTour();
-
-  const [stats, setStats] = useState({
-    jobsCount: null,
-    completedJobsCount: null,
-    groupsCount: null,
-    groupMembersCount: null
-  });
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let active = true;
-
-    const loadStats = async () => {
-      const next = {
-        jobsCount: null,
-        completedJobsCount: null,
-        groupsCount: null,
-        groupMembersCount: null
-      };
-
-      try {
-        const { count, error } = await supabase
-          .from('jobs')
-          .select('id', { count: 'exact', head: true });
-        if (!error) next.jobsCount = count ?? 0;
-      } catch (error) {
-        console.warn('[tutorial] jobs count', error);
-      }
-
-      try {
-        const { count, error } = await supabase
-          .from('jobs')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'completed');
-        if (!error) next.completedJobsCount = count ?? 0;
-      } catch (error) {
-        console.warn('[tutorial] completed jobs count', error);
-      }
-
-      let groupIds = [];
-      try {
-        const { data, error } = await supabase
-          .from('groups')
-          .select('id')
-          .eq('created_by', user.id);
-        if (!error && Array.isArray(data)) {
-          groupIds = data.map((group) => group.id).filter(Boolean);
-        }
-      } catch (error) {
-        console.warn('[tutorial] groups ids', error);
-      }
-
-      try {
-        const { count, error } = await supabase
-          .from('groups')
-          .select('id', { count: 'exact', head: true })
-          .eq('created_by', user.id);
-        if (!error) {
-          next.groupsCount = count ?? 0;
-        } else {
-          const fallback = await supabase
-            .from('groups')
-            .select('id', { count: 'exact', head: true });
-          if (!fallback.error) next.groupsCount = fallback.count ?? 0;
-        }
-      } catch (error) {
-        console.warn('[tutorial] groups count', error);
-      }
-
-      try {
-        if (groupIds.length > 0) {
-          const { count, error } = await supabase
-            .from('group_members')
-            .select('id', { count: 'exact', head: true })
-            .in('group_id', groupIds);
-          if (!error) next.groupMembersCount = count ?? 0;
-        } else {
-          const { count, error } = await supabase
-            .from('group_members')
-            .select('id', { count: 'exact', head: true });
-          if (!error) next.groupMembersCount = count ?? 0;
-        }
-      } catch (error) {
-        console.warn('[tutorial] group members count', error);
-      }
-
-      if (active) setStats(next);
-    };
-
-    loadStats();
-
-    return () => {
-      active = false;
-    };
-  }, [user]);
+  const { language } = useLanguage();
+  const isEn = language === 'en';
 
   useEffect(() => {
     if (!user) return;
@@ -121,90 +28,78 @@ export default function TutorialPage() {
   }, [user, role, resumeTourIfNeeded]);
 
   const steps = useMemo(() => {
-    if (role === 'admin') {
-      return [
-        {
-          key: 'create-group',
-          title: 'Crear un grupo',
-          description: 'Organizá tus equipos y proyectos.',
-          path: '/app/grupos',
-          isCompleted: (s) => (s.groupsCount ?? 0) > 0
-        },
-        {
-          key: 'invite-members',
-          title: 'Invitar miembros',
-          description: 'Sumá gente a tu grupo.',
-          path: '/app/grupos',
-          isCompleted: (s) => (s.groupMembersCount ?? 0) > 1
-        },
-        {
-          key: 'first-job',
-          title: 'Crear primer trabajo',
-          description: 'Registrá tu primer trabajo.',
-          path: '/app/trabajos-diarios',
-          isCompleted: (s) => (s.jobsCount ?? 0) > 0
-        },
-        {
-          key: 'monthly-panel',
-          title: 'Ver Panel Mensual',
-          description: 'Revisá el panel con estadísticas.',
-          path: '/app/panel-mensual',
-          isCompleted: (s) => (s.jobsCount ?? 0) > 0
-        }
-      ];
-    }
-
     if (role === 'trabajador') {
       return [
         {
           key: 'assigned-jobs',
-          title: 'Ver trabajos asignados',
-          description: 'Revisá tus trabajos del día.',
+          title: isEn ? 'Check daily jobs' : 'Ver trabajos del día',
+          description: isEn
+            ? 'Open the daily list, find your name, and review date, place, and description.'
+            : 'Abrí la lista diaria, buscá tu nombre y revisá fecha, lugar y descripción.',
           path: '/app/trabajos-diarios',
-          isCompleted: (s) => (s.jobsCount ?? 0) > 0
         },
         {
           key: 'complete-job',
-          title: 'Marcar completado / cargar horas',
-          description: 'Actualizá horas y estado cuando termines.',
+          title: isEn ? 'Update hours and status' : 'Cargar horas y estado',
+          description: isEn
+            ? 'Edit the job, load hours and costs, then mark it as completed.'
+            : 'Editá el trabajo, cargá horas y costos, y marcá como completado.',
           path: '/app/trabajos-diarios',
-          isCompleted: (s) => (s.completedJobsCount ?? 0) > 0
-        }
+        },
+        {
+          key: 'monthly-panel',
+          title: isEn ? 'Review monthly panel' : 'Ver Panel Mensual',
+          description: isEn
+            ? 'Use filters by date and status to see totals and the daily breakdown.'
+            : 'Usá filtros por fecha y estado para ver totales y el detalle por día.',
+          path: '/app/panel-mensual',
+        },
+        {
+          key: 'profile',
+          title: isEn ? 'Update your profile' : 'Actualizá tu perfil',
+          description: isEn
+            ? 'Update your name, email, and security options to keep access safe.'
+            : 'Actualizá tu nombre, email y seguridad para mantener el acceso seguro.',
+          path: '/app/configuracion',
+        },
       ];
     }
 
     return [
       {
         key: 'first-job',
-        title: 'Crear primer trabajo',
-        description: 'Pedí tu primer trabajo desde la app.',
+        title: isEn ? 'Create a job' : 'Crear un trabajo',
+        description: isEn
+          ? 'Go to Daily Jobs, press New, and complete date, description, hours, and amounts.'
+          : 'Entrá a Trabajos Diarios, tocá Nuevo y completá fecha, descripción, horas y montos.',
         path: '/app/trabajos-diarios',
-        isCompleted: (s) => (s.jobsCount ?? 0) > 0
       },
       {
-        key: 'track-status',
-        title: 'Ver estado en tabla',
-        description: 'Seguí el avance desde la tabla.',
-        path: '/app/trabajos-diarios',
-        isCompleted: (s) => (s.jobsCount ?? 0) > 0
+        key: 'workers',
+        title: isEn ? 'Add workers' : 'Cargar trabajadores',
+        description: isEn
+          ? 'Create worker records with name and alias so you can assign jobs correctly.'
+          : 'Creá registros con nombre y alias para asignar trabajos correctamente.',
+        path: '/app/trabajadores',
       },
       {
         key: 'monthly-panel',
-        title: 'Ver Panel Mensual',
-        description: 'Consultá el resumen mensual.',
+        title: isEn ? 'Review monthly panel' : 'Ver Panel Mensual',
+        description: isEn
+          ? 'Filter by dates to review totals, costs, and pending/completed jobs.'
+          : 'Filtrá por fechas para ver totales, costos y trabajos pendientes/completados.',
         path: '/app/panel-mensual',
-        isCompleted: (s) => (s.jobsCount ?? 0) > 0
+      },
+      {
+        key: 'profile',
+        title: isEn ? 'Update your profile' : 'Actualizá tu perfil',
+        description: isEn
+          ? 'Update your personal info and set a secure password in Settings.'
+          : 'Actualizá tus datos personales y configurá una contraseña segura.',
+        path: '/app/configuracion',
       }
     ];
-  }, [role]);
-
-  const stepItems = steps.map((step) => ({
-    ...step,
-    completed: step.isCompleted ? step.isCompleted(stats) : false
-  }));
-
-  const completedCount = stepItems.filter((step) => step.completed).length;
-  const totalCount = stepItems.length;
+  }, [role, isEn]);
 
   const handleNavigate = (path) => {
     if (typeof window !== 'undefined') {
@@ -234,59 +129,43 @@ export default function TutorialPage() {
     <div className="max-w-5xl mx-auto py-8 space-y-8" data-tour="tutorial-hub">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-50">Guía de inicio</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-slate-50">
+            {isEn ? 'Quick tutorial' : 'Tutorial rápido'}
+          </h1>
           <p className="text-lg md:text-xl text-gray-500 dark:text-slate-300">
-            Seguí estos pasos para completar tu configuración inicial.
+            {isEn ? 'Follow these steps to start using the app.' : 'Seguí estos pasos para empezar a usar la app.'}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Button onClick={handleReplayGuide} className="bg-[#1e3a8a] hover:bg-blue-900 text-white" data-tour="tutorial-replay">
-            Repetir guía
+            {isEn ? 'Replay guide' : 'Repetir guía'}
           </Button>
           <Button onClick={handleResetGuide} variant="outline" className="border-gray-300 hover:bg-gray-50 text-gray-700">
-            Reiniciar guía
+            {isEn ? 'Restart guide' : 'Reiniciar guía'}
           </Button>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-50">Progreso</h2>
-            <p className="text-sm md:text-base text-gray-500 dark:text-slate-300">
-              Completados {completedCount} de {totalCount} pasos.
-            </p>
-          </div>
-          <div className="text-3xl font-bold text-[#1e3a8a]">{completedCount} / {totalCount}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        {stepItems.map((step) => (
+        {steps.map((step, index) => (
           <div
             key={step.key}
             className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-7 shadow-sm flex flex-col gap-5 min-h-[150px] md:min-h-[170px]"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
+                <p className="text-xs md:text-sm font-semibold text-blue-700 dark:text-blue-200">
+                  {isEn ? `Step ${index + 1}` : `Paso ${index + 1}`}
+                </p>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-50">{step.title}</h3>
                 <p className="text-sm md:text-base text-gray-500 dark:text-slate-300">{step.description}</p>
               </div>
-              <span
-                className={`text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full ${
-                  step.completed
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-100'
-                }`}
-              >
-                {step.completed ? 'Completado' : 'Pendiente'}
-              </span>
             </div>
             <Button
               onClick={() => handleNavigate(step.path)}
               className="w-full bg-[#1e3a8a] hover:bg-blue-900 text-white mt-auto"
             >
-              Ir
+              {isEn ? 'Go' : 'Ir'}
             </Button>
           </div>
         ))}

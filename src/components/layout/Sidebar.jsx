@@ -26,6 +26,7 @@ export default function Sidebar() {
     { label: t('nav.groups'), path: '/app/grupos', icon: Users, adminOnly: true },
     { label: t('nav.settings'), path: '/app/configuracion', icon: Settings },
     { label: t('nav.admin'), path: '/app/admin', icon: ShieldAlert, adminOnly: true },
+    { label: t('nav.adminTutorial'), path: '/app/tutorial-admin', icon: BookOpen, adminOnly: true },
     { label: t('nav.tutorial'), path: '/app/tutorial', icon: BookOpen },
   ];
 
