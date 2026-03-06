@@ -120,12 +120,12 @@ export default function WorkerFormModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-100">Teléfono</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-100">Teléfono (WhatsApp)</label>
               <input
                 className="mt-1 w-full p-2.5 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="Opcional"
+                placeholder="Ej: +5491122334455"
               />
             </div>
           </div>

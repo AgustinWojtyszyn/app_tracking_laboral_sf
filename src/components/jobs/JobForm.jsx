@@ -123,6 +123,20 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
     if (result.success) {
         addToast(result.message, 'success');
+
+        if (!jobToEdit && result?.data?.id) {
+          supabase.functions
+            .invoke('notify-worker-whatsapp', { body: { job_id: result.data.id } })
+            .then(({ error }) => {
+              if (error) {
+                console.warn('notify-worker-whatsapp error', error);
+              }
+            })
+            .catch((error) => {
+              console.warn('notify-worker-whatsapp failed', error);
+            });
+        }
+
         setOpen(false);
         setFormData(initialForm);
         if (onSuccess) onSuccess();
