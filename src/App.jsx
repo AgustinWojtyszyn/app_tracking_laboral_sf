@@ -9,6 +9,7 @@ import LandingPage from '@/pages/LandingPage';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
+import DataDeletionPage from '@/pages/DataDeletionPage';
 
 // Protected Pages
 import DailyJobsPage from '@/pages/DailyJobsPage';
@@ -54,6 +55,10 @@ function App() {
         <Route
           path="/politica-privacidad"
           element={<PrivacyPolicyPage />}
+        />
+        <Route
+          path="/eliminacion-datos"
+          element={<DataDeletionPage />}
         />
         
         {/* Protected Routes */}
