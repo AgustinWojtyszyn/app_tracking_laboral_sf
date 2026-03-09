@@ -4,3 +4,9 @@ project_id = "kaprywsyjqmqinyggsjt"
 
 [functions.delete-user]
 verify_jwt = false
+
+[functions.notify-worker-whatsapp]
+verify_jwt = false
+
+[functions.notify-worker-email]
+verify_jwt = false
