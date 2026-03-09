@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
 import { MapPin, User, Calendar, Share2, Download } from 'lucide-react';
-import { formatDate } from '@/utils/formatters';
+import { formatDate, formatCurrency } from '@/utils/formatters';
 
 export default function JobDetailModal({ job, onClose, onEdit }) {
   if (!job) return null;
@@ -50,6 +50,13 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
               <p className="flex items-center gap-2">Solicita: {job.requested_by || 'Sin solicitante'}</p>
               <p className="flex items-center gap-2">Grupo: {job.groups?.name || 'Personal'}</p>
               <p>Tipo: {job.job_type || job.type || '-'}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">Facturación</h3>
+              <div className="space-y-1 text-gray-700 dark:text-slate-200">
+                <p>Costo trabajador: {formatCurrency(job.cost_spent)}</p>
+                <p>Cobrar: {formatCurrency(job.amount_to_charge)}</p>
+              </div>
             </div>
             <div className="space-y-2">
               <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">Descripción</h3>

@@ -78,9 +78,15 @@ export default function DashboardPage() {
                             </div>
                         </div>
                         <div className="text-right flex items-center justify-between sm:block border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0 border-gray-100">
-                             <div className="text-sm sm:text-right">
-                                <span className="text-gray-500 text-xs sm:hidden mr-2">Monto:</span>
-                                <span className="font-bold text-gray-900">{formatCurrency(job.amount_to_charge)}</span>
+                             <div className="text-sm sm:text-right space-y-0.5">
+                                <div>
+                                  <span className="text-gray-500 text-xs sm:hidden mr-2">Costo:</span>
+                                  <span className="font-semibold text-gray-900">{formatCurrency(job.cost_spent)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-500 text-xs sm:hidden mr-2">Cobrar:</span>
+                                  <span className="font-bold text-gray-900">{formatCurrency(job.amount_to_charge)}</span>
+                                </div>
                              </div>
                              <div className="text-right">
                                 <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${

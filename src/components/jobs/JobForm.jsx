@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -9,12 +9,15 @@ import WorkerFormModal from '@/components/workers/WorkerFormModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, X } from 'lucide-react';
+import { validateAmount, validateCost } from '@/utils/validators';
 
 export default function JobForm({ jobToEdit = null, onSuccess }) {
   const { user } = useAuth();
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const submitLockRef = useRef(false);
+  const requestIdRef = useRef(null);
   const [groups, setGroups] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [workerId, setWorkerId] = useState('');
@@ -27,11 +30,20 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     description: '',
     status: 'pending',
     group_id: '',
-    editable_by_group: false
+    editable_by_group: false,
+    cost_spent: '',
+    amount_to_charge: ''
   };
 
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState({});
+
+  const generateRequestId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
 
   useEffect(() => {
     if (jobToEdit) {
@@ -39,14 +51,18 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         ...jobToEdit,
         group_id: jobToEdit.group_id || '',
         requested_by: jobToEdit.requested_by || '',
+        cost_spent: jobToEdit.cost_spent ?? '',
+        amount_to_charge: jobToEdit.amount_to_charge ?? '',
       });
       setWorkerId(jobToEdit.worker_id || '');
       setLocationSearch('');
       setOpen(true);
+      requestIdRef.current = null;
     } else {
         setFormData(initialForm);
         setWorkerId('');
         setLocationSearch('');
+        requestIdRef.current = null;
     }
     setErrors({});
   }, [jobToEdit]);
@@ -55,6 +71,12 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     if (open) {
       fetchGroups();
       fetchWorkers();
+    }
+    if (open && !jobToEdit) {
+      requestIdRef.current = generateRequestId();
+    }
+    if (!open) {
+      submitLockRef.current = false;
     }
   }, [open]);
 
@@ -77,6 +99,8 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     const requester = (formData.requested_by || '').trim();
     const description = (formData.description || '').trim();
     const status = (formData.status || '').trim();
+    const costValue = (formData.cost_spent ?? '').toString().trim();
+    const chargeValue = (formData.amount_to_charge ?? '').toString().trim();
 
     if (!formData.date) newErrors.date = "La fecha es requerida";
     if (!status) newErrors.status = "Seleccioná un estado";
@@ -85,6 +109,14 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     if (!description) newErrors.description = "La descripción es requerida";
     if (!workerId) newErrors.worker_id = "Seleccioná un trabajador";
     if (!formData.group_id) newErrors.group_id = "Seleccioná un grupo";
+    if (costValue) {
+      const { valid, error } = validateCost(costValue);
+      if (!valid) newErrors.cost_spent = error;
+    }
+    if (chargeValue) {
+      const { valid, error } = validateAmount(chargeValue);
+      if (!valid) newErrors.amount_to_charge = error;
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -154,8 +186,12 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
 
     setLoading(true);
+    const costValue = (formData.cost_spent ?? '').toString().trim();
+    const chargeValue = (formData.amount_to_charge ?? '').toString().trim();
     // Construimos el payload solo con columnas reales de la tabla jobs,
     // evitando enviar relaciones como "groups" o "users" que vienen
     // embebidas en jobToEdit y provocan errores PGRST204.
@@ -168,9 +204,15 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       editable_by_group: formData.editable_by_group,
       worker_id: workerId,
       group_id: formData.group_id || null,
+      cost_spent: costValue ? Number(costValue) : null,
+      amount_to_charge: chargeValue ? Number(chargeValue) : null,
     };
     if (!jobToEdit) {
       payload.user_id = user?.id || null;
+      if (!requestIdRef.current) {
+        requestIdRef.current = generateRequestId();
+      }
+      payload.client_request_id = requestIdRef.current;
     }
 
     let result;
@@ -181,6 +223,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     }
 
     setLoading(false);
+    submitLockRef.current = false;
 
     if (result.success) {
         addToast(result.message, 'success');
@@ -197,6 +240,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
         setOpen(false);
         setFormData(initialForm);
+        requestIdRef.current = null;
         if (onSuccess) onSuccess();
     } else {
         addToast(result.error, 'error');
@@ -384,6 +428,35 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               required
             />
             {errors.description && <span className="text-xs text-red-500">{errors.description}</span>}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Costo trabajador</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+                value={formData.cost_spent ?? ''}
+                onChange={e => setFormData({ ...formData, cost_spent: e.target.value })}
+                placeholder="Pago al trabajador"
+              />
+              {errors.cost_spent && <span className="text-xs text-red-500">{errors.cost_spent}</span>}
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Cobrar</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+                value={formData.amount_to_charge ?? ''}
+                onChange={e => setFormData({ ...formData, amount_to_charge: e.target.value })}
+                placeholder="Monto a cobrar"
+              />
+              {errors.amount_to_charge && <span className="text-xs text-red-500">{errors.amount_to_charge}</span>}
+            </div>
           </div>
 
           <div className="space-y-4">

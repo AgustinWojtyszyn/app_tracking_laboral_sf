@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import { formatDate } from '@/utils/formatters';
+import { formatDate, formatCurrency } from '@/utils/formatters';
 import JobDetailModal from '@/components/jobs/JobDetailModal';
 import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { onboardingService } from '@/services/onboarding.service';
@@ -315,7 +315,7 @@ export default function DailyJobsPage() {
             </div>
           ) : (
             <div className="table-x-scroll overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-xs md:text-sm text-left whitespace-nowrap">
+              <table className="w-full min-w-[1250px] text-xs md:text-sm text-left whitespace-nowrap">
                 <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
                   <tr>
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Date' : 'Fecha'}</th>
@@ -325,6 +325,8 @@ export default function DailyJobsPage() {
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Worker' : 'Trabajador'}</th>
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Job type' : 'Tipo de trabajo'}</th>
                     <th className="px-3 md:px-4 py-3">{isEn ? 'Group' : 'Grupo'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Worker cost' : 'Costo trabajador'}</th>
+                    <th className="px-3 md:px-4 py-3 text-right">{isEn ? 'Charge' : 'Cobrar'}</th>
                     <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Status' : 'Estado'}</th>
                     <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
                   </tr>
@@ -332,7 +334,7 @@ export default function DailyJobsPage() {
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {filteredJobs.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                      <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                         {t('monthlyPage.emptyDesc')}
                       </td>
                     </tr>
@@ -345,6 +347,8 @@ export default function DailyJobsPage() {
                       <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                       <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
                       <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
+                      <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.cost_spent)}</td>
+                      <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.amount_to_charge)}</td>
                       <td className="px-3 md:px-4 py-3 text-center">
                         <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
                           job.status === 'completed' ? 'bg-green-100 text-green-700' :

@@ -7,7 +7,7 @@ import { useFilters } from '@/hooks/useFilters';
 import JobFilters from '@/components/jobs/JobFilters';
 import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { usePagination } from '@/hooks/usePagination';
-import { formatDate } from '@/utils/formatters';
+import { formatDate, formatCurrency } from '@/utils/formatters';
 import { getMonthStart, getTodayDate } from '@/utils/dates';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import EmptyState from '@/components/common/EmptyState';
@@ -144,6 +144,8 @@ export default function HistoryPage() {
                   <th className="px-6 py-3 font-medium">Descripción</th>
                   <th className="px-6 py-3 font-medium">Trabajador</th>
                   <th className="px-6 py-3 font-medium">Grupo</th>
+                  <th className="px-6 py-3 font-medium text-right">Costo trabajador</th>
+                  <th className="px-6 py-3 font-medium text-right">Cobrar</th>
                   <th className="px-6 py-3 font-medium text-center">Estado</th>
                   <th className="pl-10 pr-6 py-3 font-medium">Ubicación</th>
                   <th className="px-6 py-3 font-medium text-right">Acciones</th>
@@ -156,6 +158,8 @@ export default function HistoryPage() {
                     <td className="px-6 py-4 max-w-xs truncate text-gray-900 dark:text-slate-50" title={job.description}>{job.description}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                     <td className="px-6 py-4">{job.groups?.name || '-'}</td>
+                    <td className="px-6 py-4 text-right">{formatCurrency(job.cost_spent)}</td>
+                    <td className="px-6 py-4 text-right">{formatCurrency(job.amount_to_charge)}</td>
                     <td className="px-6 py-4 text-center">
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         job.status === 'completed' ? 'bg-green-100 text-green-800' : 
@@ -213,6 +217,10 @@ export default function HistoryPage() {
                           {job.location && <span className="flex items-center"><MapPin className="w-4 h-4 mr-1" /> {job.location}</span>}
                           {job.groups && <span>Grupo: {job.groups.name}</span>}
                           {job.workers && <span>Trabajador: {job.workers.display_name || job.workers.alias}</span>}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-slate-300 flex flex-wrap gap-3 mt-1">
+                        <span>Costo: {formatCurrency(job.cost_spent)}</span>
+                        <span>Cobrar: {formatCurrency(job.amount_to_charge)}</span>
                       </div>
 
                       <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-gray-50">

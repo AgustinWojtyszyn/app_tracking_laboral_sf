@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
-import { formatDate } from '@/utils/formatters';
+import { formatDate, formatCurrency } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
 import { CalendarDays, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -245,6 +245,8 @@ export default function MonthlyPanelPage() {
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.worker')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.type')}</th>
                 <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.group')}</th>
+                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.cost')}</th>
+                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.charge')}</th>
                 <th className="px-3 md:px-4 py-3 text-center">{t('monthlyPage.columns.status')}</th>
                 <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
               </tr>
@@ -252,7 +254,7 @@ export default function MonthlyPanelPage() {
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                  <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                     {t('monthlyPage.emptyDesc')}
                   </td>
                 </tr>
@@ -265,6 +267,8 @@ export default function MonthlyPanelPage() {
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
+                  <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.cost_spent)}</td>
+                  <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.amount_to_charge)}</td>
                   <td className="px-3 md:px-4 py-3 text-center">
                     <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
                       job.status === 'completed' ? 'bg-green-100 text-green-700' :
@@ -337,6 +341,14 @@ export default function MonthlyPanelPage() {
                                                 <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
                                                     {job.job_type || job.type || (isEn ? 'Type' : 'Tipo')}
                                                 </span>
+                                            </div>
+                                            <div className="flex items-center gap-3 mt-3 flex-wrap text-sm md:text-base text-gray-600 dark:text-slate-300">
+                                              <span className="bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+                                                {isEn ? 'Worker cost' : 'Costo trabajador'}: {formatCurrency(job.cost_spent)}
+                                              </span>
+                                              <span className="bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+                                                {isEn ? 'Charge' : 'Cobrar'}: {formatCurrency(job.amount_to_charge)}
+                                              </span>
                                             </div>
                                          </div>
                                          <div className="flex items-center justify-end min-w-[170px]">

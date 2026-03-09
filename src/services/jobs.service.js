@@ -123,7 +123,20 @@ export const jobsService = {
   async createJob(jobData) {
     try {
       const { data, error } = await supabase.from('jobs').insert([jobData]).select().single();
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505' && jobData?.client_request_id) {
+          const { data: existing, error: fetchError } = await supabase
+            .from('jobs')
+            .select('*')
+            .eq('client_request_id', jobData.client_request_id)
+            .maybeSingle();
+          if (fetchError) throw fetchError;
+          if (existing) {
+            return { success: true, data: existing, message: "Trabajo creado exitosamente" };
+          }
+        }
+        throw error;
+      }
       return { success: true, data, message: "Trabajo creado exitosamente" };
     } catch (error) {
       return { success: false, error: "Error al crear el trabajo." };
