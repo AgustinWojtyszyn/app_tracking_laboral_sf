@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import LandingPage from '@/pages/LandingPage';
 import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 
 // Protected Pages
 import DailyJobsPage from '@/pages/DailyJobsPage';
@@ -49,6 +50,10 @@ function App() {
         <Route 
           path="/register" 
           element={<RegisterPage />} 
+        />
+        <Route
+          path="/politica-privacidad"
+          element={<PrivacyPolicyPage />}
         />
         
         {/* Protected Routes */}
