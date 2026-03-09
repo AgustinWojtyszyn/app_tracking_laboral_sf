@@ -7,11 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const parseBool = (value: string | null) => {
-  if (!value) return false;
-  return ['1', 'true', 'yes', 'y', 'on'].includes(value.toLowerCase());
-};
-
 const buildEmail = (
   job: Record<string, any>,
   worker: Record<string, any>,
@@ -61,19 +56,10 @@ serve(async (req) => {
   }
 
   try {
-    // Lazy import to avoid module load issues on preflight.
-    const { SmtpClient } = await import('https://deno.land/x/smtp@v0.7.0/mod.ts');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    const smtpHost = Deno.env.get('SMTP_HOST');
-    const smtpPortRaw = Deno.env.get('SMTP_PORT');
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPass = Deno.env.get('SMTP_PASS');
     const smtpFrom = Deno.env.get('SMTP_FROM');
-    const smtpSecure = parseBool(Deno.env.get('SMTP_SECURE'));
-
-    const smtpPort = Number(smtpPortRaw || '465');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
       return new Response(JSON.stringify({ success: false, error: 'Missing Supabase env vars.' }), {
@@ -82,8 +68,8 @@ serve(async (req) => {
       });
     }
 
-    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom || Number.isNaN(smtpPort)) {
-      return new Response(JSON.stringify({ success: false, error: 'Missing SMTP env vars.' }), {
+    if (!smtpFrom || !resendApiKey) {
+      return new Response(JSON.stringify({ success: false, error: 'Missing email env vars.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
@@ -179,36 +165,30 @@ serve(async (req) => {
 
     const { subject, content } = buildEmail(job, worker, groupName);
 
-    const client = new SmtpClient();
-    try {
-      if (smtpSecure || smtpPort === 465) {
-        await client.connectTLS({
-          hostname: smtpHost,
-          port: smtpPort,
-          username: smtpUser,
-          password: smtpPass,
-        });
-      } else {
-        await client.connect({
-          hostname: smtpHost,
-          port: smtpPort,
-          username: smtpUser,
-          password: smtpPass,
-        });
-      }
-
-      await client.send({
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         from: smtpFrom,
         to: worker.email,
         subject,
-        content,
+        text: content,
+      }),
+    });
+
+    if (!resendResponse.ok) {
+      const errorBody = await resendResponse.json().catch(() => ({}));
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Resend API error.',
+        details: errorBody,
+      }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
-    } finally {
-      try {
-        await client.close();
-      } catch (_) {
-        // ignore close errors
-      }
     }
 
     return new Response(JSON.stringify({ success: true }), {
