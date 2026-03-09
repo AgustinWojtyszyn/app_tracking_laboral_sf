@@ -1,6 +1,5 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.4';
-import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,21 +23,21 @@ const buildEmail = (
   const location = job.location || 'Sin ubicacion';
   const date = job.date || 'Sin fecha';
 
-  const subjectBase = groupName ? `${groupName} - Nueva solicitud` : 'Nueva solicitud asignada';
+  const subjectBase = groupName ? groupName + ' - Nueva solicitud' : 'Nueva solicitud asignada';
 
   const lines = [
-    `Hola ${workerName},`,
+    'Hola ' + workerName + ',',
     '',
     'Tenes una nueva solicitud asignada.',
     '',
-    `Trabajo: ${description}`,
-    `Lugar: ${location}`,
-    `Fecha: ${date}`,
-    `Solicita: ${requestedBy}`,
+    'Trabajo: ' + description,
+    'Lugar: ' + location,
+    'Fecha: ' + date,
+    'Solicita: ' + requestedBy,
   ];
 
   if (groupName) {
-    lines.push(`Grupo: ${groupName}`);
+    lines.push('Grupo: ' + groupName);
   }
 
   lines.push('', 'Saludos.');
@@ -62,6 +61,8 @@ serve(async (req) => {
   }
 
   try {
+    // Lazy import to avoid module load issues on preflight.
+    const { SmtpClient } = await import('https://deno.land/x/smtp@v0.7.0/mod.ts');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
