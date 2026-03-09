@@ -135,6 +135,17 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
             .catch((error) => {
               console.warn('notify-worker-whatsapp failed', error);
             });
+
+          supabase.functions
+            .invoke('notify-worker-email', { body: { job_id: result.data.id } })
+            .then(({ error }) => {
+              if (error) {
+                console.warn('notify-worker-email error', error);
+              }
+            })
+            .catch((error) => {
+              console.warn('notify-worker-email failed', error);
+            });
         }
 
         setOpen(false);

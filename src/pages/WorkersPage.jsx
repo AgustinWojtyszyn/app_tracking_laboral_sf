@@ -6,7 +6,7 @@ import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import { Users, Mail, Trash2, Edit2, Search } from 'lucide-react';
+import { Users, Mail, Phone, Trash2, Edit2, Search } from 'lucide-react';
 import { formatDate } from '@/utils/formatters';
 import { workersService } from '@/services/workers.service';
 import WorkerFormModal from '@/components/workers/WorkerFormModal';
@@ -109,6 +109,7 @@ export default function WorkersPage() {
                   <tr>
                     <th className="px-7 py-4">{t('workersPage.name')}</th>
                     <th className="px-7 py-4">{t('workersPage.alias')}</th>
+                    <th className="px-7 py-4">{t('workersPage.email')}</th>
                     <th className="px-7 py-4">{t('workersPage.phone')}</th>
                     <th className="px-7 py-4">{t('workersPage.status')}</th>
                     <th className="px-7 py-4">{t('workersPage.createdAt')}</th>
@@ -120,6 +121,7 @@ export default function WorkersPage() {
                     <tr key={w.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/70">
                       <td className="px-7 py-4 font-semibold text-gray-900 dark:text-slate-50">{w.display_name}</td>
                       <td className="px-7 py-4 text-gray-800 dark:text-slate-200">{w.alias || '-'}</td>
+                      <td className="px-7 py-4 text-gray-800 dark:text-slate-200">{w.email || '-'}</td>
                       <td className="px-7 py-4 text-gray-800 dark:text-slate-200">{w.phone || '-'}</td>
                       <td className="px-7 py-4">
                         <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
@@ -173,9 +175,14 @@ export default function WorkersPage() {
                   {w.alias && (
                     <div className="text-sm text-gray-500 dark:text-slate-300">Alias: {w.alias}</div>
                   )}
+                  {w.email && (
+                    <div className="flex items-center text-sm text-gray-500 dark:text-slate-300">
+                      <Mail className="w-4 h-4 mr-2" /> {w.email}
+                    </div>
+                  )}
                   {w.phone && (
                     <div className="flex items-center text-sm text-gray-500 dark:text-slate-300">
-                      <Mail className="w-4 h-4 mr-2" /> {w.phone}
+                      <Phone className="w-4 h-4 mr-2" /> {w.phone}
                     </div>
                   )}
                   <div className="text-xs text-gray-400 dark:text-slate-400 mt-1">

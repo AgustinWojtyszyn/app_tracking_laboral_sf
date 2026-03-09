@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, UserPlus } from 'lucide-react';
 import { workersService } from '@/services/workers.service';
 import { useToast } from '@/contexts/ToastContext';
+import { validateEmail } from '@/utils/validators';
 
 export default function WorkerFormModal({
   trigger,
@@ -17,6 +18,7 @@ export default function WorkerFormModal({
   const [form, setForm] = useState({
     display_name: '',
     alias: '',
+    email: '',
     phone: '',
     notes: '',
     is_active: true,
@@ -29,12 +31,13 @@ export default function WorkerFormModal({
         setForm({
           display_name: worker.display_name || '',
           alias: worker.alias || '',
+          email: worker.email || '',
           phone: worker.phone || '',
           notes: worker.notes || '',
           is_active: worker.is_active ?? true,
         });
       } else {
-        setForm({ display_name: '', alias: '', phone: '', notes: '', is_active: true });
+        setForm({ display_name: '', alias: '', email: '', phone: '', notes: '', is_active: true });
       }
       setErrors({});
     }
@@ -43,6 +46,10 @@ export default function WorkerFormModal({
   const validate = () => {
     const newErrors = {};
     if (!form.display_name.trim()) newErrors.display_name = 'El nombre es obligatorio';
+    if (form.email.trim()) {
+      const { valid, error } = validateEmail(form.email.trim());
+      if (!valid) newErrors.email = error;
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -55,6 +62,7 @@ export default function WorkerFormModal({
     const payload = {
       display_name: form.display_name.trim(),
       alias: form.alias.trim() || null,
+      email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       notes: form.notes.trim() || null,
       is_active: form.is_active,
@@ -118,6 +126,19 @@ export default function WorkerFormModal({
                 onChange={(e) => setForm({ ...form, alias: e.target.value })}
                 placeholder="Opcional"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-100">Email</label>
+              <input
+                type="email"
+                className="mt-1 w-full p-2.5 border border-gray-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="Ej: trabajador@empresa.com"
+              />
+              {errors.email && (
+                <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-100">Teléfono (WhatsApp)</label>

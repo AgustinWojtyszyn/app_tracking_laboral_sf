@@ -14,7 +14,7 @@ export const workersService = {
       if (search) {
         const term = search.toLowerCase();
         query = query.or(
-          `display_name.ilike.%${term}%,alias.ilike.%${term}%,phone.ilike.%${term}%`
+          `display_name.ilike.%${term}%,alias.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`
         );
       }
 
@@ -32,6 +32,7 @@ export const workersService = {
       const payload = {
         display_name: workerData.display_name,
         alias: workerData.alias || null,
+        email: workerData.email || null,
         phone: workerData.phone || null,
         notes: workerData.notes || null,
         is_active: workerData.is_active ?? true,
@@ -56,6 +57,7 @@ export const workersService = {
       const payload = {
         display_name: workerData.display_name,
         alias: workerData.alias || null,
+        email: workerData.email || null,
         phone: workerData.phone || null,
         notes: workerData.notes || null,
         is_active: workerData.is_active ?? true,
