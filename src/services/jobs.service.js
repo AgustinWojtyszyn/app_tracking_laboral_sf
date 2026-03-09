@@ -122,15 +122,25 @@ export const jobsService = {
 
   async createJob(jobData) {
     try {
-      const useIdempotency = !!jobData?.client_request_id;
-      const query = useIdempotency
-        ? supabase.from('jobs').upsert([jobData], { onConflict: 'client_request_id' }).select().single()
-        : supabase.from('jobs').insert([jobData]).select().single();
+      // Prefer DB-generated idempotency_key if present.
+      let { data, error } = await supabase
+        .from('jobs')
+        .upsert([jobData], { onConflict: 'idempotency_key' })
+        .select()
+        .single();
 
-      const { data, error } = await query;
-      if (error) {
-        throw error;
+      if (error && (error.code === '42703' || /idempotency_key/i.test(error.message))) {
+        // Fallback if column doesn't exist yet.
+        const useIdempotency = !!jobData?.client_request_id;
+        const fallback = useIdempotency
+          ? supabase.from('jobs').upsert([jobData], { onConflict: 'client_request_id' }).select().single()
+          : supabase.from('jobs').insert([jobData]).select().single();
+        const fallbackResult = await fallback;
+        data = fallbackResult.data;
+        error = fallbackResult.error;
       }
+
+      if (error) throw error;
       return { success: true, data, message: "Trabajo creado exitosamente" };
     } catch (error) {
       return { success: false, error: "Error al crear el trabajo." };
