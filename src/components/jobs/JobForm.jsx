@@ -90,6 +90,46 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     return Object.keys(newErrors).length === 0;
   };
 
+  const getFunctionHeaders = async () => {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data?.session?.access_token || null;
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  };
+
+  const notifyWorker = async (jobId) => {
+    try {
+      const headers = await getFunctionHeaders();
+      const results = await Promise.allSettled([
+        supabase.functions.invoke('notify-worker-whatsapp', { body: { job_id: jobId }, headers }),
+        supabase.functions.invoke('notify-worker-email', { body: { job_id: jobId }, headers }),
+      ]);
+
+      const errors = [];
+      const [whatsappResult, emailResult] = results;
+
+      if (whatsappResult.status === 'fulfilled' && whatsappResult.value?.error) {
+        errors.push('WhatsApp');
+        console.warn('notify-worker-whatsapp error', whatsappResult.value.error);
+      } else if (whatsappResult.status === 'rejected') {
+        errors.push('WhatsApp');
+        console.warn('notify-worker-whatsapp failed', whatsappResult.reason);
+      }
+
+      if (emailResult.status === 'fulfilled' && emailResult.value?.error) {
+        errors.push('Email');
+        console.warn('notify-worker-email error', emailResult.value.error);
+      } else if (emailResult.status === 'rejected') {
+        errors.push('Email');
+        console.warn('notify-worker-email failed', emailResult.reason);
+      }
+
+      return errors;
+    } catch (error) {
+      console.warn('notify-worker failed', error);
+      return ['WhatsApp', 'Email'];
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
@@ -125,27 +165,13 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         addToast(result.message, 'success');
 
         if (!jobToEdit && result?.data?.id) {
-          supabase.functions
-            .invoke('notify-worker-whatsapp', { body: { job_id: result.data.id } })
-            .then(({ error }) => {
-              if (error) {
-                console.warn('notify-worker-whatsapp error', error);
-              }
-            })
-            .catch((error) => {
-              console.warn('notify-worker-whatsapp failed', error);
-            });
-
-          supabase.functions
-            .invoke('notify-worker-email', { body: { job_id: result.data.id } })
-            .then(({ error }) => {
-              if (error) {
-                console.warn('notify-worker-email error', error);
-              }
-            })
-            .catch((error) => {
-              console.warn('notify-worker-email failed', error);
-            });
+          const notifyErrors = await notifyWorker(result.data.id);
+          if (notifyErrors.length > 0) {
+            addToast(
+              `Trabajo creado, pero no se pudo enviar: ${notifyErrors.join(', ')}`,
+              'error'
+            );
+          }
         }
 
         setOpen(false);
