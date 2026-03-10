@@ -10,6 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Loader2, X } from 'lucide-react';
 import { validateAmount, validateCost } from '@/utils/validators';
+import {
+  JOB_IMAGE_ACCEPT,
+  JOB_IMAGE_MAX_COUNT,
+  JOB_IMAGE_MAX_DESCRIPTION_LENGTH,
+  createJobImageDrafts,
+  validateJobImageDrafts,
+  validateJobImageFile,
+} from '@/utils/jobImageAttachments';
 
 export default function JobForm({ jobToEdit = null, onSuccess }) {
   const { user } = useAuth();
@@ -37,6 +45,8 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState({});
+  const [imageAttachments, setImageAttachments] = useState(() => createJobImageDrafts());
+  const [imageErrors, setImageErrors] = useState(() => Array.from({ length: JOB_IMAGE_MAX_COUNT }, () => ''));
 
   const generateRequestId = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -56,16 +66,30 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       });
       setWorkerId(jobToEdit.worker_id || '');
       setLocationSearch('');
+      setImageAttachments(createJobImageDrafts(jobToEdit.image_attachments));
+      setImageErrors(Array.from({ length: JOB_IMAGE_MAX_COUNT }, () => ''));
       setOpen(true);
       requestIdRef.current = null;
     } else {
         setFormData(initialForm);
         setWorkerId('');
         setLocationSearch('');
+        setImageAttachments(createJobImageDrafts());
+        setImageErrors(Array.from({ length: JOB_IMAGE_MAX_COUNT }, () => ''));
         requestIdRef.current = null;
     }
     setErrors({});
   }, [jobToEdit]);
+
+  useEffect(() => {
+    return () => {
+      imageAttachments.forEach((attachment) => {
+        if (attachment?.previewUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(attachment.previewUrl);
+        }
+      });
+    };
+  }, [imageAttachments]);
 
   useEffect(() => {
     if (open) {
@@ -95,6 +119,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
   const validate = () => {
     const newErrors = {};
+    const nextImageErrors = validateJobImageDrafts(imageAttachments);
     const location = (formData.location || '').trim();
     const requester = (formData.requested_by || '').trim();
     const description = (formData.description || '').trim();
@@ -119,7 +144,69 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     }
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setImageErrors(nextImageErrors);
+    return Object.keys(newErrors).length === 0 && nextImageErrors.every((error) => !error);
+  };
+
+  const updateImageAttachment = (index, updater) => {
+    setImageAttachments((current) => current.map((attachment, attachmentIndex) => {
+      if (attachmentIndex !== index) {
+        return attachment;
+      }
+
+      return typeof updater === 'function' ? updater(attachment) : updater;
+    }));
+  };
+
+  const setImageErrorAt = (index, value) => {
+    setImageErrors((current) => current.map((error, errorIndex) => (errorIndex === index ? value : error)));
+  };
+
+  const handleImageChange = (index, file) => {
+    const validation = validateJobImageFile(file);
+    if (!validation.valid) {
+      setImageErrorAt(index, validation.error);
+      addToast(validation.error, 'error');
+      return;
+    }
+
+    setImageErrorAt(index, '');
+    updateImageAttachment(index, (attachment) => {
+      if (attachment?.previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+
+      return {
+        ...attachment,
+        file,
+        previewUrl: file ? URL.createObjectURL(file) : null,
+        image_path: null,
+        image_url: null,
+        file_name: file?.name || null,
+        mime_type: file?.type || null,
+        file_size_bytes: Number(file?.size) || null,
+      };
+    });
+  };
+
+  const handleRemoveImage = (index) => {
+    setImageErrorAt(index, '');
+    updateImageAttachment(index, (attachment) => {
+      if (attachment?.previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(attachment.previewUrl);
+      }
+
+      return {
+        ...attachment,
+        file: null,
+        previewUrl: null,
+        image_path: null,
+        image_url: null,
+        file_name: null,
+        mime_type: null,
+        file_size_bytes: null,
+      };
+    });
   };
 
   const getAccessToken = async () => {
@@ -215,12 +302,12 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
       payload.client_request_id = requestIdRef.current;
     }
 
-    let result;
-    if (jobToEdit) {
-        result = await jobsService.updateJob(jobToEdit.id, payload);
-    } else {
-        result = await jobsService.createJob(payload);
-    }
+    const result = await jobsService.saveJobWithImages({
+      jobId: jobToEdit?.id || null,
+      jobData: payload,
+      imageAttachments,
+      actorId: user?.id || null,
+    });
 
     setLoading(false);
     submitLockRef.current = false;
@@ -241,6 +328,8 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
 
       setOpen(false);
       setFormData(initialForm);
+      setImageAttachments(createJobImageDrafts());
+      setImageErrors(Array.from({ length: JOB_IMAGE_MAX_COUNT }, () => ''));
       requestIdRef.current = null;
       if (onSuccess) onSuccess(result?.data);
     } else {
@@ -429,6 +518,94 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               required
             />
             {errors.description && <span className="text-xs text-red-500">{errors.description}</span>}
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-700 p-4 bg-gray-50/70 dark:bg-slate-800/40">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-50">Imágenes de la solicitud</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-300 mt-1">
+                Podés cargar hasta {JOB_IMAGE_MAX_COUNT} imágenes opcionales en JPG, JPEG, PNG o WEBP. Máximo 5 MB por imagen.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {imageAttachments.map((attachment, index) => (
+                <div key={`job-image-${index}`} className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 dark:text-slate-100">Imagen {index + 1} opcional</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Subí una referencia visual del problema o del estado del producto.</p>
+                    </div>
+                    {(attachment.previewUrl || attachment.image_url) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleRemoveImage(index)}
+                        className="h-8 px-3 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        Quitar imagen
+                      </Button>
+                    )}
+                  </div>
+
+                  <input
+                    type="file"
+                    accept={JOB_IMAGE_ACCEPT}
+                    onChange={(event) => {
+                      const nextFile = event.target.files?.[0] || null;
+                      if (nextFile) {
+                        handleImageChange(index, nextFile);
+                      }
+                      event.target.value = '';
+                    }}
+                    className="block w-full text-sm text-gray-700 dark:text-slate-200 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-[#1e3a8a] file:text-white hover:file:bg-blue-900"
+                  />
+
+                  {(attachment.previewUrl || attachment.image_url) && (
+                    <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800 w-full max-w-xs">
+                      <img
+                        src={attachment.previewUrl || attachment.image_url}
+                        alt={attachment.image_description || `Vista previa de la imagen ${index + 1}`}
+                        className="h-40 w-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Descripción de la imagen</label>
+                    <input
+                      type="text"
+                      maxLength={JOB_IMAGE_MAX_DESCRIPTION_LENGTH}
+                      className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+                      value={attachment.image_description || ''}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        updateImageAttachment(index, (current) => ({
+                          ...current,
+                          image_description: nextValue,
+                        }));
+
+                        const validation = validateJobImageDrafts(
+                          imageAttachments.map((entry, entryIndex) => (
+                            entryIndex === index
+                              ? { ...entry, image_description: nextValue }
+                              : entry
+                          ))
+                        );
+                        setImageErrorAt(index, validation[index] || '');
+                      }}
+                      placeholder="Ej: Pantalla rota en la esquina superior derecha"
+                    />
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-slate-400">
+                      <span>Opcional. Podés guardar solo la descripción si necesitás dejar contexto.</span>
+                      <span>{(attachment.image_description || '').length}/{JOB_IMAGE_MAX_DESCRIPTION_LENGTH}</span>
+                    </div>
+                  </div>
+
+                  {imageErrors[index] && <span className="text-xs text-red-500">{imageErrors[index]}</span>}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

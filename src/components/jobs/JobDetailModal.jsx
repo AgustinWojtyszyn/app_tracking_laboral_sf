@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
 import { MapPin, User, Calendar, Share2, Download } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/utils/formatters';
+import { normalizeStoredJobImageAttachments } from '@/utils/jobImageAttachments';
 
 export default function JobDetailModal({ job, onClose, onEdit }) {
+  const [selectedImage, setSelectedImage] = useState(null);
+
   if (!job) return null;
+
+  const attachments = normalizeStoredJobImageAttachments(job.image_attachments);
 
   const handleExport = () => {
     exportService.exportJobsToExcel([job], `trabajo_${job.date}.xls`);
@@ -62,6 +67,40 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
               <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">Descripción</h3>
               <p className="text-gray-700 dark:text-slate-200 whitespace-pre-line">{job.description || 'Sin descripción'}</p>
             </div>
+            {attachments.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">Imágenes</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {attachments.map((attachment, index) => (
+                    <div key={`${attachment.image_path || 'text-only'}-${index}`} className="rounded-xl border border-gray-200 dark:border-slate-700 p-3 bg-gray-50 dark:bg-slate-800/50 space-y-3">
+                      {attachment.image_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedImage(attachment)}
+                          className="block w-full overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                        >
+                          <img
+                            src={attachment.image_url}
+                            alt={attachment.image_description || `Imagen ${index + 1} de la solicitud`}
+                            className="h-36 w-full object-cover"
+                          />
+                        </button>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-gray-300 dark:border-slate-700 p-4 text-sm text-gray-500 dark:text-slate-400">
+                          Sin imagen cargada
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Adjunto {index + 1}</p>
+                        <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
+                          {attachment.image_description || 'Sin descripción'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -79,6 +118,28 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
           </div>
         </div>
       </DialogContent>
+
+      {selectedImage?.image_url && (
+        <Dialog open={!!selectedImage} onOpenChange={(open) => { if (!open) setSelectedImage(null); }}>
+          <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-900 dark:text-slate-50">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-[#1e3a8a]">Imagen adjunta</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800">
+                <img
+                  src={selectedImage.image_url}
+                  alt={selectedImage.image_description || 'Imagen adjunta de la solicitud'}
+                  className="max-h-[70vh] w-full object-contain"
+                />
+              </div>
+              <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
+                {selectedImage.image_description || 'Sin descripción'}
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
