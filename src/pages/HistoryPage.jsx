@@ -66,6 +66,7 @@ export default function HistoryPage() {
     if (filters.search) {
       const term = filters.search.toLowerCase();
       result = result.filter(job => 
+        (job.title?.toLowerCase().includes(term)) ||
         (job.description?.toLowerCase().includes(term)) || 
         (job.location?.toLowerCase().includes(term))
       );
@@ -155,7 +156,7 @@ export default function HistoryPage() {
                 {currentData.map((job) => (
                   <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-slate-50">{formatDate(job.date)}</td>
-                    <td className="px-6 py-4 max-w-xs truncate text-gray-900 dark:text-slate-50" title={job.description}>{job.description}</td>
+                    <td className="px-6 py-4 max-w-xs truncate text-gray-900 dark:text-slate-50" title={job.title || job.description}>{job.title || job.description}</td>
                     <td className="px-6 py-4 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
                     <td className="px-6 py-4">{job.groups?.name || '-'}</td>
                     <td className="px-6 py-4 text-right">{formatCurrency(job.cost_spent)}</td>
@@ -202,7 +203,7 @@ export default function HistoryPage() {
                       <div className="flex justify-between items-start">
                           <div>
                       <p className="font-bold text-gray-900 dark:text-slate-50">{formatDate(job.date)}</p>
-                      <p className="text-sm font-medium text-gray-800 dark:text-slate-100 mt-1">{job.description}</p>
+                      <p className="text-sm font-medium text-gray-800 dark:text-slate-100 mt-1">{job.title || job.description}</p>
                           </div>
                           <div className="text-right">
                               <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold mt-1 inline-block ${

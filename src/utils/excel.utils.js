@@ -8,6 +8,7 @@ export const exportJobsToExcel = (jobs, filename = 'jobs-export.xlsx') => {
   const data = jobs.map(job => ({
     Date: formatDate(job.date),
     Location: job.location || '',
+    Title: job.title || '',
     Description: job.description || '',
     'Hours Worked': job.hours_worked || 0,
     'Cost Spent': job.cost_spent || 0,

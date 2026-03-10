@@ -58,6 +58,9 @@ alter table public.jobs
   add column if not exists image_attachments jsonb;
 
 alter table public.jobs
+  add column if not exists title text;
+
+alter table public.jobs
   drop constraint if exists jobs_image_attachments_valid;
 
 alter table public.jobs
@@ -65,6 +68,8 @@ alter table public.jobs
   check (public.validate_job_image_attachments(image_attachments));
 
 comment on column public.jobs.image_attachments is 'Adjuntos opcionales del trabajo. Cada item puede incluir image_path, image_url, image_description, file_name, mime_type y file_size_bytes.';
+
+comment on column public.jobs.title is 'Título opcional breve para identificar la solicitud o trabajo.';
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

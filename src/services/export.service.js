@@ -8,6 +8,7 @@ export const exportService = {
     return {
       Fecha: formatDate(job.date),
       Ubicación: job.location || '',
+      Título: job.title || '',
       Descripción: job.description || '',
       Grupo: job.groups?.name || '-',
       Trabajador: job.workers?.display_name || job.workers?.alias || '-',
@@ -99,7 +100,7 @@ export const exportService = {
         : 'Pendiente';
 
       return [
-        `#${idx + 1} | ${formatDate(job.date)} - ${job.description || 'Sin descripción'}`,
+        `#${idx + 1} | ${formatDate(job.date)} - ${job.title || job.description || 'Sin descripción'}`,
         `Lugar: ${job.location || '-'}`,
         `Trabajador: ${job.workers?.display_name || job.workers?.alias || '-'}`,
         `Grupo: ${job.groups?.name || '-'}`,

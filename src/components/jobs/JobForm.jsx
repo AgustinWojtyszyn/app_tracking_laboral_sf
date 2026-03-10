@@ -33,6 +33,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
   
   const initialForm = {
     date: new Date().toISOString().split('T')[0],
+    title: '',
     location: '',
     requested_by: '',
     description: '',
@@ -121,6 +122,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     const newErrors = {};
     const nextImageErrors = validateJobImageDrafts(imageAttachments);
     const location = (formData.location || '').trim();
+    const title = (formData.title || '').trim();
     const requester = (formData.requested_by || '').trim();
     const description = (formData.description || '').trim();
     const status = (formData.status || '').trim();
@@ -128,6 +130,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     const chargeValue = (formData.amount_to_charge ?? '').toString().trim();
 
     if (!formData.date) newErrors.date = "La fecha es requerida";
+    if (title.length > 120) newErrors.title = "El título no puede superar los 120 caracteres";
     if (!status) newErrors.status = "Seleccioná un estado";
     if (!location) newErrors.location = "La ubicación es requerida";
     if (!requester) newErrors.requested_by = "Indicá quién solicita";
@@ -284,6 +287,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
     // embebidas en jobToEdit y provocan errores PGRST204.
     const payload = {
       date: formData.date,
+      title: formData.title?.trim() || null,
       location: formData.location || '',
       requested_by: formData.requested_by || '',
       description: formData.description || '',
@@ -443,6 +447,23 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               </select>
               {errors.status && <span className="text-xs text-red-500">{errors.status}</span>}
             </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Título</label>
+            <input
+              type="text"
+              maxLength="120"
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+              value={formData.title || ''}
+              onChange={e => setFormData({ ...formData, title: e.target.value })}
+              placeholder="Ej: Reparación TV sala principal"
+            />
+            <div className="mt-1 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-slate-400">
+              <span>Opcional. Si lo dejás vacío, se seguirá usando la descripción como referencia principal.</span>
+              <span>{(formData.title || '').length}/120</span>
+            </div>
+            {errors.title && <span className="text-xs text-red-500">{errors.title}</span>}
           </div>
 
           <div>

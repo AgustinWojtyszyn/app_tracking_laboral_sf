@@ -12,6 +12,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
   if (!job) return null;
 
   const attachments = normalizeStoredJobImageAttachments(job.image_attachments);
+  const displayTitle = job.title || job.description || 'Detalle de trabajo';
 
   const handleExport = () => {
     exportService.exportJobsToExcel([job], `trabajo_${job.date}.xls`);
@@ -37,7 +38,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
     <Dialog open={!!job} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader className="space-y-2">
-          <DialogTitle className="text-2xl font-bold text-[#1e3a8a]">{job.description || 'Detalle de trabajo'}</DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-[#1e3a8a]">{displayTitle}</DialogTitle>
           <div className="flex flex-wrap gap-2 items-center text-sm text-gray-600 dark:text-slate-300">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusClass}`}>{statusLabel}</span>
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800">
@@ -50,6 +51,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
           <div className="space-y-3">
             <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">General</h3>
             <div className="space-y-2 text-gray-800 dark:text-slate-100">
+              <p className="flex items-center gap-2">Título: {job.title || 'Sin título'}</p>
               <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {job.location || 'Sin ubicación'}</p>
               <p className="flex items-center gap-2"><User className="w-4 h-4" /> {job.workers?.display_name || job.workers?.alias || 'Sin trabajador'}</p>
               <p className="flex items-center gap-2">Solicita: {job.requested_by || 'Sin solicitante'}</p>

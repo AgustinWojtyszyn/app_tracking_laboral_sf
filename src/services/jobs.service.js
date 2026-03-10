@@ -312,7 +312,7 @@ export const jobsService = {
       if (filters.groupId && filters.groupId !== 'all') baseQuery = baseQuery.eq('group_id', filters.groupId);
       if (filters.workerId && filters.workerId !== 'all') baseQuery = baseQuery.eq('worker_id', filters.workerId);
       if (filters.search) {
-        baseQuery = baseQuery.or(`description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+        baseQuery = baseQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
       }
 
       let { data, error } = await baseQuery;
@@ -337,7 +337,7 @@ export const jobsService = {
         if (filters.groupId && filters.groupId !== 'all') fallbackQuery = fallbackQuery.eq('group_id', filters.groupId);
         if (filters.workerId && filters.workerId !== 'all') fallbackQuery = fallbackQuery.eq('worker_id', filters.workerId);
         if (filters.search) {
-          fallbackQuery = fallbackQuery.or(`description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+          fallbackQuery = fallbackQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
         }
 
         const fallbackResult = await fallbackQuery;

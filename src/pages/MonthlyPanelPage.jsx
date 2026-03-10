@@ -261,7 +261,7 @@ export default function MonthlyPanelPage() {
               ) : filteredJobs.map((job) => (
                 <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                   <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
-                  <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.description}</td>
+                  <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.title || job.description}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.location || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.creator?.full_name || job.creator?.email || '-'}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
@@ -324,7 +324,7 @@ export default function MonthlyPanelPage() {
                                  {dayJobs.map(job => (
                                     <div key={job.id} className="p-6 flex flex-col sm:flex-row justify-between sm:items-center hover:bg-gray-50/50 dark:hover:bg-slate-800/60 transition-colors gap-3">
                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50 truncate">{job.description}</p>
+                                            <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50 truncate">{job.title || job.description}</p>
                                             <div className="flex items-center gap-2 mt-2 flex-wrap">
                                                 <span className="text-base md:text-lg text-gray-500 dark:text-slate-300">{job.location || '-'}</span>
                                                 <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">

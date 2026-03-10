@@ -67,7 +67,7 @@ export default function DashboardPage() {
                 recentJobs.map(job => (
                     <div key={job.id} className="p-4 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">{job.description || "Sin descripción"}</p>
+                            <p className="font-semibold text-gray-900 truncate">{job.title || job.description || "Sin descripción"}</p>
                             <div className="flex items-center text-xs text-gray-500 mt-1 gap-3">
                                 <span className="flex items-center"><MapPin className="w-3 h-3 mr-1" /> {job.location || 'Sin ubicación'}</span>
                                 {job.groups && (

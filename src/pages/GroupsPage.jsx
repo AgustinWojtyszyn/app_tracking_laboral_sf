@@ -294,7 +294,7 @@ export default function GroupsPage() {
                                             {groupJobs.map((job) => (
                                               <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                                                 <td className="px-3 py-3">{formatDate(job.date)}</td>
-                                                <td className="px-3 py-3 font-semibold">{job.description}</td>
+                                                <td className="px-3 py-3 font-semibold">{job.title || job.description}</td>
                                                 <td className="px-3 py-3">{job.location || '-'}</td>
                                                 <td className="px-3 py-3">{job.creator?.full_name || job.creator?.email || '-'}</td>
                                                 <td className="px-3 py-3">{job.workers?.display_name || job.workers?.alias || '-'}</td>
