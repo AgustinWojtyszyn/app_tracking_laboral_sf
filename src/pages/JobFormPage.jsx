@@ -9,7 +9,7 @@ export default function JobFormPage() {
     <div className="max-w-2xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6 text-[#1e3a8a]">Gestión de Trabajo</h1>
       <div className="bg-white p-6 rounded-lg shadow">
-         <JobForm onSuccess={() => window.history.back()} redirectOnCreate={true} />
+         <JobForm onSuccess={() => window.history.back()} />
       </div>
     </div>
   );

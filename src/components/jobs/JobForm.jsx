@@ -1,31 +1,23 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { jobsService } from '@/services/jobs.service';
 import { workersService } from '@/services/workers.service';
 import WorkerFormModal from '@/components/workers/WorkerFormModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CheckCircle2, Loader2, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { validateAmount, validateCost } from '@/utils/validators';
 
-export default function JobForm({ jobToEdit = null, onSuccess, redirectOnCreate = false }) {
+export default function JobForm({ jobToEdit = null, onSuccess }) {
   const { user } = useAuth();
   const { addToast } = useToast();
-  const { language } = useLanguage();
-  const isEn = language === 'en';
-  const navigate = useNavigate();
-  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const submitLockRef = useRef(false);
   const requestIdRef = useRef(null);
-  const redirectTimerRef = useRef(null);
   const [groups, setGroups] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [workerId, setWorkerId] = useState('');
@@ -74,12 +66,6 @@ export default function JobForm({ jobToEdit = null, onSuccess, redirectOnCreate 
     }
     setErrors({});
   }, [jobToEdit]);
-
-  useEffect(() => () => {
-    if (redirectTimerRef.current) {
-      clearTimeout(redirectTimerRef.current);
-    }
-  }, []);
 
   useEffect(() => {
     if (open) {
@@ -257,21 +243,6 @@ export default function JobForm({ jobToEdit = null, onSuccess, redirectOnCreate 
       setFormData(initialForm);
       requestIdRef.current = null;
       if (onSuccess) onSuccess(result?.data);
-
-      if (!jobToEdit && redirectOnCreate) {
-        setShowSuccess(true);
-        if (redirectTimerRef.current) {
-          clearTimeout(redirectTimerRef.current);
-        }
-        const dashboardPath = '/app/trabajos-diarios';
-        const shouldRedirect = location.pathname !== dashboardPath;
-        redirectTimerRef.current = setTimeout(() => {
-          setShowSuccess(false);
-          if (shouldRedirect) {
-            navigate(dashboardPath, { replace: true });
-          }
-        }, 1400);
-      }
     } else {
       addToast(result.error, 'error');
     }
@@ -345,29 +316,7 @@ export default function JobForm({ jobToEdit = null, onSuccess, redirectOnCreate 
   }, [locationOptions, locationSearch]);
 
   return (
-    <>
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 text-center shadow-2xl dark:border-emerald-700/40 dark:bg-slate-900">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-900/30">
-              <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-300" />
-            </div>
-            <h2 className="text-xl font-semibold text-emerald-700 dark:text-emerald-200">
-              {isEn ? 'Request created' : 'Solicitud creada'}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">
-              {isEn
-                ? 'We are confirming the order and taking you to the dashboard.'
-                : 'Estamos confirmando el pedido y te llevamos al dashboard.'}
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {isEn ? 'Redirecting...' : 'Redirigiendo...'}
-            </div>
-          </div>
-        </div>
-      )}
-      <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {!jobToEdit && (
         <DialogTrigger asChild>
           <Button className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white" data-tour="nuevo-trabajo">
@@ -589,7 +538,6 @@ export default function JobForm({ jobToEdit = null, onSuccess, redirectOnCreate 
           </Button>
         </form>
       </DialogContent>
-      </Dialog>
-    </>
+    </Dialog>
   );
 }
