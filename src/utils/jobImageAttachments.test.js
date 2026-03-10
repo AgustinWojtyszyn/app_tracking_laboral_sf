@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   JOB_IMAGE_MAX_SIZE_BYTES,
   JOB_IMAGE_SIZE_ERROR,
+  JOB_IMAGE_TITLE_ERROR,
   JOB_IMAGE_TYPE_ERROR,
   createJobImageDrafts,
   normalizeJobImageDraftInput,
@@ -10,6 +11,7 @@ import {
   validateJobImageDescription,
   validateJobImageDrafts,
   validateJobImageFile,
+  validateJobImageTitle,
 } from './jobImageAttachments';
 
 describe('jobImageAttachments', () => {
@@ -42,11 +44,17 @@ describe('jobImageAttachments', () => {
     expect(result.valid).toBe(false);
   });
 
+  it('validates image title length', () => {
+    const result = validateJobImageTitle('a'.repeat(121));
+    expect(result).toEqual({ valid: false, error: JOB_IMAGE_TITLE_ERROR });
+  });
+
   it('normalizes stored attachments and creates three editable slots', () => {
     const drafts = createJobImageDrafts([
       {
         image_path: 'jobs/1/example.png',
         image_url: 'https://example.com/example.png',
+        image_title: 'Pantalla principal',
         image_description: 'Pantalla rota',
         sort_order: 0,
       },
@@ -54,6 +62,7 @@ describe('jobImageAttachments', () => {
 
     expect(drafts).toHaveLength(3);
     expect(drafts[0].previewUrl).toBe('https://example.com/example.png');
+    expect(drafts[0].image_title).toBe('Pantalla principal');
     expect(drafts[1].image_description).toBe('');
   });
 
@@ -63,6 +72,7 @@ describe('jobImageAttachments', () => {
       { file: { name: 'broken.gif', type: 'image/gif', size: 10 }, image_description: '' },
       { file: null, image_description: 'ok' },
     ]);
+        image_title: 'Frente',
 
     expect(errors[0]).toBe('');
     expect(errors[1]).toBe(JOB_IMAGE_TYPE_ERROR);
@@ -70,6 +80,7 @@ describe('jobImageAttachments', () => {
   });
 
   it('normalizes persisted values defensively', () => {
+        image_title: 'Frente',
     const normalized = normalizeStoredJobImageAttachments([{ image_description: 'Detalle' }, null, 'bad']);
     expect(normalized).toEqual([
       {
@@ -90,12 +101,14 @@ describe('jobImageAttachments', () => {
       {
         file,
         previewUrl: 'blob:test',
+        image_title: 'Equipo A',
         image_description: 'Panel roto',
       },
     ]);
 
     expect(drafts[0].file).toBe(file);
     expect(drafts[0].previewUrl).toBe('blob:test');
+    expect(drafts[0].image_title).toBe('Equipo A');
     expect(drafts[0].image_description).toBe('Panel roto');
   });
 });

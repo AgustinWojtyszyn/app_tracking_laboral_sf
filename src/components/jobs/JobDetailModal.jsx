@@ -4,7 +4,21 @@ import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
 import { MapPin, User, Calendar, Share2, Download } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import { normalizeStoredJobImageAttachments } from '@/utils/jobImageAttachments';
+import { getJobImageTitleFromFileName, normalizeStoredJobImageAttachments } from '@/utils/jobImageAttachments';
+
+const getAttachmentDisplayTitle = (attachment) => {
+  const explicitTitle = attachment?.image_title?.trim();
+  if (explicitTitle) {
+    return explicitTitle;
+  }
+
+  const fileName = attachment?.file_name?.trim();
+  if (fileName) {
+    return getJobImageTitleFromFileName(fileName);
+  }
+
+  return 'Imagen';
+};
 
 export default function JobDetailModal({ job, onClose, onEdit }) {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -13,6 +27,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
 
   const attachments = normalizeStoredJobImageAttachments(job.image_attachments);
   const displayTitle = job.title || job.description || 'Detalle de trabajo';
+  const selectedImageTitle = selectedImage ? getAttachmentDisplayTitle(selectedImage) : 'Imagen adjunta';
 
   const handleExport = () => {
     exportService.exportJobsToExcel([job], `trabajo_${job.date}.xls`);
@@ -93,10 +108,12 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
                         </div>
                       )}
                       <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Adjunto {index + 1}</p>
-                        <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
-                          {attachment.image_description || 'Sin descripción'}
-                        </p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">{getAttachmentDisplayTitle(attachment)}</p>
+                        {attachment.image_description?.trim() ? (
+                          <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
+                            {attachment.image_description}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -125,19 +142,21 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
         <Dialog open={!!selectedImage} onOpenChange={(open) => { if (!open) setSelectedImage(null); }}>
           <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-900 dark:text-slate-50">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold text-[#1e3a8a]">Imagen adjunta</DialogTitle>
+              <DialogTitle className="text-xl font-bold text-[#1e3a8a]">{selectedImageTitle}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800">
                 <img
                   src={selectedImage.image_url}
-                  alt={selectedImage.image_description || 'Imagen adjunta de la solicitud'}
+                  alt={selectedImage.image_description || selectedImageTitle}
                   className="max-h-[70vh] w-full object-contain"
                 />
               </div>
-              <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
-                {selectedImage.image_description || 'Sin descripción'}
-              </p>
+              {selectedImage.image_description?.trim() ? (
+                <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
+                  {selectedImage.image_description}
+                </p>
+              ) : null}
             </div>
           </DialogContent>
         </Dialog>

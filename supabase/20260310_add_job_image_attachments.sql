@@ -32,6 +32,10 @@ begin
       return false;
     end if;
 
+    if length(coalesce(attachment ->> 'image_title', '')) > 120 then
+      return false;
+    end if;
+
     mime_type := lower(coalesce(attachment ->> 'mime_type', ''));
     if mime_type <> '' and mime_type not in ('image/jpeg', 'image/png', 'image/webp') then
       return false;
@@ -67,7 +71,7 @@ alter table public.jobs
   add constraint jobs_image_attachments_valid
   check (public.validate_job_image_attachments(image_attachments));
 
-comment on column public.jobs.image_attachments is 'Adjuntos opcionales del trabajo. Cada item puede incluir image_path, image_url, image_description, file_name, mime_type y file_size_bytes.';
+comment on column public.jobs.image_attachments is 'Adjuntos opcionales del trabajo. Cada item puede incluir image_path, image_url, image_title, image_description, file_name, mime_type y file_size_bytes.';
 
 comment on column public.jobs.title is 'Título opcional breve para identificar la solicitud o trabajo.';
 

@@ -23,15 +23,17 @@ const normalizeJobImageAttachmentsForSave = (drafts) => {
   return drafts
     .slice(0, JOB_IMAGE_MAX_COUNT)
     .map((draft, index) => {
+      const imageTitle = (draft?.image_title || '').trim();
       const description = (draft?.image_description || '').trim();
       const hasImage = !!(draft?.image_path || draft?.image_url);
-      if (!hasImage && !description) {
+      if (!hasImage && !imageTitle && !description) {
         return null;
       }
 
       return {
         image_path: draft?.image_path || null,
         image_url: draft?.image_url || null,
+        image_title: imageTitle || null,
         image_description: description || null,
         file_name: draft?.file_name || null,
         mime_type: draft?.mime_type || null,

@@ -14,7 +14,9 @@ import {
   JOB_IMAGE_ACCEPT,
   JOB_IMAGE_MAX_COUNT,
   JOB_IMAGE_MAX_DESCRIPTION_LENGTH,
+  JOB_IMAGE_MAX_TITLE_LENGTH,
   createJobImageDrafts,
+  getJobImageTitleFromFileName,
   validateJobImageDrafts,
   validateJobImageFile,
 } from '@/utils/jobImageAttachments';
@@ -179,10 +181,13 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
         URL.revokeObjectURL(attachment.previewUrl);
       }
 
+      const nextTitle = (attachment?.image_title || '').trim() || getJobImageTitleFromFileName(file?.name || '');
+
       return {
         ...attachment,
         file,
         previewUrl: file ? URL.createObjectURL(file) : null,
+        image_title: nextTitle,
         image_path: null,
         image_url: null,
         file_name: file?.name || null,
@@ -554,7 +559,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                 <div key={`job-image-${index}`} className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-gray-800 dark:text-slate-100">Imagen {index + 1} opcional</p>
+                      <p className="text-sm font-medium text-gray-800 dark:text-slate-100">{(attachment.image_title || '').trim() || 'Imagen opcional'}</p>
                       <p className="text-xs text-gray-500 dark:text-slate-400">Subí una referencia visual del problema o del estado del producto.</p>
                     </div>
                     {(attachment.previewUrl || attachment.image_url) && (
@@ -591,6 +596,37 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
                       />
                     </div>
                   )}
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Título de la imagen</label>
+                    <input
+                      type="text"
+                      maxLength={JOB_IMAGE_MAX_TITLE_LENGTH}
+                      className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
+                      value={attachment.image_title || ''}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        updateImageAttachment(index, (current) => ({
+                          ...current,
+                          image_title: nextValue,
+                        }));
+
+                        const validation = validateJobImageDrafts(
+                          imageAttachments.map((entry, entryIndex) => (
+                            entryIndex === index
+                              ? { ...entry, image_title: nextValue }
+                              : entry
+                          ))
+                        );
+                        setImageErrorAt(index, validation[index] || '');
+                      }}
+                      placeholder="Ej: Frente del equipo"
+                    />
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs text-gray-500 dark:text-slate-400">
+                      <span>Opcional. Usalo para nombrar el adjunto en el detalle.</span>
+                      <span>{(attachment.image_title || '').length}/{JOB_IMAGE_MAX_TITLE_LENGTH}</span>
+                    </div>
+                  </div>
 
                   <div>
                     <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Descripción de la imagen</label>
