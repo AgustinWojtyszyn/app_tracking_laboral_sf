@@ -287,7 +287,7 @@ export default function DailyJobsPage() {
             }
           />
           <div className="col-span-2 sm:col-span-1 w-full sm:w-auto md:min-w-[140px]">
-            <JobForm onSuccess={fetchJobs} />
+            <JobForm onSuccess={fetchJobs} redirectOnCreate={true} />
           </div>
         </div>
       </div>

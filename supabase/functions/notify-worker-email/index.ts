@@ -37,9 +37,29 @@ const buildEmail = (
 
   lines.push('', 'Saludos.');
 
+  const logoUrl = 'https://tracking.servifoodapp.site/servifood_logo_white_text_HQ.png';
+  const headerColor = '#1e3a8a';
+  const html =
+    '<div style="font-family: Arial, sans-serif; background:#f7f9fc; padding:24px;">' +
+      '<div style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb;">' +
+        '<div style="background:' + headerColor + '; padding:18px; text-align:center;">' +
+          '<img src="' + logoUrl + '" alt="ServiFood" style="height:48px; display:inline-block;" />' +
+        '</div>' +
+        '<div style="padding:24px; color:#111827;">' +
+          '<h2 style="margin:0 0 16px; font-size:20px;">Nueva solicitud asignada</h2>' +
+          '<p style="margin:6px 0;"><strong>Trabajo:</strong> ' + description + '</p>' +
+          '<p style="margin:6px 0;"><strong>Lugar:</strong> ' + location + '</p>' +
+          '<p style="margin:6px 0;"><strong>Fecha:</strong> ' + date + '</p>' +
+          '<p style="margin:6px 0;"><strong>Solicita:</strong> ' + requestedBy + '</p>' +
+          (groupName ? ('<p style="margin:6px 0;"><strong>Grupo:</strong> ' + groupName + '</p>') : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
   return {
     subject: subjectBase,
     content: lines.join('\n'),
+    html,
   };
 };
 
@@ -163,7 +183,7 @@ serve(async (req) => {
       groupName = group?.name || null;
     }
 
-    const { subject, content } = buildEmail(job, worker, groupName);
+    const { subject, content, html } = buildEmail(job, worker, groupName);
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -176,6 +196,7 @@ serve(async (req) => {
         to: worker.email,
         subject,
         text: content,
+        html,
       }),
     });
 
