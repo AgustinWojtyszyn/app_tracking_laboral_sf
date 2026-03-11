@@ -372,7 +372,7 @@ export default function JobForm({ jobToEdit = null, onSuccess, mode = 'modal', o
       sector_type: formData.sector_type || null,
       sector_custom: sectorCustomValue ? sectorCustomValue : null,
       cost_spent: costValue ? Number(costValue) : 0,
-      amount_to_charge: chargeValue ? Number(chargeValue) : null,
+      amount_to_charge: chargeValue ? Number(chargeValue) : 0,
     };
     if (!jobToEdit) {
       payload.user_id = user?.id || null;
