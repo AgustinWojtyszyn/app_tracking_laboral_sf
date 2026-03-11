@@ -35,9 +35,12 @@ export const validateCost = (cost) => {
 
 export const validateAmount = (amount) => {
   const val = Number(amount);
+  const isValidNumber = Number.isFinite(val);
+  const isInteger = Number.isInteger(val);
+  const valid = isValidNumber && isInteger && val >= 0;
   return {
-    valid: val >= 0,
-    error: val >= 0 ? null : "El monto debe ser mayor o igual a 0"
+    valid,
+    error: valid ? null : "El monto debe ser un número entero en pesos (sin centavos)"
   };
 };
 

@@ -100,6 +100,33 @@ const hydrateJobRecord = (job) => {
   };
 };
 
+const isIdempotencyConflictConfigError = (error) => {
+  const message = error?.message || '';
+  return error?.code === '42703'
+    || error?.code === '42P10'
+    || /idempotency_key/i.test(message)
+    || /on conflict/i.test(message)
+    || /no unique|no existe una restriccion unique|no matching the on conflict/i.test(message);
+};
+
+const getSchemaCompatibilityError = (error) => {
+  const message = error?.message || '';
+
+  if (/title/i.test(message) && (error?.code === '42703' || error?.code === 'PGRST204')) {
+    return 'Falta aplicar la migración que agrega el campo título en jobs.';
+  }
+
+  if (/image_attachments/i.test(message) && (error?.code === '42703' || error?.code === 'PGRST204')) {
+    return 'Falta aplicar la migración que agrega los adjuntos de imagen en jobs.';
+  }
+
+  if (isIdempotencyConflictConfigError(error)) {
+    return null;
+  }
+
+  return null;
+};
+
 export const jobsService = {
   async cleanupUploadedImages(paths = []) {
     const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
@@ -369,7 +396,7 @@ export const jobsService = {
         .select()
         .single();
 
-      if (error && (error.code === '42703' || /idempotency_key/i.test(error.message))) {
+      if (error && isIdempotencyConflictConfigError(error)) {
         // Fallback if column doesn't exist yet.
         const useIdempotency = !!jobData?.client_request_id;
         const fallback = useIdempotency
@@ -383,7 +410,9 @@ export const jobsService = {
       if (error) throw error;
       return { success: true, data, message: "Trabajo creado exitosamente" };
     } catch (error) {
-      return { success: false, error: "Error al crear el trabajo." };
+      console.error('createJob error', error);
+      const schemaError = getSchemaCompatibilityError(error);
+      return { success: false, error: schemaError || error?.message || "Error al crear el trabajo." };
     }
   },
 
@@ -410,7 +439,9 @@ export const jobsService = {
       if (error) throw error;
       return { success: true, message: "Trabajo actualizado exitosamente" };
     } catch (error) {
-      return { success: false, error: "Error al actualizar el trabajo." };
+      console.error('updateJob error', error);
+      const schemaError = getSchemaCompatibilityError(error);
+      return { success: false, error: schemaError || error?.message || "Error al actualizar el trabajo." };
     }
   },
 

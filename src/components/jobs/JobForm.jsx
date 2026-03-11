@@ -684,7 +684,7 @@ export default function JobForm({ jobToEdit = null, onSuccess }) {
               <input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                 value={formData.amount_to_charge ?? ''}
                 onChange={e => setFormData({ ...formData, amount_to_charge: e.target.value })}
