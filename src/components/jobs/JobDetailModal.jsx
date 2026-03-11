@@ -20,6 +20,15 @@ const getAttachmentDisplayTitle = (attachment) => {
   return 'Imagen';
 };
 
+const resolveSectorLabel = (job) => {
+  const sectorType = (job?.sector_type || '').trim();
+  const custom = (job?.sector_custom || '').trim();
+  if (sectorType === 'Otro' && custom) {
+    return custom;
+  }
+  return sectorType || '-';
+};
+
 export default function JobDetailModal({ job, onClose, onEdit }) {
   const [selectedImage, setSelectedImage] = useState(null);
 
@@ -27,6 +36,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
 
   const attachments = normalizeStoredJobImageAttachments(job.image_attachments);
   const displayTitle = job.title || job.description || 'Detalle de trabajo';
+  const sectorLabel = resolveSectorLabel(job);
   const selectedImageTitle = selectedImage ? getAttachmentDisplayTitle(selectedImage) : 'Imagen adjunta';
 
   const handleExport = () => {
@@ -71,7 +81,8 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
               <p className="flex items-center gap-2"><User className="w-4 h-4" /> {job.workers?.display_name || job.workers?.alias || 'Sin trabajador'}</p>
               <p className="flex items-center gap-2">Solicita: {job.requested_by || 'Sin solicitante'}</p>
               <p className="flex items-center gap-2">Grupo: {job.groups?.name || 'Personal'}</p>
-              <p>Tipo: {job.job_type || job.type || '-'}</p>
+              <p>Tipo de acción: {job.action_type || '-'}</p>
+              <p>Sector / equipo: {sectorLabel}</p>
             </div>
             <div className="space-y-2">
               <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">Facturación</h3>

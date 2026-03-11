@@ -13,6 +13,8 @@ import DataDeletionPage from '@/pages/DataDeletionPage';
 
 // Protected Pages
 import DailyJobsPage from '@/pages/DailyJobsPage';
+import DailyJobCreatePage from '@/pages/DailyJobCreatePage';
+import DailyJobEditPage from '@/pages/DailyJobEditPage';
 import MonthlyPanelPage from '@/pages/MonthlyPanelPage';
 import GroupsPage from '@/pages/GroupsPage';
 import SettingsPage from '@/pages/SettingsPage';
@@ -69,6 +71,8 @@ function App() {
         }>
           <Route index element={<Navigate to="trabajos-diarios" replace />} />
           <Route path="trabajos-diarios" element={<DailyJobsPage />} />
+          <Route path="trabajos-diarios/nuevo" element={<DailyJobCreatePage />} />
+          <Route path="trabajos-diarios/:id/editar" element={<DailyJobEditPage />} />
           <Route path="panel-mensual" element={<MonthlyPanelPage />} />
           <Route path="trabajadores" element={<WorkersPage />} />
           <Route path="grupos" element={

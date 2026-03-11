@@ -21,13 +21,37 @@ const buildMessage = (job: Record<string, any>, worker: Record<string, any>, gro
   const description = job.description || 'Sin descripcion';
   const location = job.location || 'Sin ubicacion';
   const date = job.date || 'Sin fecha';
+  const actionType = (job.action_type || '').trim() || 'Sin tipo de acción';
+  const sectorType = (job.sector_type || '').trim();
+  const sectorCustom = (job.sector_custom || '').trim();
+  const sectorLabel = sectorType === 'Otro' && sectorCustom ? sectorCustom : (sectorType || 'Sin sector');
+
+  const formatCurrency = (value: unknown) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return 'Sin monto';
+    }
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  const costSpent = formatCurrency(job.cost_spent);
+  const amountToCharge = formatCurrency(job.amount_to_charge);
 
   const lines = [
     `Hola ${workerName}, tenes una nueva solicitud asignada.`,
-    `Trabajo: ${description}`,
+    `Solicita: ${requestedBy}`,
+    `Tipo de acción: ${actionType}`,
+    `Sector / equipo: ${sectorLabel}`,
+    `Descripción: ${description}`,
+    `Costo trabajador: ${costSpent}`,
+    `Cobrar: ${amountToCharge}`,
     `Lugar: ${location}`,
     `Fecha: ${date}`,
-    `Solicita: ${requestedBy}`,
   ];
 
   if (groupName) {
@@ -95,7 +119,7 @@ serve(async (req) => {
 
     const { data: job, error: jobError } = await adminClient
       .from('jobs')
-      .select('id, user_id, group_id, worker_id, requested_by, location, description, date')
+      .select('id, user_id, group_id, worker_id, requested_by, location, description, date, action_type, sector_type, sector_custom, cost_spent, amount_to_charge')
       .eq('id', jobId)
       .single();
 

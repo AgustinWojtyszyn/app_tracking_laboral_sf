@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { jobsService } from '@/services/jobs.service';
 import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -19,6 +20,7 @@ import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const { language, t } = useLanguage();
   const isEn = language === 'en';
@@ -287,7 +289,14 @@ export default function DailyJobsPage() {
             }
           />
           <div className="col-span-2 sm:col-span-1 w-full sm:w-auto md:min-w-[140px]">
-            <JobForm onSuccess={fetchJobs} />
+            <Button
+              type="button"
+              onClick={() => navigate('/app/trabajos-diarios/nuevo')}
+              className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white"
+              data-tour="nuevo-trabajo"
+            >
+              Nuevo Trabajo
+            </Button>
           </div>
         </div>
       </div>

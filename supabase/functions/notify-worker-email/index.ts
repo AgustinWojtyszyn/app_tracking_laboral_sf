@@ -17,18 +17,49 @@ const buildEmail = (
   const description = job.description || 'Sin descripcion';
   const location = job.location || 'Sin ubicacion';
   const date = job.date || 'Sin fecha';
+  const rawActionType = (job.action_type || '').trim();
+  const rawSectorType = (job.sector_type || '').trim();
+  const rawSectorCustom = (job.sector_custom || '').trim();
+  const actionType = rawActionType || 'Sin tipo de acción';
+  const sectorLabel = rawSectorType === 'Otro' && rawSectorCustom
+    ? rawSectorCustom
+    : (rawSectorType || 'Sin sector');
 
-  const subjectBase = groupName ? groupName + ' - Nueva solicitud' : 'Nueva solicitud asignada';
+  const formatCurrency = (value: unknown) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return 'Sin monto';
+    }
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  };
+
+  const costSpent = formatCurrency(job.cost_spent);
+  const amountToCharge = formatCurrency(job.amount_to_charge);
+
+  const subjectSectorLabel = rawSectorType === 'Otro' && rawSectorCustom ? rawSectorCustom : rawSectorType;
+  const subjectDetail = rawActionType && subjectSectorLabel
+    ? `Nueva solicitud: ${rawActionType} en ${subjectSectorLabel}`
+    : 'Nueva solicitud asignada';
+  const subjectBase = groupName ? `${groupName} - ${subjectDetail}` : subjectDetail;
 
   const lines = [
     'Hola ' + workerName + ',',
     '',
     'Tenes una nueva solicitud asignada.',
     '',
-    'Trabajo: ' + description,
+    'Solicita: ' + requestedBy,
+    'Tipo de acción: ' + actionType,
+    'Sector / equipo: ' + sectorLabel,
+    'Descripción: ' + description,
+    'Costo trabajador: ' + costSpent,
+    'Cobrar: ' + amountToCharge,
     'Lugar: ' + location,
     'Fecha: ' + date,
-    'Solicita: ' + requestedBy,
   ];
 
   if (groupName) {
@@ -47,10 +78,14 @@ const buildEmail = (
         '</div>' +
         '<div style="padding:24px; color:#111827;">' +
           '<h2 style="margin:0 0 16px; font-size:20px;">Nueva solicitud asignada</h2>' +
-          '<p style="margin:6px 0;"><strong>Trabajo:</strong> ' + description + '</p>' +
+          '<p style="margin:6px 0;"><strong>Solicita:</strong> ' + requestedBy + '</p>' +
+          '<p style="margin:6px 0;"><strong>Tipo de acción:</strong> ' + actionType + '</p>' +
+          '<p style="margin:6px 0;"><strong>Sector / equipo:</strong> ' + sectorLabel + '</p>' +
+          '<p style="margin:6px 0;"><strong>Descripción:</strong> ' + description + '</p>' +
+          '<p style="margin:6px 0;"><strong>Costo trabajador:</strong> ' + costSpent + '</p>' +
+          '<p style="margin:6px 0;"><strong>Cobrar:</strong> ' + amountToCharge + '</p>' +
           '<p style="margin:6px 0;"><strong>Lugar:</strong> ' + location + '</p>' +
           '<p style="margin:6px 0;"><strong>Fecha:</strong> ' + date + '</p>' +
-          '<p style="margin:6px 0;"><strong>Solicita:</strong> ' + requestedBy + '</p>' +
           (groupName ? ('<p style="margin:6px 0;"><strong>Grupo:</strong> ' + groupName + '</p>') : '') +
         '</div>' +
       '</div>' +
@@ -128,7 +163,7 @@ serve(async (req) => {
 
     const { data: job, error: jobError } = await adminClient
       .from('jobs')
-      .select('id, user_id, group_id, worker_id, requested_by, location, description, date')
+      .select('id, user_id, group_id, worker_id, requested_by, location, description, date, action_type, sector_type, sector_custom, cost_spent, amount_to_charge')
       .eq('id', jobId)
       .single();
 

@@ -2,6 +2,15 @@
 import * as XLSX from 'xlsx';
 import { formatDate } from '@/utils/formatters';
 
+const resolveSectorLabel = (job) => {
+  const sectorType = (job?.sector_type || '').trim();
+  const custom = (job?.sector_custom || '').trim();
+  if (sectorType === 'Otro' && custom) {
+    return custom;
+  }
+  return sectorType || '';
+};
+
 export const exportService = {
   // Helper to get formatted job object
   _mapJobToRow(job) {
@@ -9,6 +18,8 @@ export const exportService = {
       Fecha: formatDate(job.date),
       Ubicación: job.location || '',
       Título: job.title || '',
+      'Tipo de acción': job.action_type || '',
+      'Sector / equipo': resolveSectorLabel(job),
       Descripción: job.description || '',
       Grupo: job.groups?.name || '-',
       Trabajador: job.workers?.display_name || job.workers?.alias || '-',
@@ -22,7 +33,7 @@ export const exportService = {
     
     // Auto-width columns approximation
     const wscols = [
-        {wch:12}, {wch:25}, {wch:40}, {wch:15}, {wch:25}, {wch:15}
+        {wch:12}, {wch:25}, {wch:28}, {wch:24}, {wch:26}, {wch:40}, {wch:20}, {wch:20}, {wch:15}
     ];
     worksheet['!cols'] = wscols;
 

@@ -120,6 +120,10 @@ const getSchemaCompatibilityError = (error) => {
     return 'Falta aplicar la migración que agrega los adjuntos de imagen en jobs.';
   }
 
+  if (/(action_type|sector_type|sector_custom)/i.test(message) && (error?.code === '42703' || error?.code === 'PGRST204')) {
+    return 'Falta aplicar la migración que agrega tipo de acción y sector/equipo en jobs.';
+  }
+
   if (isIdempotencyConflictConfigError(error)) {
     return null;
   }
@@ -385,6 +389,58 @@ export const jobsService = {
 
   async getJobsByDay(date) {
     return this.getJobsByDateRange(date, date);
+  },
+
+  async getJobById(jobId, actorId = null) {
+    try {
+      if (!jobId) {
+        return { success: false, error: 'Trabajo no encontrado.' };
+      }
+      const { userId, groupIds, isAdmin } = await this.resolveActorContext(actorId);
+      if (!userId) return { success: false, error: 'No hay sesión activa.' };
+
+      let query = supabase
+        .from('jobs')
+        .select('*, groups:groups!jobs_group_id_fkey(name), workers:workers!jobs_worker_id_fkey(display_name, alias), creator:users!jobs_user_id_fkey(full_name, email)')
+        .eq('id', jobId);
+
+      if (!isAdmin) {
+        if (groupIds.length > 0) {
+          const groupList = groupIds.map((id) => `"${id}"`).join(',');
+          query = query.or(`user_id.eq.${userId},group_id.in.(${groupList})`);
+        } else {
+          query = query.eq('user_id', userId);
+        }
+      }
+
+      let { data, error } = await query.single();
+
+      if (error && error.code === 'PGRST204') {
+        let fallbackQuery = supabase
+          .from('jobs')
+          .select('*, creator:users!jobs_user_id_fkey(full_name, email)')
+          .eq('id', jobId);
+
+        if (!isAdmin) {
+          if (groupIds.length > 0) {
+            const groupList = groupIds.map((id) => `"${id}"`).join(',');
+            fallbackQuery = fallbackQuery.or(`user_id.eq.${userId},group_id.in.(${groupList})`);
+          } else {
+            fallbackQuery = fallbackQuery.eq('user_id', userId);
+          }
+        }
+
+        const fallbackResult = await fallbackQuery.single();
+        data = fallbackResult.data;
+        error = fallbackResult.error;
+      }
+
+      if (error) throw error;
+      return { success: true, data: hydrateJobRecord(data) };
+    } catch (error) {
+      console.error('getJobById error', error);
+      return { success: false, error: 'No se pudo cargar el trabajo.' };
+    }
   },
 
   async createJob(jobData) {
