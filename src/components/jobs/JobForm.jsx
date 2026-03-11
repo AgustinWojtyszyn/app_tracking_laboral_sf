@@ -371,7 +371,7 @@ export default function JobForm({ jobToEdit = null, onSuccess, mode = 'modal', o
       action_type: formData.action_type || null,
       sector_type: formData.sector_type || null,
       sector_custom: sectorCustomValue ? sectorCustomValue : null,
-      cost_spent: costValue ? Number(costValue) : null,
+      cost_spent: costValue ? Number(costValue) : 0,
       amount_to_charge: chargeValue ? Number(chargeValue) : null,
     };
     if (!jobToEdit) {
