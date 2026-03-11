@@ -7,6 +7,13 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const RESEND_TIMEOUT_MS = 8000;
+
+const logTiming = (label: string, startMs: number) => {
+  const duration = performance.now() - startMs;
+  console.log(`[timing] ${label}: ${duration.toFixed(1)}ms`);
+};
+
 const buildEmail = (
   job: Record<string, any>,
   worker: Record<string, any>,
@@ -126,6 +133,7 @@ serve(async (req) => {
   }
 
   try {
+    const totalStart = performance.now();
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const smtpFrom = Deno.env.get('SMTP_FROM');
@@ -156,7 +164,9 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+    const authStart = performance.now();
     const { data: authData, error: authError } = await adminClient.auth.getUser(token);
+    logTiming('auth.getUser', authStart);
     if (authError || !authData?.user) {
       return new Response(JSON.stringify({ success: false, error: 'Unauthorized.' }), {
         status: 401,
@@ -176,12 +186,23 @@ serve(async (req) => {
       });
     }
 
-    const { data: job, error: jobError } = await adminClient
-      .from('jobs')
-      .select('id, user_id, group_id, worker_id, requested_by, location, description, date, title, status, editable_by_group, action_type, sector_type, sector_custom, cost_spent, amount_to_charge')
-      .eq('id', jobId)
-      .single();
+    const jobProfileStart = performance.now();
+    const [jobResult, actorProfileResult] = await Promise.all([
+      adminClient
+        .from('jobs')
+        .select('id, user_id, group_id, worker_id, requested_by, location, description, date, title, status, editable_by_group, action_type, sector_type, sector_custom, cost_spent, amount_to_charge')
+        .eq('id', jobId)
+        .single(),
+      adminClient
+        .from('users')
+        .select('role')
+        .eq('id', actorId)
+        .maybeSingle(),
+    ]);
+    logTiming('fetch job + actorProfile', jobProfileStart);
 
+    const job = jobResult.data;
+    const jobError = jobResult.error;
     if (jobError || !job) {
       return new Response(JSON.stringify({ success: false, error: 'Job not found.' }), {
         status: 404,
@@ -189,11 +210,7 @@ serve(async (req) => {
       });
     }
 
-    const { data: actorProfile } = await adminClient
-      .from('users')
-      .select('role')
-      .eq('id', actorId)
-      .maybeSingle();
+    const actorProfile = actorProfileResult.data;
 
     const isAdmin = actorProfile?.role === 'admin';
     if (!isAdmin && job.user_id !== actorId) {
@@ -203,11 +220,24 @@ serve(async (req) => {
       });
     }
 
-    const { data: worker, error: workerError } = await adminClient
+    const workerGroupStart = performance.now();
+    const workerPromise = adminClient
       .from('workers')
       .select('display_name, alias, email')
       .eq('id', job.worker_id)
       .single();
+    const groupPromise = job.group_id
+      ? adminClient
+          .from('groups')
+          .select('name')
+          .eq('id', job.group_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null });
+    const [workerResult, groupResult] = await Promise.all([workerPromise, groupPromise]);
+    logTiming('fetch worker + group', workerGroupStart);
+
+    const worker = workerResult.data;
+    const workerError = workerResult.error;
 
     if (workerError || !worker) {
       return new Response(JSON.stringify({ success: false, error: 'Worker not found.' }), {
@@ -223,17 +253,13 @@ serve(async (req) => {
       });
     }
 
-    let groupName: string | null = null;
-    if (job.group_id) {
-      const { data: group } = await adminClient
-        .from('groups')
-        .select('name')
-        .eq('id', job.group_id)
-        .maybeSingle();
-      groupName = group?.name || null;
-    }
+    const groupName: string | null = groupResult?.data?.name || null;
 
     const { subject, content, html } = buildEmail(job, worker, groupName);
+
+    const resendStart = performance.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), RESEND_TIMEOUT_MS);
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -248,7 +274,10 @@ serve(async (req) => {
         text: content,
         html,
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    logTiming('resend.fetch', resendStart);
 
     if (!resendResponse.ok) {
       const errorBody = await resendResponse.json().catch(() => ({}));
@@ -262,6 +291,7 @@ serve(async (req) => {
       });
     }
 
+    logTiming('total', totalStart);
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
