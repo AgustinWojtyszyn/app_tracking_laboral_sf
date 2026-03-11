@@ -36,8 +36,8 @@ const buildEmail = (
 
   const formatCurrency = (value: unknown) => {
     const num = Number(value);
-    if (!Number.isFinite(num)) {
-      return 'Sin monto';
+    if (!Number.isFinite(num) || num === 0) {
+      return 'a determinar';
     }
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
