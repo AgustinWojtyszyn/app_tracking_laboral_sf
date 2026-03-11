@@ -17,6 +17,9 @@ const buildEmail = (
   const description = job.description || 'Sin descripcion';
   const location = job.location || 'Sin ubicacion';
   const date = job.date || 'Sin fecha';
+  const title = job.title || 'Sin título';
+  const status = job.status || 'pending';
+  const editableByGroup = job.editable_by_group ? 'Sí' : 'No';
   const rawActionType = (job.action_type || '').trim();
   const rawSectorType = (job.sector_type || '').trim();
   const rawSectorCustom = (job.sector_custom || '').trim();
@@ -24,6 +27,12 @@ const buildEmail = (
   const sectorLabel = rawSectorType === 'Otro' && rawSectorCustom
     ? rawSectorCustom
     : (rawSectorType || 'Sin sector');
+
+  const statusLabel = status === 'completed'
+    ? 'Completado'
+    : status === 'archived'
+    ? 'Archivado'
+    : 'Pendiente';
 
   const formatCurrency = (value: unknown) => {
     const num = Number(value);
@@ -52,6 +61,8 @@ const buildEmail = (
     '',
     'Tenes una nueva solicitud asignada.',
     '',
+    'Título: ' + title,
+    'Estado: ' + statusLabel,
     'Solicita: ' + requestedBy,
     'Tipo de acción: ' + actionType,
     'Sector / equipo: ' + sectorLabel,
@@ -65,6 +76,7 @@ const buildEmail = (
   if (groupName) {
     lines.push('Grupo: ' + groupName);
   }
+  lines.push('Editable por grupo: ' + editableByGroup);
 
   lines.push('', 'Saludos.');
 
@@ -78,6 +90,8 @@ const buildEmail = (
         '</div>' +
         '<div style="padding:24px; color:#111827;">' +
           '<h2 style="margin:0 0 16px; font-size:20px;">Nueva solicitud asignada</h2>' +
+          '<p style="margin:6px 0;"><strong>Título:</strong> ' + title + '</p>' +
+          '<p style="margin:6px 0;"><strong>Estado:</strong> ' + statusLabel + '</p>' +
           '<p style="margin:6px 0;"><strong>Solicita:</strong> ' + requestedBy + '</p>' +
           '<p style="margin:6px 0;"><strong>Tipo de acción:</strong> ' + actionType + '</p>' +
           '<p style="margin:6px 0;"><strong>Sector / equipo:</strong> ' + sectorLabel + '</p>' +
@@ -87,6 +101,7 @@ const buildEmail = (
           '<p style="margin:6px 0;"><strong>Lugar:</strong> ' + location + '</p>' +
           '<p style="margin:6px 0;"><strong>Fecha:</strong> ' + date + '</p>' +
           (groupName ? ('<p style="margin:6px 0;"><strong>Grupo:</strong> ' + groupName + '</p>') : '') +
+          '<p style="margin:6px 0;"><strong>Editable por grupo:</strong> ' + editableByGroup + '</p>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -163,7 +178,7 @@ serve(async (req) => {
 
     const { data: job, error: jobError } = await adminClient
       .from('jobs')
-      .select('id, user_id, group_id, worker_id, requested_by, location, description, date, action_type, sector_type, sector_custom, cost_spent, amount_to_charge')
+      .select('id, user_id, group_id, worker_id, requested_by, location, description, date, title, status, editable_by_group, action_type, sector_type, sector_custom, cost_spent, amount_to_charge')
       .eq('id', jobId)
       .single();
 
