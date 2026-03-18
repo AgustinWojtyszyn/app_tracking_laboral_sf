@@ -470,6 +470,7 @@ export default function JobForm({ jobToEdit = null, onSuccess, mode = 'modal', o
       'Hospital Pocito',
       'Hospital Calingasta',
       'Hospital Barreal',
+      'Hospital mental (Zonda)',
       'Hosp Valle Fertil',
       'CAPS Bermejo',
       'Caps Tamberia',
