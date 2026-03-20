@@ -61,7 +61,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
 
   return (
     <Dialog open={!!job} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl bg-white dark:bg-slate-900 dark:text-slate-50">
+      <DialogContent className="w-[95vw] max-w-2xl bg-white dark:bg-slate-900 dark:text-slate-50 min-w-0 z-[70]">
         <DialogHeader className="space-y-2">
           <DialogTitle className="text-2xl font-bold text-[#1e3a8a]">{displayTitle}</DialogTitle>
           <div className="flex flex-wrap gap-2 items-center text-sm text-gray-600 dark:text-slate-300">
@@ -72,10 +72,10 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
           </div>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-3">
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6 min-w-0">
+          <div className="space-y-3 min-w-0">
             <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">General</h3>
-            <div className="space-y-2 text-gray-800 dark:text-slate-100">
+            <div className="space-y-2 text-gray-800 dark:text-slate-100 min-w-0 break-words">
               <p className="flex items-center gap-2">Título: {job.title || 'Sin título'}</p>
               <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {job.location || 'Sin ubicación'}</p>
               <p className="flex items-center gap-2"><User className="w-4 h-4" /> {job.workers?.display_name || job.workers?.alias || 'Sin trabajador'}</p>
@@ -98,9 +98,9 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
             {attachments.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm uppercase font-semibold text-gray-500 dark:text-slate-400">Imágenes</h3>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {attachments.map((attachment, index) => (
-                    <div key={`${attachment.image_path || 'text-only'}-${index}`} className="rounded-xl border border-gray-200 dark:border-slate-700 p-3 bg-gray-50 dark:bg-slate-800/50 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2 min-w-0">
+                {attachments.map((attachment, index) => (
+                  <div key={`${attachment.image_path || 'text-only'}-${index}`} className="rounded-xl border border-gray-200 dark:border-slate-700 p-3 bg-gray-50 dark:bg-slate-800/50 space-y-3">
                       {attachment.image_url ? (
                         <button
                           type="button"
@@ -133,7 +133,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" onClick={handleShare} className="gap-2">
                 <Share2 className="w-4 h-4" /> Compartir WhatsApp
@@ -151,7 +151,7 @@ export default function JobDetailModal({ job, onClose, onEdit }) {
 
       {selectedImage?.image_url && (
         <Dialog open={!!selectedImage} onOpenChange={(open) => { if (!open) setSelectedImage(null); }}>
-          <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-900 dark:text-slate-50">
+          <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-900 dark:text-slate-50 z-[80]">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold text-[#1e3a8a]">{selectedImageTitle}</DialogTitle>
             </DialogHeader>
