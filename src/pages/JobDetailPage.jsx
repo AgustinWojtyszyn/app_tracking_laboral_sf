@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useJobById } from '@/hooks/useJobById';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import { normalizeStoredJobImageAttachments, getJobImageTitleFromFileName } from '@/utils/jobImageAttachments';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const getAttachmentDisplayTitle = (attachment) => {
   const explicitTitle = attachment?.image_title?.trim();
@@ -25,6 +26,7 @@ const resolveSectorLabel = (job) => {
 export default function JobDetailPage() {
   const { id } = useParams();
   const { data, loading, error } = useJobById(id);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   if (loading) {
     return (
@@ -63,6 +65,7 @@ export default function JobDetailPage() {
     ? 'bg-gray-100 text-gray-700'
     : 'bg-yellow-100 text-yellow-700';
   const sectorLabel = resolveSectorLabel(data);
+  const selectedImageTitle = selectedImage ? getAttachmentDisplayTitle(selectedImage) : 'Imagen';
 
   return (
     <div className="space-y-6">
@@ -138,11 +141,20 @@ export default function JobDetailPage() {
             {attachments.map((attachment, index) => (
               <div key={`${attachment.image_path || 'text-only'}-${index}`} className="space-y-2">
                 {attachment.image_url ? (
-                  <img
-                    src={attachment.image_url}
-                    alt={attachment.image_description || `Imagen ${index + 1}`}
-                    className="h-32 w-full object-cover rounded-lg border border-slate-800"
-                  />
+                  <div className="space-y-2">
+                    <img
+                      src={attachment.image_url}
+                      alt={attachment.image_description || `Imagen ${index + 1}`}
+                      className="h-32 w-full object-cover rounded-lg border border-slate-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImage(attachment)}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
+                    >
+                      Ver imagen
+                    </button>
+                  </div>
                 ) : (
                   <div className="h-32 w-full rounded-lg border border-dashed border-slate-700 flex items-center justify-center text-xs text-slate-400">
                     Sin imagen cargada
@@ -158,6 +170,30 @@ export default function JobDetailPage() {
           <p className="text-sm text-slate-300">Sin imágenes</p>
         )}
       </div>
+
+      {selectedImage?.image_url && (
+        <Dialog open={!!selectedImage} onOpenChange={(open) => { if (!open) setSelectedImage(null); }}>
+          <DialogContent className="sm:max-w-3xl bg-white dark:bg-slate-900 dark:text-slate-50">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-[#1e3a8a]">{selectedImageTitle}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-100 dark:bg-slate-800">
+                <img
+                  src={selectedImage.image_url}
+                  alt={selectedImage.image_description || selectedImageTitle}
+                  className="max-h-[70vh] w-full object-contain"
+                />
+              </div>
+              {selectedImage.image_description?.trim() ? (
+                <p className="text-sm text-gray-700 dark:text-slate-200 whitespace-pre-line">
+                  {selectedImage.image_description}
+                </p>
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
