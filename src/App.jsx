@@ -16,6 +16,7 @@ import DailyJobsPage from '@/pages/DailyJobsPage';
 import DailyJobCreatePage from '@/pages/DailyJobCreatePage';
 import DailyJobEditPage from '@/pages/DailyJobEditPage';
 import MonthlyPanelPage from '@/pages/MonthlyPanelPage';
+import JobDetailPage from '@/pages/JobDetailPage';
 import GroupsPage from '@/pages/GroupsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import AdminPage from '@/pages/AdminPage';
@@ -74,6 +75,7 @@ function App() {
           <Route path="trabajos-diarios/nuevo" element={<DailyJobCreatePage />} />
           <Route path="trabajos-diarios/:id/editar" element={<DailyJobEditPage />} />
           <Route path="panel-mensual" element={<MonthlyPanelPage />} />
+          <Route path="jobs/:id" element={<JobDetailPage />} />
           <Route path="trabajadores" element={<WorkersPage />} />
           <Route path="grupos" element={
             <ProtectedRoute adminOnly={true}>

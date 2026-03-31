@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -18,11 +19,11 @@ import { exportService } from '@/services/export.service';
 import { jobsService } from '@/services/jobs.service';
 import { onboardingService } from '@/services/onboarding.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import JobDetailModal from '@/components/jobs/JobDetailModal';
 import JobForm from '@/components/jobs/JobForm';
 
 export default function MonthlyPanelPage() {
   const { user, isAdmin, userRole } = useAuth();
+  const navigate = useNavigate();
   const { getJobsByDateRange, loading } = useJobs();
   const { t, language } = useLanguage();
   const { addToast } = useToast();
@@ -34,7 +35,6 @@ export default function MonthlyPanelPage() {
   const [jobs, setJobs] = useState([]);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   
   // Use filter hook for state management
@@ -283,7 +283,7 @@ export default function MonthlyPanelPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSelectedJob(job)}
+                        onClick={() => navigate(`/app/jobs/${job.id}`)}
                         className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
                       >
                         <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
@@ -376,16 +376,6 @@ export default function MonthlyPanelPage() {
           onSuccess={() => {
             setEditingJob(null);
             fetchJobs();
-          }}
-        />
-      )}
-      {selectedJob && (
-        <JobDetailModal
-          job={selectedJob}
-          onClose={() => setSelectedJob(null)}
-          onEdit={(job) => {
-            setSelectedJob(null);
-            setEditingJob(job);
           }}
         />
       )}

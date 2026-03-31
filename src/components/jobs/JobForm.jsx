@@ -17,7 +17,6 @@ import JobDetailsSection from '@/components/jobs/form/JobDetailsSection';
 import JobImagesSection from '@/components/jobs/form/JobImagesSection';
 import JobAssignmentSection from '@/components/jobs/form/JobAssignmentSection';
 import JobFormActions from '@/components/jobs/form/JobFormActions';
-
 export default function JobForm({ jobToEdit = null, onSuccess, mode = 'modal', onCancel }) {
   const isPage = mode === 'page';
   const isModal = !isPage;

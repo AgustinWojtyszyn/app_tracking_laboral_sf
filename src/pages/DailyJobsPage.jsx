@@ -12,7 +12,6 @@ import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import JobDetailModal from '@/components/jobs/JobDetailModal';
 import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
@@ -29,7 +28,6 @@ export default function DailyJobsPage() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingJob, setEditingJob] = useState(null);
-  const [selectedJob, setSelectedJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -376,7 +374,7 @@ export default function DailyJobsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedJob(job)}
+                            onClick={() => navigate(`/app/jobs/${job.id}`)}
                             className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
                           >
                             <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
@@ -405,16 +403,6 @@ export default function DailyJobsPage() {
           onSuccess={() => {
             setEditingJob(null);
             fetchJobs();
-          }}
-        />
-      )}
-      {selectedJob && (
-        <JobDetailModal
-          job={selectedJob}
-          onClose={() => setSelectedJob(null)}
-          onEdit={(job) => {
-            setSelectedJob(null);
-            setEditingJob(job);
           }}
         />
       )}
