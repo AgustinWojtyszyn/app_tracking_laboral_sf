@@ -290,41 +290,39 @@ export default function MonthlyPanelPage() {
             </div>
           )}
         </div>
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-xs md:text-sm text-left">
+        <div className="hidden md:block">
+          <table className="w-full text-xs md:text-sm text-left table-fixed">
             <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
               <tr>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.date')}</th>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.description')}</th>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.location')}</th>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.creator')}</th>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.worker')}</th>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.type')}</th>
-                <th className="px-3 md:px-4 py-3">{t('monthlyPage.columns.group')}</th>
-                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.cost')}</th>
-                <th className="px-3 md:px-4 py-3 text-right">{t('monthlyPage.columns.charge')}</th>
-                <th className="px-3 md:px-4 py-3 text-center">{t('monthlyPage.columns.status')}</th>
-                <th className="px-3 md:px-4 py-3 text-center">{isEn ? 'Actions' : 'Acciones'}</th>
+                <th className="px-3 md:px-4 py-3 w-28">{t('monthlyPage.columns.date')}</th>
+                <th className="px-3 md:px-4 py-3 w-[46%]">{t('monthlyPage.columns.description')}</th>
+                <th className="px-3 md:px-4 py-3 w-[22%]">{t('monthlyPage.columns.creator')}</th>
+                <th className="px-3 md:px-4 py-3 text-center w-24">{t('monthlyPage.columns.status')}</th>
+                <th className="px-3 md:px-4 py-3 text-center w-28">{isEn ? 'Actions' : 'Acciones'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                  <td colSpan={5} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                     {t('monthlyPage.emptyDesc')}
                   </td>
                 </tr>
               ) : filteredJobs.map((job) => (
                 <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
-                  <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
-                  <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.title || job.description}</td>
-                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.location || '-'}</td>
-                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.creator?.full_name || job.creator?.email || '-'}</td>
-                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.workers?.display_name || job.workers?.alias || '-'}</td>
-                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.job_type || job.type || '-'}</td>
-                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">{job.groups?.name || '-'}</td>
-                  <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.cost_spent)}</td>
-                  <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.amount_to_charge)}</td>
+                  <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50 whitespace-nowrap">{formatDate(job.date)}</td>
+                  <td className="px-3 md:px-4 py-3 text-gray-900 dark:text-slate-50">
+                    <div className="font-semibold truncate">{job.title || job.description}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-300 mt-1 truncate">
+                      {(job.location || '-') + ' · ' + (job.groups?.name || '-') + ' · ' + (job.job_type || job.type || '-')}
+                    </div>
+                  </td>
+                  <td className="px-3 md:px-4 py-3 text-gray-700 dark:text-slate-200">
+                    <div className="truncate">{job.creator?.full_name || job.creator?.email || '-'}</div>
+                    <div className="text-xs text-gray-500 dark:text-slate-300 mt-1 truncate">
+                      {job.workers?.display_name || job.workers?.alias || '-'}
+                    </div>
+                  </td>
                   <td className="px-3 md:px-4 py-3 text-center">
                     <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
                       job.status === 'completed' ? 'bg-green-100 text-green-700' :
