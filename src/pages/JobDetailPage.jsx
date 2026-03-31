@@ -139,7 +139,9 @@ export default function JobDetailPage() {
         {attachments.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {attachments.map((attachment, index) => {
-              const caption = attachment.image_description?.trim() || title;
+              const rawDescription = attachment.image_description?.trim() || '';
+              const isNumericOnly = rawDescription !== '' && /^\d+$/.test(rawDescription);
+              const caption = rawDescription && !isNumericOnly ? rawDescription : title;
               return (
               <div key={`${attachment.image_path || 'text-only'}-${index}`} className="space-y-2">
                 {attachment.image_url ? (
