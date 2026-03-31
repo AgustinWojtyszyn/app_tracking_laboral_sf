@@ -234,7 +234,71 @@ export default function MonthlyPanelPage() {
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
           <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{filteredJobs.length} {isEn ? 'records' : 'registros'}</span>
         </div>
-        <div>
+        <div className="md:hidden">
+          {filteredJobs.length === 0 ? (
+            <div className="px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm">
+              {t('monthlyPage.emptyDesc')}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-slate-800">
+              {filteredJobs.map((job) => (
+                <div key={job.id} className="p-4 flex flex-col gap-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate">
+                        {job.title || job.description}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-slate-300">
+                        {formatDate(job.date)}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${
+                      job.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-600 dark:text-slate-300">
+                    <span className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+                      {job.location || '-'}
+                    </span>
+                    <span className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+                      {job.workers?.display_name || job.workers?.alias || '-'}
+                    </span>
+                    <span className="bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded-full">
+                      {job.groups?.name || '-'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-600 dark:text-slate-300">
+                    <span>{formatCurrency(job.cost_spent)}</span>
+                    <span>{formatCurrency(job.amount_to_charge)}</span>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/app/jobs/${job.id}`)}
+                      className="h-8 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs font-semibold shadow-sm"
+                    >
+                      <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingJob(job)}
+                      className="h-8 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs font-semibold shadow-sm"
+                    >
+                      <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs md:text-sm text-left">
             <thead className="bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-100 uppercase font-semibold border-b border-gray-200 dark:border-slate-700">
               <tr>
