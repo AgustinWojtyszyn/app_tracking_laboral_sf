@@ -138,7 +138,9 @@ export default function JobDetailPage() {
         <h2 className="text-sm uppercase tracking-wide text-slate-300 mb-4">Imágenes</h2>
         {attachments.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {attachments.map((attachment, index) => (
+            {attachments.map((attachment, index) => {
+              const caption = attachment.image_description?.trim() || title;
+              return (
               <div key={`${attachment.image_path || 'text-only'}-${index}`} className="space-y-2">
                 {attachment.image_url ? (
                   <div className="space-y-2">
@@ -160,11 +162,11 @@ export default function JobDetailPage() {
                     Sin imagen cargada
                   </div>
                 )}
-                <p className="text-xs text-slate-300 uppercase tracking-wide">
-                  {getAttachmentDisplayTitle(attachment)}
+                <p className="text-xs text-slate-300">
+                  {caption}
                 </p>
               </div>
-            ))}
+            )})}
           </div>
         ) : (
           <p className="text-sm text-slate-300">Sin imágenes</p>
