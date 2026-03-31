@@ -8,7 +8,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
-import { CalendarDays, Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
@@ -95,14 +95,6 @@ export default function MonthlyPanelPage() {
     }, [])
   ), [jobs]);
 
-  // Group by day for calendar view
-  const jobsByDay = filteredJobs.reduce((acc, job) => {
-    const d = job.date;
-    if (!acc[d]) acc[d] = [];
-    acc[d].push(job);
-    return acc;
-  }, {});
-
   const handleShare = () => {
     if (!filteredJobs || filteredJobs.length === 0) return;
     const title = isEn
@@ -156,7 +148,7 @@ export default function MonthlyPanelPage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 text-lg md:text-xl">
+    <div className="space-y-8 animate-in fade-in duration-500 text-lg md:text-xl px-4 md:px-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
 	        <h1 className="text-4xl md:text-5xl font-bold text-[#1e3a8a] dark:text-slate-50">{t('monthlyPage.title')}</h1>
@@ -369,71 +361,7 @@ export default function MonthlyPanelPage() {
         </div>
       </div>
 
-      {loading ? <LoadingSpinner /> : (
-          <div className="grid gap-6" data-tour="panel-mensual-resumen">
-              {Object.keys(jobsByDay).sort().reverse().map(date => {
-                  const dayJobs = jobsByDay[date];
-                  
-                  return (
-                      <div key={date} className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow card-lg">
-                             <div className="bg-gray-50/80 dark:bg-slate-800/80 p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center backdrop-blur-sm">
-                                 <div className="flex items-center font-bold text-gray-800 dark:text-slate-50 text-xl md:text-2xl">
-                                     <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl shadow-sm mr-3 border border-gray-100 dark:border-slate-800">
-                                        <CalendarDays className="w-7 h-7 text-[#1e3a8a]" />
-                                     </div>
-                                     <span className="capitalize">{formatDate(date)}</span>
-                                 </div>
-                             </div>
-                             <div className="divide-y divide-gray-100 dark:divide-slate-800">
-                                 {dayJobs.map(job => (
-                                    <div key={job.id} className="p-6 flex flex-col sm:flex-row justify-between sm:items-center hover:bg-gray-50/50 dark:hover:bg-slate-800/60 transition-colors gap-3">
-                                         <div className="flex-1 min-w-0">
-                                            <p className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50 truncate">{job.title || job.description}</p>
-                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                                <span className="text-base md:text-lg text-gray-500 dark:text-slate-300">{job.location || '-'}</span>
-                                                <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
-                                                    {job.creator?.full_name || job.creator?.email || (isEn ? 'Creator' : 'Creador')}
-                                                </span>
-                                                <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
-                                                    {job.workers?.display_name || job.workers?.alias || (isEn ? 'No worker' : 'Sin trabajador')}
-                                                </span>
-                                                {job.groups && (
-                                                    <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
-                                                        {job.groups.name}
-                                                    </span>
-                                                )}
-                                                <span className="text-base md:text-lg bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full text-gray-600 dark:text-slate-200">
-                                                    {job.job_type || job.type || (isEn ? 'Type' : 'Tipo')}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-3 mt-3 flex-wrap text-sm md:text-base text-gray-600 dark:text-slate-300">
-                                              <span className="bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
-                                                {isEn ? 'Worker cost' : 'Costo trabajador'}: {formatCurrency(job.cost_spent)}
-                                              </span>
-                                              <span className="bg-gray-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
-                                                {isEn ? 'Charge' : 'Cobrar'}: {formatCurrency(job.amount_to_charge)}
-                                              </span>
-                                            </div>
-                                         </div>
-                                         <div className="flex items-center justify-end min-w-[170px]">
-                                            <div className="text-right w-24">
-                                                <span className={`text-base md:text-lg px-4 py-2 rounded-full font-medium ${
-                                                    job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                    job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                                                    'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                    {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
-                                                </span>
-                                            </div>
-                                         </div>
-                                     </div>
-                                 ))}
-                             </div>
-                      </div>
-                  )
-              })}
-          </div>
-      )}
+      {loading ? <LoadingSpinner /> : null}
       {editingJob && (
         <JobForm
           jobToEdit={editingJob}
