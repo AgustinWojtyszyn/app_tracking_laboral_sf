@@ -6,6 +6,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 export default function JobDetailPage() {
   const { id } = useParams();
   const { data, loading, error } = useJobById(id);
+  console.log('job detail route id', id);
+  console.log('JobDetailPage', { id, loading, error, data });
 
   if (loading) {
     return (

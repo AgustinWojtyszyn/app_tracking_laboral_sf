@@ -393,6 +393,7 @@ export const jobsService = {
 
   async getJobById(jobId, actorId = null) {
     try {
+      console.log('[jobsService.getJobById] input', { jobId, actorId });
       if (!jobId) {
         return { success: false, error: 'Trabajo no encontrado.' };
       }
@@ -414,6 +415,7 @@ export const jobsService = {
       }
 
       let { data, error } = await query.single();
+      console.log('[jobsService.getJobById] response', { data, error });
 
       if (error && error.code === 'PGRST204') {
         let fallbackQuery = supabase
@@ -431,6 +433,7 @@ export const jobsService = {
         }
 
         const fallbackResult = await fallbackQuery.single();
+        console.log('[jobsService.getJobById] fallback response', fallbackResult);
         data = fallbackResult.data;
         error = fallbackResult.error;
       }
