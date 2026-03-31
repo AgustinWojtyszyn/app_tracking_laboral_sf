@@ -8,18 +8,14 @@ export const useJobById = (id) => {
 
   useEffect(() => {
     let isMounted = true;
-    console.log('[useJobById] effect', { id });
-
     const fetchJob = async () => {
       if (!id) {
         setData(null);
         return;
       }
-      console.log('[useJobById] fetch start', { id });
       setLoading(true);
       setError(null);
       const result = await jobsService.getJobById(id);
-      console.log('[useJobById] fetch result', result);
       if (!isMounted) return;
       if (result?.success) {
         setData(result.data || null);
