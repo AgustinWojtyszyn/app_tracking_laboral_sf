@@ -6,12 +6,17 @@ import { formatDate, formatCurrency } from '@/utils/formatters';
 import { normalizeStoredJobImageAttachments, getJobImageTitleFromFileName } from '@/utils/jobImageAttachments';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-const getAttachmentDisplayTitle = (attachment) => {
-  const explicitTitle = attachment?.image_title?.trim();
-  if (explicitTitle) return explicitTitle;
-  const fileName = attachment?.file_name?.trim();
-  if (fileName) return getJobImageTitleFromFileName(fileName);
-  return 'Imagen';
+const isNumericOnly = (value) => /^\d+$/.test(value);
+
+const getAttachmentDisplayTitle = (attachment, fallbackTitle = 'Imagen') => {
+  const explicitTitle = attachment?.image_title?.trim() || '';
+  if (explicitTitle && !isNumericOnly(explicitTitle)) return explicitTitle;
+  const fileName = attachment?.file_name?.trim() || '';
+  if (fileName) {
+    const derived = getJobImageTitleFromFileName(fileName);
+    if (derived && !isNumericOnly(derived)) return derived;
+  }
+  return fallbackTitle;
 };
 
 const resolveSectorLabel = (job) => {
@@ -65,7 +70,7 @@ export default function JobDetailPage() {
     ? 'bg-gray-100 text-gray-700'
     : 'bg-yellow-100 text-yellow-700';
   const sectorLabel = resolveSectorLabel(data);
-  const selectedImageTitle = selectedImage ? getAttachmentDisplayTitle(selectedImage) : 'Imagen';
+  const selectedImageTitle = selectedImage ? getAttachmentDisplayTitle(selectedImage, title) : 'Imagen';
 
   return (
     <div className="space-y-6">
@@ -140,8 +145,7 @@ export default function JobDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {attachments.map((attachment, index) => {
               const rawDescription = attachment.image_description?.trim() || '';
-              const isNumericOnly = rawDescription !== '' && /^\d+$/.test(rawDescription);
-              const caption = rawDescription && !isNumericOnly ? rawDescription : title;
+              const caption = rawDescription && !isNumericOnly(rawDescription) ? rawDescription : title;
               return (
               <div key={`${attachment.image_path || 'text-only'}-${index}`} className="space-y-2">
                 {attachment.image_url ? (
