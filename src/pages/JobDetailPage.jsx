@@ -3,21 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useJobById } from '@/hooks/useJobById';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import { normalizeStoredJobImageAttachments, getJobImageTitleFromFileName } from '@/utils/jobImageAttachments';
+import { normalizeStoredJobImageAttachments, resolveImageDisplayTitle } from '@/utils/jobImageAttachments';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
-const isNumericOnly = (value) => /^\d+$/.test(value);
-
-const getAttachmentDisplayTitle = (attachment, fallbackTitle = 'Imagen') => {
-  const explicitTitle = attachment?.image_title?.trim() || '';
-  if (explicitTitle && !isNumericOnly(explicitTitle)) return explicitTitle;
-  const fileName = attachment?.file_name?.trim() || '';
-  if (fileName) {
-    const derived = getJobImageTitleFromFileName(fileName);
-    if (derived && !isNumericOnly(derived)) return derived;
-  }
-  return fallbackTitle;
-};
 
 const resolveSectorLabel = (job) => {
   const sectorType = (job?.sector_type || '').trim();
@@ -70,7 +57,7 @@ export default function JobDetailPage() {
     ? 'bg-gray-100 text-gray-700'
     : 'bg-yellow-100 text-yellow-700';
   const sectorLabel = resolveSectorLabel(data);
-  const selectedImageTitle = selectedImage ? getAttachmentDisplayTitle(selectedImage, title) : 'Imagen';
+  const selectedImageTitle = selectedImage ? resolveImageDisplayTitle(selectedImage, title) : 'Imagen adjunta';
 
   return (
     <div className="space-y-6">
@@ -144,8 +131,7 @@ export default function JobDetailPage() {
         {attachments.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {attachments.map((attachment, index) => {
-              const rawDescription = attachment.image_description?.trim() || '';
-              const caption = rawDescription && !isNumericOnly(rawDescription) ? rawDescription : title;
+              const caption = resolveImageDisplayTitle(attachment, title);
               return (
               <div key={`${attachment.image_path || 'text-only'}-${index}`} className="space-y-2">
                 {attachment.image_url ? (

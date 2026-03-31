@@ -33,14 +33,47 @@ export const sanitizeJobImageFileName = (fileName) => {
 export const getJobImageTitleFromFileName = (fileName) => {
   const normalizedName = normalizeText(fileName).trim();
   if (!normalizedName) {
-    return 'Imagen';
+    return '';
   }
 
   return normalizedName
     .replace(/\.[^.]+$/, '')
     .replace(/[-_]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim() || 'Imagen';
+    .trim() || '';
+};
+
+export const isInvalidImageDisplayTitle = (value) => {
+  const text = normalizeText(value).trim();
+  if (!text) return true;
+  if (text.includes('/') || text.includes('\\')) return true;
+  if (/^[0-9]+$/.test(text) && text.length >= 6) return true;
+  if (/^[a-f0-9]{12,}$/i.test(text)) return true;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) return true;
+  if (/^[0-9]{10,}$/.test(text)) return true;
+  return false;
+};
+
+export const resolveImageDisplayTitle = (attachment, fallbackTitle = 'Imagen adjunta') => {
+  const description = normalizeText(attachment?.image_description).trim();
+  if (description && !isInvalidImageDisplayTitle(description)) {
+    return description;
+  }
+
+  const explicitTitle = normalizeText(attachment?.image_title).trim();
+  if (explicitTitle && !isInvalidImageDisplayTitle(explicitTitle)) {
+    return explicitTitle;
+  }
+
+  const fileName = normalizeText(attachment?.file_name).trim();
+  if (fileName) {
+    const derived = getJobImageTitleFromFileName(fileName);
+    if (derived && !isInvalidImageDisplayTitle(derived)) {
+      return derived;
+    }
+  }
+
+  return fallbackTitle;
 };
 
 export const validateJobImageFile = (file) => {

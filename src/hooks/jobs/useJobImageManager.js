@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createJobImageDrafts,
   getJobImageTitleFromFileName,
+  isInvalidImageDisplayTitle,
   JOB_IMAGE_MAX_COUNT,
   validateJobImageDrafts,
   validateJobImageFile
@@ -62,7 +63,9 @@ export const useJobImageManager = ({ initialDrafts, addToast } = {}) => {
         URL.revokeObjectURL(attachment.previewUrl);
       }
 
-      const nextTitle = (attachment?.image_title || '').trim() || getJobImageTitleFromFileName(file?.name || '');
+      const derivedTitle = getJobImageTitleFromFileName(file?.name || '');
+      const derivedIsValid = derivedTitle && !isInvalidImageDisplayTitle(derivedTitle);
+      const nextTitle = (attachment?.image_title || '').trim() || (derivedIsValid ? derivedTitle : '');
 
       return {
         ...attachment,
