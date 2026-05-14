@@ -42,9 +42,14 @@ export const exportService = {
     XLSX.writeFile(workbook, filename);
   },
 
+  exportRecordsToExcel(records, fileName = 'trabajos.xls', sheetName = 'Trabajos') {
+    if (!records || records.length === 0) return;
+    const data = records.map(this._mapJobToRow);
+    this._saveWorkbook(data, fileName, sheetName);
+  },
+
   exportJobsToExcel(jobs, filename = 'trabajos.xls') {
     if (!jobs || jobs.length === 0) return;
-
     const data = jobs.map(this._mapJobToRow);
 
     // Calculate totals

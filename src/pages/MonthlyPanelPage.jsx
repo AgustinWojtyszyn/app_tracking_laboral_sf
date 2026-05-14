@@ -35,6 +35,7 @@ export default function MonthlyPanelPage() {
   const [jobs, setJobs] = useState([]);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
+  const [exportingCompleted, setExportingCompleted] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   
   // Use filter hook for state management
@@ -101,6 +102,34 @@ export default function MonthlyPanelPage() {
       ? `Monthly orders ${filters.startDate} to ${filters.endDate}`
       : `Órdenes mensuales ${filters.startDate} a ${filters.endDate}`;
     exportService.shareJobsViaWhatsApp(filteredJobs, title);
+  };
+
+  const handleExportCompletedExcel = () => {
+    const completedRecords = filteredJobs.filter((record) => {
+      const estado = String(record?.estado || '').toLowerCase();
+      const status = String(record?.status || '').toLowerCase();
+      return estado === 'completado' || status === 'completed';
+    });
+
+    if (completedRecords.length === 0) {
+      addToast(
+        isEn
+          ? 'No completed records to export.'
+          : 'No hay registros completados para exportar.',
+        'error'
+      );
+      return;
+    }
+
+    setExportingCompleted(true);
+    setTimeout(() => {
+      exportService.exportRecordsToExcel(
+        completedRecords,
+        'mantenimiento-completados.xlsx',
+        'Completados'
+      );
+      setExportingCompleted(false);
+    }, 300);
   };
 
   const handleClearCompleted = async () => {
@@ -207,6 +236,16 @@ export default function MonthlyPanelPage() {
               icon={FileSpreadsheet}
               className="min-w-[170px] w-full sm:w-auto text-base md:text-lg h-12 md:h-14 shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0"
           />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExportCompletedExcel}
+            disabled={loading || exportingCompleted}
+            className="gap-2 min-w-[170px] w-full sm:w-auto text-base md:text-lg h-12 md:h-14 shadow-sm"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+            {isEn ? 'Export completed' : 'Exportar completados'}
+          </Button>
         </div>
       </div>
 
