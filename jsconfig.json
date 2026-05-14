@@ -6,7 +6,8 @@
     },
     "target": "ES2022",
     "jsx": "react-jsx",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }
