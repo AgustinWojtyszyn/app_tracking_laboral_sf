@@ -96,6 +96,50 @@ export default function MonthlyPanelPage() {
     }, [])
   ), [jobs]);
 
+  const normalizeStatusValue = (record) => String(record?.estado || record?.status || '').trim().toLowerCase();
+  const getRawStatusValue = (record) => String(record?.estado ?? record?.status ?? '');
+  const isCompletedRecord = (record) => {
+    const normalized = normalizeStatusValue(record);
+    return normalized === 'completado' || normalized === 'completed';
+  };
+  const completedJobsInView = useMemo(
+    () => filteredJobs.filter(isCompletedRecord),
+    [filteredJobs]
+  );
+
+  useEffect(() => {
+    const allRawStatuses = jobs.map(getRawStatusValue);
+    const allStatuses = jobs.map(normalizeStatusValue).filter(Boolean);
+    const filteredStatuses = filteredJobs.map(normalizeStatusValue).filter(Boolean);
+    const uniqueRawStatuses = Array.from(new Set(allRawStatuses)).sort();
+    const uniqueStatuses = Array.from(new Set(allStatuses)).sort();
+    const statusCounts = allStatuses.reduce((acc, status) => {
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    console.group('[MonthlyPanel] Diagnóstico exportación completados');
+    console.log('Filtros activos', {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      status: filters.status,
+      groupId: filters.groupId,
+      workerId: filters.workerId,
+      search: filters.search
+    });
+    console.log('Total registros cargados', jobs.length);
+    console.log('Total registros filtrados en pantalla', filteredJobs.length);
+    console.log('Total registros completados (pantalla)', completedJobsInView.length);
+    console.log('Estados únicos RAW (dataset cargado)', uniqueRawStatuses);
+    console.log('Estados únicos normalizados (dataset cargado)', uniqueStatuses);
+    console.log('Conteo por estado normalizado', statusCounts);
+    console.log('Estados en pantalla (muestra)', filteredStatuses.slice(0, 20));
+    if (filters.status && filters.status !== 'all') {
+      console.warn(`Filtro de estado activo: "${filters.status}". Esto limita lo exportable.`);
+    }
+    console.groupEnd();
+  }, [jobs, filteredJobs, completedJobsInView.length, filters]);
+
   const handleShare = () => {
     if (!filteredJobs || filteredJobs.length === 0) return;
     const title = isEn
@@ -105,17 +149,14 @@ export default function MonthlyPanelPage() {
   };
 
   const handleExportCompletedExcel = () => {
-    const completedRecords = filteredJobs.filter((record) => {
-      const estado = String(record?.estado || '').toLowerCase();
-      const status = String(record?.status || '').toLowerCase();
-      return estado === 'completado' || status === 'completed';
-    });
+    // Usa registros visibles (ya respetan fecha/estado/grupo/trabajador/búsqueda).
+    const completedRecords = completedJobsInView;
 
     if (completedRecords.length === 0) {
       addToast(
         isEn
-          ? 'No completed records to export.'
-          : 'No hay registros completados para exportar.',
+          ? 'No completed records to export with the active filters.'
+          : 'No hay registros completados para exportar con los filtros activos.',
         'error'
       );
       return;
