@@ -313,6 +313,14 @@ export const jobsService = {
 
   async getJobsByDateRange(startDate, endDate, filters = {}) {
     try {
+      console.log('[jobs.service] getJobsByDateRange params', {
+        startDate,
+        endDate,
+        status: filters?.status,
+        groupId: filters?.groupId,
+        workerId: filters?.workerId,
+        search: filters?.search
+      });
       const { userId, groupIds, isAdmin } = await this.resolveActorContext(filters.currentUserId);
       const requestedGroupId = filters.groupId ? filters.groupId.toString() : null;
       if (!userId) return { success: true, data: [] };
@@ -380,6 +388,21 @@ export const jobsService = {
 
       if (error) throw error;
       const safeData = Array.isArray(data) ? data.map(hydrateJobRecord) : [];
+      const jobDateValues = safeData.map((job) => job?.date).filter(Boolean).sort();
+      const createdAtValues = safeData.map((job) => job?.created_at).filter(Boolean).sort();
+      const scheduledDateValues = safeData.map((job) => job?.scheduled_date).filter(Boolean).sort();
+      const completedAtValues = safeData.map((job) => job?.completed_at).filter(Boolean).sort();
+      console.log('[jobs.service] getJobsByDateRange result summary', {
+        total: safeData.length,
+        minDate: jobDateValues[0] || null,
+        maxDate: jobDateValues[jobDateValues.length - 1] || null,
+        minCreatedAt: createdAtValues[0] || null,
+        maxCreatedAt: createdAtValues[createdAtValues.length - 1] || null,
+        minScheduledDate: scheduledDateValues[0] || null,
+        maxScheduledDate: scheduledDateValues[scheduledDateValues.length - 1] || null,
+        minCompletedAt: completedAtValues[0] || null,
+        maxCompletedAt: completedAtValues[completedAtValues.length - 1] || null
+      });
       return { success: true, data: safeData };
     } catch (error) {
       console.error("GetJobs Error:", error);

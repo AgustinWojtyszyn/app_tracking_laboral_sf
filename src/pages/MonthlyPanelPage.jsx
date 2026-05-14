@@ -98,13 +98,32 @@ export default function MonthlyPanelPage() {
 
   const normalizeStatusValue = (record) => String(record?.estado || record?.status || '').trim().toLowerCase();
   const getRawStatusValue = (record) => String(record?.estado ?? record?.status ?? '');
+  const normalizeDateOnly = (value) => {
+    if (!value) return '';
+    const raw = String(value).trim();
+    const isoMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) return isoMatch[1];
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return '';
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const isWithinSelectedRange = (record) => {
+    const recordDate = normalizeDateOnly(record?.date || record?.fecha);
+    const start = normalizeDateOnly(filters.startDate);
+    const end = normalizeDateOnly(filters.endDate);
+    if (!recordDate || !start || !end) return false;
+    return recordDate >= start && recordDate <= end;
+  };
   const isCompletedRecord = (record) => {
     const normalized = normalizeStatusValue(record);
     return normalized === 'completado' || normalized === 'completed';
   };
   const completedJobsInView = useMemo(
-    () => filteredJobs.filter(isCompletedRecord),
-    [filteredJobs]
+    () => filteredJobs.filter((record) => isCompletedRecord(record) && isWithinSelectedRange(record)),
+    [filteredJobs, filters.startDate, filters.endDate]
   );
 
   useEffect(() => {
@@ -130,6 +149,11 @@ export default function MonthlyPanelPage() {
     console.log('Total registros cargados', jobs.length);
     console.log('Total registros filtrados en pantalla', filteredJobs.length);
     console.log('Total registros completados (pantalla)', completedJobsInView.length);
+    const dateValues = jobs.map((job) => normalizeDateOnly(job?.date || job?.fecha)).filter(Boolean).sort();
+    console.log('Fecha desde (filtro UI/backend)', filters.startDate);
+    console.log('Fecha hasta (filtro UI/backend)', filters.endDate);
+    console.log('Fecha mínima jobs recibidos', dateValues[0] || null);
+    console.log('Fecha máxima jobs recibidos', dateValues[dateValues.length - 1] || null);
     console.log('Estados únicos RAW (dataset cargado)', uniqueRawStatuses);
     console.log('Estados únicos normalizados (dataset cargado)', uniqueStatuses);
     console.log('Conteo por estado normalizado', statusCounts);
@@ -164,6 +188,12 @@ export default function MonthlyPanelPage() {
 
     setExportingCompleted(true);
     setTimeout(() => {
+      console.log('[MonthlyPanel] Fechas de completados exportados', completedRecords.map((r) => ({
+        id: r.id,
+        date: r.date || r.fecha || null,
+        normalizedDate: normalizeDateOnly(r.date || r.fecha || null),
+        status: r.status || r.estado || null
+      })));
       exportService.exportRecordsToExcel(
         completedRecords,
         'mantenimiento-completados.xlsx',
