@@ -16,6 +16,7 @@ import JobForm from '@/components/jobs/JobForm';
 import { History, Download, Trash2, Edit2, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/ToastContext';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 
 export default function HistoryPage() {
   const { user, isAdmin } = useAuth();
@@ -154,6 +155,23 @@ export default function HistoryPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {currentData.map((job) => (
+                  (() => {
+                    const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
+                    const statusClass = normalizedStatus === 'completed'
+                      ? 'bg-green-100 text-green-800'
+                      : normalizedStatus === 'pending'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : normalizedStatus === 'archived'
+                      ? 'bg-gray-100 text-gray-800'
+                      : 'bg-slate-100 text-slate-700';
+                    const statusLabel = normalizedStatus === 'completed'
+                      ? 'Completado'
+                      : normalizedStatus === 'pending'
+                      ? 'Pendiente'
+                      : normalizedStatus === 'archived'
+                      ? 'Archivado'
+                      : 'No informado';
+                    return (
                   <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-slate-800">
                     <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-slate-50">{formatDate(job.date)}</td>
                     <td className="px-6 py-4 max-w-xs truncate text-gray-900 dark:text-slate-50" title={job.title || job.description}>{job.title || job.description}</td>
@@ -162,12 +180,8 @@ export default function HistoryPage() {
                     <td className="px-6 py-4 text-right">{formatCurrency(job.cost_spent)}</td>
                     <td className="px-6 py-4 text-right">{formatCurrency(job.amount_to_charge)}</td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        job.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                        job.status === 'archived' ? 'bg-gray-100 text-gray-800' : 
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {job.status === 'pending' ? 'Pendiente' : job.status === 'completed' ? 'Completado' : 'Archivado'}
+                      <span className={`text-xs px-2 py-1 rounded-full ${statusClass}`}>
+                        {statusLabel}
                       </span>
                     </td>
                     <td className="pl-10 pr-6 py-4">{job.location}</td>
@@ -191,6 +205,8 @@ export default function HistoryPage() {
                       </div>
                     </td>
                   </tr>
+                    );
+                  })()
                 ))}
               </tbody>
             </table>
@@ -199,6 +215,23 @@ export default function HistoryPage() {
           {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
               {currentData.map((job) => (
+                (() => {
+                  const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
+                  const statusClass = normalizedStatus === 'completed'
+                    ? 'bg-green-100 text-green-700'
+                    : normalizedStatus === 'pending'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : normalizedStatus === 'archived'
+                    ? 'bg-gray-100 text-gray-700'
+                    : 'bg-slate-100 text-slate-700';
+                  const statusLabel = normalizedStatus === 'completed'
+                    ? 'Completado'
+                    : normalizedStatus === 'pending'
+                    ? 'Pendiente'
+                    : normalizedStatus === 'archived'
+                    ? 'Archivado'
+                    : 'No informado';
+                  return (
                 <div key={job.id} className="p-4 bg-white dark:bg-slate-900 flex flex-col gap-2">
                       <div className="flex justify-between items-start">
                           <div>
@@ -207,10 +240,8 @@ export default function HistoryPage() {
                           </div>
                           <div className="text-right">
                               <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold mt-1 inline-block ${
-                                    job.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                                    job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                                    'bg-yellow-100 text-yellow-700'
-                                }`}>{job.status === 'pending' ? 'Pendiente' : job.status}</span>
+                                    statusClass
+                                }`}>{statusLabel}</span>
                           </div>
                       </div>
                       
@@ -241,6 +272,8 @@ export default function HistoryPage() {
                         )}
                       </div>
                   </div>
+                  );
+                })()
               ))}
           </div>
           

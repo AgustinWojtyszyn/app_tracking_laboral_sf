@@ -16,6 +16,7 @@ import QuickFilterChips from '@/components/jobs/QuickFilterChips';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
@@ -55,7 +56,8 @@ export default function DailyJobsPage() {
   ), [jobs]);
   const filteredJobs = useMemo(() => (
     jobs.filter((job) => {
-      if (statusFilter !== 'all' && job.status !== statusFilter) return false;
+      const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
+      if (statusFilter !== 'all' && normalizedStatus !== statusFilter) return false;
       if (groupFilter !== 'all' && (job.group_id || '') !== groupFilter) return false;
       if (workerFilter !== 'all' && (job.worker_id || '') !== workerFilter) return false;
       return true;
@@ -346,6 +348,23 @@ export default function DailyJobsPage() {
                       </td>
                     </tr>
                   ) : filteredJobs.map((job) => (
+                    (() => {
+                      const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
+                      const statusClass = normalizedStatus === 'completed'
+                        ? 'bg-green-100 text-green-700'
+                        : normalizedStatus === 'pending'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : normalizedStatus === 'archived'
+                        ? 'bg-gray-100 text-gray-700'
+                        : 'bg-slate-100 text-slate-700';
+                      const statusLabel = normalizedStatus === 'completed'
+                        ? (isEn ? 'Completed' : 'Completado')
+                        : normalizedStatus === 'pending'
+                          ? (isEn ? 'Pending' : 'Pendiente')
+                          : normalizedStatus === 'archived'
+                            ? (isEn ? 'Archived' : 'Archivado')
+                            : (isEn ? 'Not informed' : 'No informado');
+                      return (
                     <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                       <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
                       <td className="px-3 md:px-4 py-3 font-semibold text-gray-900 dark:text-slate-50">{job.title || job.description}</td>
@@ -357,16 +376,8 @@ export default function DailyJobsPage() {
                       <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.cost_spent)}</td>
                       <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.amount_to_charge)}</td>
                       <td className="px-3 md:px-4 py-3 text-center">
-                        <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
-                          job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {job.status === 'pending'
-                            ? (isEn ? 'Pending' : 'Pendiente')
-                            : job.status === 'completed'
-                              ? (isEn ? 'Completed' : 'Completado')
-                              : (isEn ? 'Archived' : 'Archivado')}
+                        <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${statusClass}`}>
+                          {statusLabel}
                         </span>
                       </td>
                       <td className="px-3 md:px-4 py-3 text-center">
@@ -390,6 +401,8 @@ export default function DailyJobsPage() {
                         </div>
                       </td>
                     </tr>
+                      );
+                    })()
                   ))}
                 </tbody>
               </table>

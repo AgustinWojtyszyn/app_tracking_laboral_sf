@@ -7,6 +7,7 @@ import { Briefcase, ArrowRight, Plus, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatCurrency } from '@/utils/formatters';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 
 export default function DashboardPage() {
   const { user, profile } = useAuth();
@@ -65,6 +66,23 @@ export default function DashboardPage() {
                 </div>
             ) : (
                 recentJobs.map(job => (
+                  (() => {
+                    const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
+                    const statusClass = normalizedStatus === 'completed'
+                      ? 'bg-green-100 text-green-700'
+                      : normalizedStatus === 'pending'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : normalizedStatus === 'archived'
+                      ? 'bg-gray-100 text-gray-700'
+                      : 'bg-slate-100 text-slate-700';
+                    const statusLabel = normalizedStatus === 'completed'
+                      ? 'Completado'
+                      : normalizedStatus === 'pending'
+                      ? 'Pendiente'
+                      : normalizedStatus === 'archived'
+                      ? 'Archivado'
+                      : 'No informado';
+                    return (
                     <div key={job.id} className="p-4 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-900 truncate">{job.title || job.description || "Sin descripción"}</p>
@@ -89,17 +107,12 @@ export default function DashboardPage() {
                                 </div>
                              </div>
                              <div className="text-right">
-                                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${
-                                    job.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                                    job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                                    'bg-yellow-100 text-yellow-700'
-                                }`}>{
-                                    job.status === 'pending' ? 'Pendiente' : 
-                                    job.status === 'completed' ? 'Completado' : 'Archivado'
-                                }</span>
+                                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${statusClass}`}>{statusLabel}</span>
                              </div>
                         </div>
                     </div>
+                    );
+                  })()
                 ))
             )}
         </div>

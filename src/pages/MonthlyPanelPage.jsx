@@ -8,6 +8,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import { getMonthStart, getMonthEnd } from '@/utils/dates';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
@@ -20,6 +21,8 @@ import { jobsService } from '@/services/jobs.service';
 import { onboardingService } from '@/services/onboarding.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import JobForm from '@/components/jobs/JobForm';
+
+const DEBUG_MAINTENANCE = false;
 
 export default function MonthlyPanelPage() {
   const { user, isAdmin, userRole } = useAuth();
@@ -96,7 +99,7 @@ export default function MonthlyPanelPage() {
     }, [])
   ), [jobs]);
 
-  const normalizeStatusValue = (record) => String(record?.estado || record?.status || '').trim().toLowerCase();
+  const normalizeStatusValue = (record) => normalizeJobStatus(record?.estado || record?.status);
   const getRawStatusValue = (record) => String(record?.estado ?? record?.status ?? '');
   const normalizeDateOnly = (value) => {
     if (!value) return '';
@@ -119,7 +122,32 @@ export default function MonthlyPanelPage() {
   };
   const isCompletedRecord = (record) => {
     const normalized = normalizeStatusValue(record);
-    return normalized === 'completado' || normalized === 'completed';
+    return normalized === 'completed';
+  };
+  const getStatusMeta = (job) => {
+    const normalized = normalizeStatusValue(job);
+    if (normalized === 'completed') {
+      return {
+        badgeClass: 'bg-green-100 text-green-700',
+        label: t('monthlyPage.status.completed')
+      };
+    }
+    if (normalized === 'pending') {
+      return {
+        badgeClass: 'bg-yellow-100 text-yellow-700',
+        label: t('monthlyPage.status.pending')
+      };
+    }
+    if (normalized === 'archived') {
+      return {
+        badgeClass: 'bg-gray-100 text-gray-700',
+        label: t('monthlyPage.status.archived')
+      };
+    }
+    return {
+      badgeClass: 'bg-slate-100 text-slate-700',
+      label: isEn ? 'Not informed' : 'No informado'
+    };
   };
   const completedJobsInView = useMemo(
     () => filteredJobs.filter((record) => isCompletedRecord(record) && isWithinSelectedRange(record)),
@@ -137,31 +165,33 @@ export default function MonthlyPanelPage() {
       return acc;
     }, {});
 
-    console.group('[MonthlyPanel] Diagnóstico exportación completados');
-    console.log('Filtros activos', {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      status: filters.status,
-      groupId: filters.groupId,
-      workerId: filters.workerId,
-      search: filters.search
-    });
-    console.log('Total registros cargados', jobs.length);
-    console.log('Total registros filtrados en pantalla', filteredJobs.length);
-    console.log('Total registros completados (pantalla)', completedJobsInView.length);
-    const dateValues = jobs.map((job) => normalizeDateOnly(job?.date || job?.fecha)).filter(Boolean).sort();
-    console.log('Fecha desde (filtro UI/backend)', filters.startDate);
-    console.log('Fecha hasta (filtro UI/backend)', filters.endDate);
-    console.log('Fecha mínima jobs recibidos', dateValues[0] || null);
-    console.log('Fecha máxima jobs recibidos', dateValues[dateValues.length - 1] || null);
-    console.log('Estados únicos RAW (dataset cargado)', uniqueRawStatuses);
-    console.log('Estados únicos normalizados (dataset cargado)', uniqueStatuses);
-    console.log('Conteo por estado normalizado', statusCounts);
-    console.log('Estados en pantalla (muestra)', filteredStatuses.slice(0, 20));
-    if (filters.status && filters.status !== 'all') {
-      console.warn(`Filtro de estado activo: "${filters.status}". Esto limita lo exportable.`);
+    if (DEBUG_MAINTENANCE) {
+      console.group('[MonthlyPanel] Diagnóstico exportación completados');
+      console.log('Filtros activos', {
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        status: filters.status,
+        groupId: filters.groupId,
+        workerId: filters.workerId,
+        search: filters.search
+      });
+      console.log('Total registros cargados', jobs.length);
+      console.log('Total registros filtrados en pantalla', filteredJobs.length);
+      console.log('Total registros completados (pantalla)', completedJobsInView.length);
+      const dateValues = jobs.map((job) => normalizeDateOnly(job?.date || job?.fecha)).filter(Boolean).sort();
+      console.log('Fecha desde (filtro UI/backend)', filters.startDate);
+      console.log('Fecha hasta (filtro UI/backend)', filters.endDate);
+      console.log('Fecha mínima jobs recibidos', dateValues[0] || null);
+      console.log('Fecha máxima jobs recibidos', dateValues[dateValues.length - 1] || null);
+      console.log('Estados únicos RAW (dataset cargado)', uniqueRawStatuses);
+      console.log('Estados únicos normalizados (dataset cargado)', uniqueStatuses);
+      console.log('Conteo por estado normalizado', statusCounts);
+      console.log('Estados en pantalla (muestra)', filteredStatuses.slice(0, 20));
+      if (filters.status && filters.status !== 'all') {
+        console.warn(`Filtro de estado activo: "${filters.status}". Esto limita lo exportable.`);
+      }
+      console.groupEnd();
     }
-    console.groupEnd();
   }, [jobs, filteredJobs, completedJobsInView.length, filters]);
 
   const handleShare = () => {
@@ -188,12 +218,14 @@ export default function MonthlyPanelPage() {
 
     setExportingCompleted(true);
     setTimeout(() => {
-      console.log('[MonthlyPanel] Fechas de completados exportados', completedRecords.map((r) => ({
-        id: r.id,
-        date: r.date || r.fecha || null,
-        normalizedDate: normalizeDateOnly(r.date || r.fecha || null),
-        status: r.status || r.estado || null
-      })));
+      if (DEBUG_MAINTENANCE) {
+        console.log('[MonthlyPanel] Fechas de completados exportados', completedRecords.map((r) => ({
+          id: r.id,
+          date: r.date || r.fecha || null,
+          normalizedDate: normalizeDateOnly(r.date || r.fecha || null),
+          status: r.status || r.estado || null
+        })));
+      }
       exportService.exportRecordsToExcel(
         completedRecords,
         'mantenimiento-completados.xlsx',
@@ -345,6 +377,10 @@ export default function MonthlyPanelPage() {
             <div className="divide-y divide-gray-100 dark:divide-slate-800">
               {filteredJobs.map((job) => (
                 <div key={job.id} className="p-4 flex flex-col gap-2">
+                  {(() => {
+                    const statusMeta = getStatusMeta(job);
+                    return (
+                      <>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate">
@@ -354,12 +390,8 @@ export default function MonthlyPanelPage() {
                         {formatDate(job.date)}
                       </p>
                     </div>
-                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${
-                      job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
+                    <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${statusMeta.badgeClass}`}>
+                      {statusMeta.label}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-600 dark:text-slate-300">
@@ -395,6 +427,9 @@ export default function MonthlyPanelPage() {
                       <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
                     </Button>
                   </div>
+                </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -420,6 +455,10 @@ export default function MonthlyPanelPage() {
                 </tr>
               ) : filteredJobs.map((job) => (
                 <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
+                  {(() => {
+                    const statusMeta = getStatusMeta(job);
+                    return (
+                      <>
                   <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50 whitespace-nowrap">{formatDate(job.date)}</td>
                   <td className="px-3 md:px-4 py-3 text-gray-900 dark:text-slate-50">
                     <div className="font-semibold truncate">{job.title || job.description}</div>
@@ -434,12 +473,8 @@ export default function MonthlyPanelPage() {
                     </div>
                   </td>
                   <td className="px-3 md:px-4 py-3 text-center">
-                    <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${
-                      job.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      job.status === 'archived' ? 'bg-gray-100 text-gray-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {job.status === 'pending' ? t('monthlyPage.status.pending') : job.status === 'completed' ? t('monthlyPage.status.completed') : t('monthlyPage.status.archived')}
+                    <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${statusMeta.badgeClass}`}>
+                      {statusMeta.label}
                     </span>
                   </td>
                   <td className="px-3 md:px-4 py-3 text-center">
@@ -462,6 +497,9 @@ export default function MonthlyPanelPage() {
                       </Button>
                     </div>
                   </td>
+                </>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>

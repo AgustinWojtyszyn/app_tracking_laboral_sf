@@ -4,6 +4,7 @@ import { useJobById } from '@/hooks/useJobById';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import { normalizeStoredJobImageAttachments, resolveImageDisplayTitle } from '@/utils/jobImageAttachments';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const resolveSectorLabel = (job) => {
@@ -46,16 +47,21 @@ export default function JobDetailPage() {
 
   const attachments = normalizeStoredJobImageAttachments(data.image_attachments);
   const title = data.title || data.description || 'Detalle de solicitud';
-  const statusLabel = data.status === 'completed'
+  const normalizedStatus = normalizeJobStatus(data?.estado || data?.status);
+  const statusLabel = normalizedStatus === 'completed'
     ? 'Completado'
-    : data.status === 'archived'
+    : normalizedStatus === 'pending'
+    ? 'Pendiente'
+    : normalizedStatus === 'archived'
     ? 'Archivado'
-    : 'Pendiente';
-  const statusClass = data.status === 'completed'
+    : 'No informado';
+  const statusClass = normalizedStatus === 'completed'
     ? 'bg-green-100 text-green-700'
-    : data.status === 'archived'
+    : normalizedStatus === 'pending'
+    ? 'bg-yellow-100 text-yellow-700'
+    : normalizedStatus === 'archived'
     ? 'bg-gray-100 text-gray-700'
-    : 'bg-yellow-100 text-yellow-700';
+    : 'bg-slate-100 text-slate-700';
   const sectorLabel = resolveSectorLabel(data);
   const selectedImageTitle = selectedImage ? resolveImageDisplayTitle(selectedImage, title) : 'Imagen adjunta';
 
