@@ -18,6 +18,11 @@ Aplicación web para la gestión de trabajos diarios, control de horas, costos y
 1.  Clonar el repositorio.
 2.  Copiar `.env.example` a `.env` (si existe) o configurar las siguientes variables en su entorno de despliegue:
 
+- `VITE_SUPABASE_URL=https://kaprywsyjqmqinyggsjt.supabase.co`
+- `VITE_SUPABASE_ANON_KEY=sb_publishable_mN3wxOCP1B0-WWC5B6xWPw_k59K3VjC`
+
+Nota para Render: el frontend (Vite) solo puede leer variables `VITE_*` desde `import.meta.env`. Definir solo `SUPABASE_URL`/`SUPABASE_ANON_KEY` no alcanza para el frontend.
+
 ## Pruebas de carga con Locust
 
 1. Crea un entorno virtual de Python y activa: `python -m venv .venv && source .venv/bin/activate`

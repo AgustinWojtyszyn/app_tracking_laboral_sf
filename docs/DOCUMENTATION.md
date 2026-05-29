@@ -1,4 +1,3 @@
-
 # Maintenance Panel - Documentation
 
 ## Overview
@@ -11,6 +10,26 @@ This application requires the following environment variables to be set in your 
 
 - `VITE_SUPABASE_URL`: Your Supabase project URL
 - `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous public key
+
+### Render Notes (Important)
+
+This frontend is built with Vite and only exposes variables prefixed with `VITE_` to browser code.
+
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Render are not readable from `import.meta.env` in the frontend.
+- Do not expose generic `SUPABASE_*` to the client, because that convention can include sensitive keys like `SUPABASE_SERVICE_ROLE_KEY`.
+
+For this project, configure these exact frontend vars in Render:
+
+- `VITE_SUPABASE_URL=https://kaprywsyjqmqinyggsjt.supabase.co`
+- `VITE_SUPABASE_ANON_KEY=sb_publishable_mN3wxOCP1B0-WWC5B6xWPw_k59K3VjC`
+
+Backend/server-side environment should keep using:
+
+- `SUPABASE_URL=https://kaprywsyjqmqinyggsjt.supabase.co`
+- `SUPABASE_ANON_KEY=sb_publishable_mN3wxOCP1B0-WWC5B6xWPw_k59K3VjC` (only if needed by server integrations)
+- `SUPABASE_SERVICE_ROLE_KEY=<service role key for kaprywsyjqmqinyggsjt>`
+- `JWT_SECRET=<current secret>`
+- `EMAIL_REDIRECT_URL=https://bejewelled-pavlova-fd0326.netlify.app/login`
 
 ### How to Verify Installation
 
@@ -33,10 +52,10 @@ This application requires the following environment variables to be set in your 
 
 The frontend uses build-time env vars. If a build is done with an old URL, the deployed app will keep pointing to the wrong project.
 
-1. **Set correct env vars in your build environment** (CI/CD, Netlify, Vercel, Hostinger, etc.). Use `VITE_SUPABASE_URL=https://kaprywsyjqmqinyggsjt.supabase.co` and `VITE_SUPABASE_ANON_KEY=<anon key from the same project>`.
-2. **Clear build cache and rebuild.** Netlify: "Deploys" → "Trigger deploy" → "Clear cache and deploy site". Vercel: "Deployments" → "Redeploy" → check "Clear build cache". Manual/Hostinger: delete old `dist/`, run `npm run build`, upload the new `dist/`.
+1. **Set correct env vars in your build environment** (CI/CD, Netlify, Vercel, Render, Hostinger, etc.). Use `VITE_SUPABASE_URL=https://kaprywsyjqmqinyggsjt.supabase.co` and `VITE_SUPABASE_ANON_KEY=<anon key from the same project>`.
+2. **Clear build cache and rebuild.** Netlify: "Deploys" -> "Trigger deploy" -> "Clear cache and deploy site". Vercel: "Deployments" -> "Redeploy" -> check "Clear build cache". Manual/Hostinger: delete old `dist/`, run `npm run build`, upload the new `dist/`.
 3. **Avoid accidental prod usage of `.env`.** `.env` is ignored by git and should not be uploaded to the hosting server. The build system must supply the env vars; static hosts do not read `.env` at runtime.
-4. **Verify after deploy.** Open DevTools → Network → verify requests go to `kaprywsyjqmqinyggsjt.supabase.co`.
+4. **Verify after deploy.** Open DevTools -> Network -> verify requests go to `kaprywsyjqmqinyggsjt.supabase.co`.
 
 ## Modified Files
 - `src/main.jsx`: Entry point, wraps app in providers.
