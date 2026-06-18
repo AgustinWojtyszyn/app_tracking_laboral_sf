@@ -30,12 +30,19 @@ const hydrateFormForEdit = (jobToEdit, initialForm) => ({
   amount_to_charge: jobToEdit.amount_to_charge ?? ''
 });
 
+export const shouldApplyJobFormLoadResult = ({ isMounted, loadId, currentLoadId }) => (
+  Boolean(isMounted && loadId === currentLoadId)
+);
+
 export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
   const [groups, setGroups] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
   const requestIdRef = useRef(null);
+  const mountedRef = useRef(false);
+  const loadIdRef = useRef(0);
   const addWorker = useCallback((worker) => {
+    if (!mountedRef.current) return;
     setWorkers((prev) => [...prev, worker]);
   }, []);
 
@@ -72,8 +79,7 @@ export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData?.user?.id || null;
     if (!userId) {
-      setGroups([]);
-      return;
+      return [];
     }
 
     const [{ data: profile }, { data: memberships }] = await Promise.all([
@@ -92,24 +98,42 @@ export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
     }
 
     const { data } = await query;
-    if (data) setGroups(data);
+    return data || [];
   }, []);
 
   const fetchWorkers = useCallback(async () => {
     const result = await workersService.getWorkers();
     if (result.success && result.data) {
-      setWorkers(result.data);
+      return result.data;
     }
+    return [];
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
+    const loadId = loadIdRef.current + 1;
+    loadIdRef.current = loadId;
 
     const load = async () => {
+      if (!mountedRef.current) return;
       setDataLoading(true);
-      await Promise.all([fetchGroups(), fetchWorkers()]);
-      if (isMounted) {
-        setDataLoading(false);
+      try {
+        const [nextGroups, nextWorkers] = await Promise.all([fetchGroups(), fetchWorkers()]);
+        if (!shouldApplyJobFormLoadResult({
+          isMounted: mountedRef.current,
+          loadId,
+          currentLoadId: loadIdRef.current
+        })) return;
+        setGroups(nextGroups);
+        setWorkers(nextWorkers);
+      } finally {
+        if (shouldApplyJobFormLoadResult({
+          isMounted: mountedRef.current,
+          loadId,
+          currentLoadId: loadIdRef.current
+        })) {
+          setDataLoading(false);
+        }
       }
     };
 
@@ -126,7 +150,8 @@ export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
     }
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
+      loadIdRef.current += 1;
     };
   }, [fetchGroups, fetchWorkers, generateRequestId, isActive, jobToEdit]);
 

@@ -29,3 +29,5 @@ export const createLatestRequestGuard = () => {
     },
   };
 };
+
+export const shouldApplyMonthlyJobsResult = ({ isMounted, isLatest }) => Boolean(isMounted && isLatest);

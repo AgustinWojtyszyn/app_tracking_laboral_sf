@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createLatestRequestGuard, filterMonthlyJobsBySearch } from './monthlyPanel.helpers';
+import {
+  createLatestRequestGuard,
+  filterMonthlyJobsBySearch,
+  shouldApplyMonthlyJobsResult
+} from './monthlyPanel.helpers';
 
 const jobs = [
   { id: '1', title: 'Cambio de filtro', description: 'Preventivo mensual', location: 'Planta Norte' },
@@ -38,5 +42,19 @@ describe('createLatestRequestGuard', () => {
 
     expect(guard.isLatest(secondRequest)).toBe(true);
     expect(guard.isLatest(firstRequest)).toBe(false);
+  });
+});
+
+describe('shouldApplyMonthlyJobsResult', () => {
+  it('no aplica resultados si se navega fuera mientras carga MonthlyPanel', () => {
+    expect(shouldApplyMonthlyJobsResult({ isMounted: false, isLatest: true })).toBe(false);
+  });
+
+  it('no permite que una respuesta vieja reemplace una busqueda mas reciente', () => {
+    expect(shouldApplyMonthlyJobsResult({ isMounted: true, isLatest: false })).toBe(false);
+  });
+
+  it('aplica resultados solo si el panel sigue montado y la respuesta es la ultima', () => {
+    expect(shouldApplyMonthlyJobsResult({ isMounted: true, isLatest: true })).toBe(true);
   });
 });

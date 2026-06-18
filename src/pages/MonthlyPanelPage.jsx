@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -21,7 +21,11 @@ import { jobsService } from '@/services/jobs.service';
 import { onboardingService } from '@/services/onboarding.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import JobForm from '@/components/jobs/JobForm';
-import { createLatestRequestGuard, filterMonthlyJobsBySearch } from '@/pages/monthlyPanel.helpers';
+import {
+  createLatestRequestGuard,
+  filterMonthlyJobsBySearch,
+  shouldApplyMonthlyJobsResult
+} from '@/pages/monthlyPanel.helpers';
 
 const DEBUG_MAINTENANCE = false;
 
@@ -41,6 +45,7 @@ export default function MonthlyPanelPage() {
   const [clearingPending, setClearingPending] = useState(false);
   const [exportingCompleted, setExportingCompleted] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const mountedRef = useRef(false);
   const requestGuardRef = useRef(createLatestRequestGuard());
   
   // Use filter hook for state management
@@ -53,10 +58,41 @@ export default function MonthlyPanelPage() {
   });
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const fetchJobs = useCallback(async () => {
+    const requestId = requestGuardRef.current.next();
+    const queryFilters = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      status: filters.status,
+      groupId: filters.groupId,
+      workerId: filters.workerId,
+    };
+    const result = await getJobsByDateRange(filters.startDate, filters.endDate, queryFilters);
+    if (!shouldApplyMonthlyJobsResult({
+      isMounted: mountedRef.current,
+      isLatest: requestGuardRef.current.isLatest(requestId)
+    })) return;
+    if (result.success) setJobs(result.data);
+  }, [
+    filters.startDate,
+    filters.endDate,
+    filters.status,
+    filters.groupId,
+    filters.workerId,
+    getJobsByDateRange
+  ]);
+
+  useEffect(() => {
     if (user && filters.startDate && filters.endDate) {
         fetchJobs();
     }
-  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId, filters.workerId]);
+  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId, filters.workerId, fetchJobs]);
 
   useEffect(() => {
     if (!user) return;
@@ -65,15 +101,6 @@ export default function MonthlyPanelPage() {
       onComplete: () => onboardingService.setOnboardingCompleted(user.id, role)
     });
   }, [user, role, resumeTourIfNeeded]);
-
-  const fetchJobs = async () => {
-    const requestId = requestGuardRef.current.next();
-    const queryFilters = { ...filters };
-    delete queryFilters.search;
-    const result = await getJobsByDateRange(filters.startDate, filters.endDate, queryFilters);
-    if (!requestGuardRef.current.isLatest(requestId)) return;
-    if (result.success) setJobs(result.data);
-  };
 
   const filteredJobs = useMemo(
     () => filterMonthlyJobsBySearch(jobs, filters.search),
@@ -219,8 +246,10 @@ export default function MonthlyPanelPage() {
       return;
     }
 
+    if (!mountedRef.current) return;
     setExportingCompleted(true);
     setTimeout(() => {
+      if (!mountedRef.current) return;
       if (DEBUG_MAINTENANCE) {
         console.log('[MonthlyPanel] Fechas de completados exportados', completedRecords.map((r) => ({
           id: r.id,
@@ -243,8 +272,10 @@ export default function MonthlyPanelPage() {
       addToast(isEn ? 'Only administrators can clean completed jobs.' : 'Solo los administradores pueden limpiar trabajos completados.', 'error');
       return;
     }
+    if (!mountedRef.current) return;
     setClearing(true);
     const result = await jobsService.deleteCompletedJobs(filters.startDate, filters.endDate);
+    if (!mountedRef.current) return;
     if (result.success) {
       const removed = result.removed || 0;
       addToast(
@@ -253,7 +284,7 @@ export default function MonthlyPanelPage() {
           : (isEn ? `Removed ${removed} completed jobs.` : `Se eliminaron ${removed} trabajos completados.`),
         'success'
       );
-      fetchJobs();
+      void fetchJobs();
     } else {
       addToast(result.error, 'error');
     }
@@ -265,8 +296,10 @@ export default function MonthlyPanelPage() {
       addToast(isEn ? 'Only administrators can clean pending jobs.' : 'Solo los administradores pueden limpiar trabajos pendientes.', 'error');
       return;
     }
+    if (!mountedRef.current) return;
     setClearingPending(true);
     const result = await jobsService.deletePendingJobs(filters.startDate, filters.endDate);
+    if (!mountedRef.current) return;
     if (result.success) {
       const removed = result.removed || 0;
       addToast(
@@ -275,7 +308,7 @@ export default function MonthlyPanelPage() {
           : (isEn ? `Removed ${removed} pending jobs.` : `Se eliminaron ${removed} trabajos pendientes.`),
         'success'
       );
-      fetchJobs();
+      void fetchJobs();
     } else {
       addToast(result.error, 'error');
     }
@@ -515,8 +548,9 @@ export default function MonthlyPanelPage() {
         <JobForm
           jobToEdit={editingJob}
           onSuccess={() => {
+            if (!mountedRef.current) return;
             setEditingJob(null);
-            fetchJobs();
+            void fetchJobs();
           }}
         />
       )}
