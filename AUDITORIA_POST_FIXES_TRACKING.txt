@@ -1,0 +1,218 @@
+Auditoria tecnica post-fixes - app tracking laboral React/Vite/Supabase
+Fecha: 2026-06-18
+
+Alcance
+
+Se audito solamente la app React/Vite/Supabase de tracking laboral.
+No se modifico codigo de la app, no se hizo commit, deploy ni migraciones remotas.
+
+Estado de los 3 fixes anteriores
+
+1. Permisos server-side: Parcialmente resuelto.
+   Crear trabajos y borrados masivos quedaron protegidos por RLS/RPC en supabase/20260618_authorization_fixes.sql:56.
+   Solicitudes de ingreso usan RPCs seguras en src/services/groups.service.js:325.
+   Pendiente: permisos de grupos/miembros fuera del flujo de solicitudes siguen directos a tablas.
+
+2. Escape HTML emails: Resuelto.
+   escapeHtml() escapa &, <, >, " y ' en supabase/functions/notify-worker-email/index.ts:18.
+   Se aplica a los valores dinamicos insertados en HTML en supabase/functions/notify-worker-email/index.ts:69-81 y 123-135.
+
+3. Busqueda mensual y loading: Parcialmente resuelto.
+   Busqueda por title, description y location esta centralizada en cliente en src/pages/monthlyPanel.helpers.js:9.
+   useJobs usa try/catch/finally en src/hooks/useJobs.js:10.
+   Pendiente: MonthlyPanelPage todavia puede hacer setJobs tras desmontaje.
+
+Regresiones encontradas
+
+No se encontro una regresion confirmada en build.
+Si hay riesgos nuevos/pendientes alrededor de RLS restrictiva y permisos no cubiertos en tablas de grupos/miembros.
+
+Hallazgos criticos pendientes
+
+No se confirmaron criticos nuevos con evidencia suficiente en el codigo actual.
+El SQL de prueba temporal ejecutado por el usuario termino con bulk_delete_jobs = 1, validando el caso admin en ese entorno.
+
+Hallazgos altos
+
+1. Permisos de grupos/miembros siguen dependiendo de tablas directas.
+   Severidad: Alta.
+   Estado: Pendiente.
+   Archivo y lineas:
+   - src/services/groups.service.js:125
+   - src/services/groups.service.js:157
+   - src/services/groups.service.js:177
+   - src/services/groups.service.js:254
+   Evidencia:
+   createGroup, updateGroup, deleteGroup, addMember y removeMember operan directo sobre groups/group_members.
+   La migracion nueva solo habilita RLS para jobs y group_join_requests en supabase/20260618_authorization_fixes.sql:56 y 208.
+   Pasos para reproducir:
+   Intentar insertar/eliminar group_members directo desde un cliente autenticado si la DB no tiene policies manuales adicionales.
+   Impacto:
+   Miembros comunes podrian administrar grupos/miembros si la base no tiene RLS externa.
+   Correccion minima recomendada:
+   Migracion RLS/RPC para groups y group_members.
+   Confianza: Alta.
+
+2. Update RLS de jobs permite demasiadas columnas para edicion por grupo.
+   Severidad: Alta.
+   Estado: Pendiente.
+   Archivo y lineas:
+   - supabase/20260618_authorization_fixes.sql:120
+   Evidencia:
+   La policy permite update si editable_by_group y membresia; no limita columnas como user_id, group_id, editable_by_group.
+   Pasos para reproducir:
+   Usuario miembro actualiza directamente un job editable por grupo cambiando campos sensibles.
+   Impacto:
+   Alteracion de propiedad/integridad del trabajo.
+   Correccion minima recomendada:
+   Mover edicion a RPC validada o restringir privilegios de columnas/triggers.
+   Confianza: Media-Alta.
+
+Hallazgos medios
+
+3. MonthlyPanelPage puede actualizar estado tras desmontaje.
+   Severidad: Media.
+   Estado: Pendiente.
+   Archivo y lineas:
+   - src/pages/MonthlyPanelPage.jsx:69
+   Evidencia:
+   Despues del await, solo valida si la request es la ultima; no valida si el componente sigue montado antes de setJobs en linea 75.
+   Pasos para reproducir:
+   Abrir panel mensual, disparar carga lenta, navegar fuera antes de resolver.
+   Impacto:
+   Warning React y estado inconsistente.
+   Correccion minima recomendada:
+   mountedRef local antes de setJobs.
+   Confianza: Alta.
+
+4. useJobFormData puede hacer setGroups/setWorkers tras desmontaje.
+   Severidad: Media.
+   Estado: Pendiente.
+   Archivo y lineas:
+   - src/hooks/jobs/useJobFormData.js:71
+   - src/hooks/jobs/useJobFormData.js:98
+   Evidencia:
+   fetchGroups y fetchWorkers actualizan estado internamente; el isMounted solo protege setDataLoading(false).
+   Pasos para reproducir:
+   Abrir/cerrar rapido formulario mientras cargan grupos/trabajadores.
+   Impacto:
+   Warnings y estado stale.
+   Correccion minima recomendada:
+   Pasar guard de montaje a los fetchers o mover setState al load.
+   Confianza: Alta.
+
+5. Cliente atado a project ref fijo.
+   Severidad: Media.
+   Estado: Pendiente conocido.
+   Archivo y lineas:
+   - src/lib/customSupabaseClient.js:5
+   - src/lib/customSupabaseClient.js:27
+   Evidencia:
+   Si VITE_SUPABASE_URL no contiene kaprywsyjqmqinyggsjt, la app hace throw.
+   Pasos para reproducir:
+   Usar Supabase local/staging con otro ref.
+   Impacto:
+   Bloquea staging/local y pruebas temporales.
+   Correccion minima recomendada:
+   Mover esa validacion a health-check/dev warning configurable.
+   Confianza: Alta.
+
+6. Tooling de tests roto.
+   Severidad: Media.
+   Estado: Pendiente.
+   Archivo y lineas:
+   - package.json:12
+   - package.json:56
+   Evidencia:
+   npm test -- --run falla con "vitest: not found"; npm ls no lista vitest.
+   Pasos para reproducir:
+   Ejecutar npm test -- --run.
+   Impacto:
+   Tests agregados no se pueden ejecutar localmente.
+   Correccion minima recomendada:
+   Reparar instalacion/dependencias sin cambiar alcance funcional.
+   Confianza: Alta.
+
+7. Lint configurado pero no ejecutable.
+   Severidad: Media.
+   Estado: Pendiente.
+   Archivo y lineas:
+   - package.json:11
+   Evidencia:
+   npm run lint falla porque no existe config ESLint del proyecto.
+   Pasos para reproducir:
+   Ejecutar npm run lint.
+   Impacto:
+   No hay verificacion estatica confiable.
+   Correccion minima recomendada:
+   Agregar config ESLint minima o ajustar script.
+   Confianza: Alta.
+
+Hallazgos bajos
+
+8. Helpers SECURITY DEFINER tienen grants a authenticated.
+   Severidad: Baja.
+   Estado: Revisar.
+   Archivo y lineas:
+   - supabase/20260618_authorization_fixes.sql:49
+   Evidencia:
+   app_is_admin, app_is_group_member y app_is_group_creator aceptan IDs arbitrarios y son ejecutables por autenticados.
+   Pasos para reproducir:
+   Usuario llama RPC helper con UUIDs conocidos.
+   Impacto:
+   Posible enumeracion limitada de roles/membresias si se conocen IDs.
+   Correccion minima recomendada:
+   Evaluar si policies pueden usar helpers sin exponerlos o crear wrappers sin parametros.
+   Confianza: Media.
+
+Estado de RLS, RPCs y permisos
+
+- jobs:
+  RLS habilitada; insert/update/delete tienen policies restrictivas.
+  Estado: mayormente correcto, con riesgo de update por columnas.
+
+- bulk_delete_jobs:
+  SECURITY DEFINER, search_path = public, valida auth.uid(), admin real, rango y estado.
+  Estado: correcto.
+
+- group_join_requests:
+  RLS habilitada; RPCs con search_path fijo; grants a authenticated.
+  Estado: correcto para solicitudes.
+
+- groups / group_members:
+  No se ve RLS/migracion nueva en repo.
+  Estado: pendiente.
+
+- handle_new_user:
+  security definer y search_path = public en supabase/users_profile_setup.sql:35.
+  Estado: correcto.
+
+Estado de build, lint y tests
+
+- npm run build: OK.
+- npm run lint: falla porque falta configuracion ESLint del proyecto.
+- npm test -- --run: falla porque vitest no esta instalado en node_modules.
+- git diff --check: OK.
+- git status --short: limpio al momento de la auditoria.
+- Supabase CLI local: no disponible; which supabase devuelve "supabase not found".
+- RLS temporal: no se ejecuto desde el agente para evitar remoto. El usuario reporto ejecucion exitosa final con bulk_delete_jobs = 1.
+
+Riesgos de integridad de datos
+
+1. Edicion por grupo de jobs puede modificar columnas sensibles si se llama directamente a Supabase.
+2. Gestion de groups/group_members no tiene barrera server-side visible en repo.
+3. El tooling roto impide validar automaticamente tests agregados.
+4. Estados async en MonthlyPanelPage y useJobFormData pueden actualizar tras desmontaje.
+
+Orden recomendado para los proximos 3 fixes
+
+1. RLS/RPC faltante para groups y group_members.
+2. Endurecer update de jobs con RPC o restricciones por columna.
+3. Reparar tooling minimo de lint/tests.
+
+Tabla final
+
+Prioridad | Severidad | Problema | Archivo | Impacto | Confianza | Proximo fix
+1 | Alta | RLS/RPC faltante para grupos y miembros | src/services/groups.service.js | Gestion indebida de grupos/miembros | Alta | Migracion RLS + RPCs para groups/group_members
+2 | Alta | Update de jobs editable por grupo permite columnas sensibles | supabase/20260618_authorization_fixes.sql | Corrupcion de ownership/integridad | Media-Alta | RPC de edicion o restricciones por columna
+3 | Media | Tests/lint no ejecutables | package.json | Sin verificacion automatizada | Alta | Reparar tooling minimo sin tocar logica

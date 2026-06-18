@@ -502,26 +502,15 @@ export const jobsService = {
 
   async updateJob(id, jobData, actorId = null) {
     try {
-      const { userId, groupIds, isAdmin } = await this.resolveActorContext(actorId);
+      const { userId } = await this.resolveActorContext(actorId);
       if (!userId) return { success: false, error: "No hay sesión activa." };
 
-      const { data: existing, error: fetchError } = await supabase
-        .from('jobs')
-        .select('user_id, group_id, editable_by_group')
-        .eq('id', id)
-        .single();
-      if (fetchError) throw fetchError;
-      if (!existing) return { success: false, error: "Trabajo no encontrado." };
-
-      const isCreator = existing.user_id === userId;
-      const canEditByGroup = existing.editable_by_group && existing.group_id && groupIds.includes(existing.group_id);
-      if (!isCreator && !canEditByGroup && !isAdmin) {
-        return { success: false, error: "No tienes permisos para editar este trabajo." };
-      }
-
-      const { error } = await supabase.from('jobs').update(jobData).eq('id', id);
+      const { data, error } = await supabase.rpc('safe_update_job', {
+        p_job_id: id,
+        p_updates: jobData || {},
+      });
       if (error) throw error;
-      return { success: true, message: "Trabajo actualizado exitosamente" };
+      return { success: true, data: hydrateJobRecord(data), message: "Trabajo actualizado exitosamente" };
     } catch (error) {
       console.error('updateJob error', error);
       const schemaError = getSchemaCompatibilityError(error);

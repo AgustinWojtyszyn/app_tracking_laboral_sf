@@ -37,7 +37,6 @@ export default function WorkersPage() {
 
   useEffect(() => {
     fetchWorkers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
   useEffect(() => {

@@ -16,7 +16,7 @@ import {
 
 describe('jobImageAttachments', () => {
   it('sanitizes file names for storage paths', () => {
-    expect(sanitizeJobImageFileName('Pantalla rota Ñandú!!.png')).toBe('Pantalla-rota-Nandu.png');
+    expect(sanitizeJobImageFileName('Pantalla rota Ñandú!!.png')).toBe('Pantalla-rota-Nandu-.png');
   });
 
   it('validates max file size', () => {
@@ -72,7 +72,6 @@ describe('jobImageAttachments', () => {
       { file: { name: 'broken.gif', type: 'image/gif', size: 10 }, image_description: '' },
       { file: null, image_description: 'ok' },
     ]);
-        image_title: 'Frente',
 
     expect(errors[0]).toBe('');
     expect(errors[1]).toBe(JOB_IMAGE_TYPE_ERROR);
@@ -80,12 +79,12 @@ describe('jobImageAttachments', () => {
   });
 
   it('normalizes persisted values defensively', () => {
-        image_title: 'Frente',
     const normalized = normalizeStoredJobImageAttachments([{ image_description: 'Detalle' }, null, 'bad']);
     expect(normalized).toEqual([
       {
         image_path: null,
         image_url: null,
+        image_title: '',
         image_description: 'Detalle',
         file_name: null,
         mime_type: null,

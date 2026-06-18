@@ -124,19 +124,14 @@ export const groupsService = {
 
   async createGroup(groupData, actorId) {
     try {
-      const { data, error } = await supabase.from('groups').insert([groupData]).select().single();
+      const { data, error } = await supabase
+        .rpc('create_group_secure', {
+          p_name: groupData?.name || '',
+          p_description: groupData?.description || null,
+        });
       if (error) throw error;
-      // Asegurar que el creador queda como miembro (idempotente)
-      if (data?.id && data?.created_by) {
-        const { error: memberError } = await supabase
-          .from('group_members')
-          .insert([{ group_id: data.id, user_id: data.created_by }]);
-        if (memberError && memberError.code !== '23505') {
-          console.error('createGroup - no se pudo agregar creador como miembro:', memberError);
-        }
-      }
 
-      const actingUserId = await this.resolveActorId(actorId || groupData?.created_by);
+      const actingUserId = await this.resolveActorId(actorId);
       await this.logGroupAudit({
         action: 'group_created',
         entityType: 'group',
@@ -156,9 +151,14 @@ export const groupsService = {
 
   async updateGroup(id, updates) {
      try {
-        const { error } = await supabase.from('groups').update(updates).eq('id', id);
+        const { data, error } = await supabase
+          .rpc('update_group_secure', {
+            p_group_id: id,
+            p_name: updates?.name || '',
+            p_description: updates?.description || null,
+          });
         if (error) throw error;
-        return { success: true, message: "Grupo actualizado" };
+        return { success: true, data, message: "Grupo actualizado" };
      } catch (error) {
          return { success: false, error: "Error al actualizar grupo" };
      }
@@ -166,7 +166,7 @@ export const groupsService = {
 
   async deleteGroup(id) {
       try {
-          const { error } = await supabase.from('groups').delete().eq('id', id);
+          const { error } = await supabase.rpc('delete_group_secure', { p_group_id: id });
           if (error) throw error;
           return { success: true, message: "Grupo eliminado" };
       } catch (error) {
@@ -189,47 +189,19 @@ export const groupsService = {
         mode: isEmail ? 'email' : 'name'
       });
 
-      let query = supabase
-        .from('users')
-        .select('id, email, full_name')
-        .limit(2);
-
-      if (isEmail) {
-        // Búsqueda exacta por email (case-insensitive)
-        query = query.ilike('email', normalizedEmail);
-      } else {
-        // Búsqueda por nombre que contenga el texto ingresado (case-insensitive)
-        query = query.ilike('full_name', `%${rawIdentifier}%`);
-      }
-
-      const { data: usersFound, error: userError } = await query;
-
-      if (userError) {
-        console.error('addMember - error en consulta de usuario:', userError);
-        return { success: false, error: "Error al buscar usuario" };
-      }
-
-      if (!usersFound || usersFound.length === 0) {
-        console.error('addMember - usuario no encontrado para identificador:', rawIdentifier);
-        return { success: false, error: "Usuario no encontrado" };
-      }
-
-      if (usersFound.length > 1) {
-        console.warn('addMember - múltiples usuarios encontrados para identificador:', rawIdentifier, usersFound);
-        return { success: false, error: "Se encontraron varios usuarios con ese nombre. Usa el email completo." };
-      }
-
-      const userData = usersFound[0];
-
-      const { error } = await supabase
-        .from('group_members')
-        .insert([{ group_id: groupId, user_id: userData.id }]);
+      const { data, error } = await supabase.rpc('add_group_member_secure', {
+        p_group_id: groupId,
+        p_identifier: isEmail ? normalizedEmail : rawIdentifier,
+      });
       
       if (error) {
         if (error.code === '23505') return { success: false, error: "El usuario ya es miembro" };
+        if (error.code === 'P0002') return { success: false, error: "Usuario no encontrado" };
+        if (error.code === '21000') return { success: false, error: "Se encontraron varios usuarios con ese nombre. Usa el email completo." };
         throw error;
       }
 
+      const userData = Array.isArray(data) ? data[0] : data;
       const actingUserId = await this.resolveActorId(actorId);
       await this.logGroupAudit({
         action: 'group_member_added',
@@ -237,9 +209,9 @@ export const groupsService = {
         newValue: {
           group_id: groupId,
           group_name: groupName || null,
-          added_user_id: userData.id,
-          added_user_email: userData.email,
-          added_user_name: userData.full_name
+          added_user_id: userData?.user_id,
+          added_user_email: userData?.email,
+          added_user_name: userData?.full_name
         },
         userId: actingUserId
       });
@@ -253,8 +225,10 @@ export const groupsService = {
 
   async removeMember(groupId, userId) {
     try {
-      const { error } = await supabase
-        .from('group_members').delete().match({ group_id: groupId, user_id: userId });
+      const { error } = await supabase.rpc('remove_group_member_secure', {
+        p_group_id: groupId,
+        p_user_id: userId,
+      });
       if (error) throw error;
       return { success: true, message: "Miembro eliminado" };
     } catch (error) {

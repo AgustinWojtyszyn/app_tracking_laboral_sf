@@ -10,9 +10,7 @@ export const buildJobPayload = ({ formData, workerId, userId, jobToEdit, request
     requested_by: formData.requested_by || '',
     description: formData.description || '',
     status: formData.status,
-    editable_by_group: formData.editable_by_group,
     worker_id: workerId,
-    group_id: formData.group_id || null,
     action_type: formData.action_type || null,
     sector_type: formData.sector_type || null,
     sector_custom: sectorCustomValue ? sectorCustomValue : null,
@@ -21,6 +19,8 @@ export const buildJobPayload = ({ formData, workerId, userId, jobToEdit, request
   };
 
   if (!jobToEdit) {
+    payload.editable_by_group = formData.editable_by_group;
+    payload.group_id = formData.group_id || null;
     payload.user_id = userId || null;
     payload.client_request_id = requestId || null;
   }
