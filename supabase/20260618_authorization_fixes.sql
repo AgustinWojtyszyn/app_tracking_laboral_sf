@@ -79,6 +79,20 @@ create policy "Jobs insert only in own groups or admin"
     )
   );
 
+drop policy if exists "Jobs insert restrictive group membership" on public.jobs;
+create policy "Jobs insert restrictive group membership"
+  on public.jobs
+  as restrictive
+  for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and (
+      public.app_is_admin(auth.uid())
+      or (group_id is not null and public.app_is_group_member(group_id, auth.uid()))
+    )
+  );
+
 drop policy if exists "Jobs update allowed by owner editable group or admin" on public.jobs;
 create policy "Jobs update allowed by owner editable group or admin"
   on public.jobs
@@ -103,9 +117,45 @@ create policy "Jobs update allowed by owner editable group or admin"
     )
   );
 
+drop policy if exists "Jobs update restrictive ownership group or admin" on public.jobs;
+create policy "Jobs update restrictive ownership group or admin"
+  on public.jobs
+  as restrictive
+  for update
+  to authenticated
+  using (
+    public.app_is_admin(auth.uid())
+    or user_id = auth.uid()
+    or (
+      editable_by_group is true
+      and group_id is not null
+      and public.app_is_group_member(group_id, auth.uid())
+    )
+  )
+  with check (
+    public.app_is_admin(auth.uid())
+    or user_id = auth.uid()
+    or (
+      editable_by_group is true
+      and group_id is not null
+      and public.app_is_group_member(group_id, auth.uid())
+    )
+  );
+
 drop policy if exists "Jobs delete allowed by owner or admin" on public.jobs;
 create policy "Jobs delete allowed by owner or admin"
   on public.jobs
+  for delete
+  to authenticated
+  using (
+    public.app_is_admin(auth.uid())
+    or user_id = auth.uid()
+  );
+
+drop policy if exists "Jobs delete restrictive owner or admin" on public.jobs;
+create policy "Jobs delete restrictive owner or admin"
+  on public.jobs
+  as restrictive
   for delete
   to authenticated
   using (
@@ -178,6 +228,18 @@ create policy "Join requests select own creator or admin"
     or public.app_is_group_creator(group_id, auth.uid())
   );
 
+drop policy if exists "Join requests select restrictive own creator or admin" on public.group_join_requests;
+create policy "Join requests select restrictive own creator or admin"
+  on public.group_join_requests
+  as restrictive
+  for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    or public.app_is_admin(auth.uid())
+    or public.app_is_group_creator(group_id, auth.uid())
+  );
+
 drop policy if exists "Join requests update creator or admin" on public.group_join_requests;
 create policy "Join requests update creator or admin"
   on public.group_join_requests
@@ -192,9 +254,35 @@ create policy "Join requests update creator or admin"
     or public.app_is_group_creator(group_id, auth.uid())
   );
 
+drop policy if exists "Join requests update restrictive creator or admin" on public.group_join_requests;
+create policy "Join requests update restrictive creator or admin"
+  on public.group_join_requests
+  as restrictive
+  for update
+  to authenticated
+  using (
+    public.app_is_admin(auth.uid())
+    or public.app_is_group_creator(group_id, auth.uid())
+  )
+  with check (
+    public.app_is_admin(auth.uid())
+    or public.app_is_group_creator(group_id, auth.uid())
+  );
+
 drop policy if exists "Join requests delete creator or admin" on public.group_join_requests;
 create policy "Join requests delete creator or admin"
   on public.group_join_requests
+  for delete
+  to authenticated
+  using (
+    public.app_is_admin(auth.uid())
+    or public.app_is_group_creator(group_id, auth.uid())
+  );
+
+drop policy if exists "Join requests delete restrictive creator or admin" on public.group_join_requests;
+create policy "Join requests delete restrictive creator or admin"
+  on public.group_join_requests
+  as restrictive
   for delete
   to authenticated
   using (
