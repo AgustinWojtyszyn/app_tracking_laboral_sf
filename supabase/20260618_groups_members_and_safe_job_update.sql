@@ -3,6 +3,21 @@
 alter table public.groups enable row level security;
 alter table public.group_members enable row level security;
 
+do $$
+declare
+  policy_row record;
+begin
+  for policy_row in
+    select policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'group_members'
+  loop
+    execute format('drop policy if exists %I on public.group_members', policy_row.policyname);
+  end loop;
+end;
+$$;
+
 drop policy if exists "Groups readable by authenticated users" on public.groups;
 create policy "Groups readable by authenticated users"
   on public.groups
