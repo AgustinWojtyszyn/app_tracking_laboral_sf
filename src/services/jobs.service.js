@@ -559,15 +559,14 @@ export const jobsService = {
 
   async deleteCompletedJobs(startDate, endDate) {
     try {
-      const { error, count } = await supabase
-        .from('jobs')
-        .delete({ count: 'exact' })
-        .eq('status', 'completed')
-        .gte('date', startDate)
-        .lte('date', endDate);
+      const { data, error } = await supabase.rpc('bulk_delete_jobs', {
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_status: 'completed',
+      });
 
       if (error) throw error;
-      return { success: true, message: "Trabajos completados eliminados", removed: count || 0 };
+      return { success: true, message: "Trabajos completados eliminados", removed: Number(data) || 0 };
     } catch (error) {
       return { success: false, error: "No se pudieron limpiar los trabajos completados." };
     }
@@ -575,15 +574,14 @@ export const jobsService = {
 
   async deletePendingJobs(startDate, endDate) {
     try {
-      const { error, count } = await supabase
-        .from('jobs')
-        .delete({ count: 'exact' })
-        .eq('status', 'pending')
-        .gte('date', startDate)
-        .lte('date', endDate);
+      const { data, error } = await supabase.rpc('bulk_delete_jobs', {
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_status: 'pending',
+      });
 
       if (error) throw error;
-      return { success: true, message: "Trabajos pendientes eliminados", removed: count || 0 };
+      return { success: true, message: "Trabajos pendientes eliminados", removed: Number(data) || 0 };
     } catch (error) {
       return { success: false, error: "No se pudieron limpiar los trabajos pendientes." };
     }

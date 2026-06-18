@@ -324,41 +324,24 @@ export const groupsService = {
 
   async getJoinRequests(groupId) {
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      const currentUserId = authData?.user?.id || null;
-
       if (!groupId) return { success: false, error: 'Selecciona un grupo.' };
-      if (!currentUserId) return { success: false, error: 'Usuario no válido.' };
-
-      // Verificar si es creador o miembro antes de mostrar solicitudes
-      const { data: groupRow, error: groupError } = await supabase
-        .from('groups')
-        .select('id, created_by')
-        .eq('id', groupId)
-        .maybeSingle();
-      if (groupError) throw groupError;
-      if (!groupRow) return { success: false, error: 'Grupo no encontrado.' };
-
-      const { data: membership } = await supabase
-        .from('group_members')
-        .select('id')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUserId)
-        .maybeSingle();
-
-      const canSeeRequests = groupRow.created_by === currentUserId || !!membership;
-      if (!canSeeRequests) {
-        return { success: false, error: 'Solo los miembros pueden ver las solicitudes.' };
-      }
 
       const { data, error } = await supabase
-        .from('group_join_requests')
-        .select('id, group_id, user_id, status, created_at, users(email, full_name)')
-        .eq('group_id', groupId)
-        .eq('status', 'pending');
+        .rpc('list_group_join_requests', { p_group_id: groupId });
 
       if (error) throw error;
-      return { success: true, data };
+      const rows = (data || []).map((row) => ({
+        id: row.id,
+        group_id: row.group_id,
+        user_id: row.user_id,
+        status: row.status,
+        created_at: row.created_at,
+        users: {
+          email: row.user_email,
+          full_name: row.user_full_name,
+        },
+      }));
+      return { success: true, data: rows };
     } catch (error) {
       console.error('getJoinRequests - error:', error);
       return { success: false, error: 'Error al cargar solicitudes.' };
@@ -367,21 +350,13 @@ export const groupsService = {
 
   async respondToJoinRequest(requestId, groupId, userId, accept, { actorId = null, groupName = null, memberName = null, memberEmail = null } = {}) {
     try {
+      const { error } = await supabase.rpc('respond_to_group_join_request', {
+        p_request_id: requestId,
+        p_accept: accept,
+      });
+      if (error) throw error;
+
       if (accept) {
-        // Agregar como miembro (ignorar si ya existe)
-        const { error: insertError } = await supabase
-          .from('group_members')
-          .insert([{ group_id: groupId, user_id: userId }]);
-
-        if (insertError && insertError.code !== '23505') throw insertError;
-
-        const { error: updateError } = await supabase
-          .from('group_join_requests')
-          .update({ status: 'approved' })
-          .eq('id', requestId);
-
-        if (updateError) throw updateError;
-
         const actingUserId = await this.resolveActorId(actorId);
         await this.logGroupAudit({
           action: 'group_member_joined',
@@ -396,15 +371,9 @@ export const groupsService = {
           userId: actingUserId
         });
         return { success: true, message: 'Solicitud aprobada.' };
-      } else {
-        const { error } = await supabase
-          .from('group_join_requests')
-          .update({ status: 'rejected' })
-          .eq('id', requestId);
-
-        if (error) throw error;
-        return { success: true, message: 'Solicitud rechazada.' };
       }
+
+      return { success: true, message: 'Solicitud rechazada.' };
     } catch (error) {
       console.error('respondToJoinRequest - error:', error);
       return { success: false, error: 'Error al procesar la solicitud.' };
@@ -413,10 +382,9 @@ export const groupsService = {
 
   async deleteJoinRequest(requestId) {
     try {
-      const { error } = await supabase
-        .from('group_join_requests')
-        .delete()
-        .eq('id', requestId);
+      const { error } = await supabase.rpc('delete_group_join_request', {
+        p_request_id: requestId,
+      });
       if (error) throw error;
       return { success: true, message: 'Solicitud eliminada.' };
     } catch (error) {

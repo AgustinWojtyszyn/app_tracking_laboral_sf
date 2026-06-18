@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -21,6 +21,7 @@ import { jobsService } from '@/services/jobs.service';
 import { onboardingService } from '@/services/onboarding.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import JobForm from '@/components/jobs/JobForm';
+import { createLatestRequestGuard, filterMonthlyJobsBySearch } from '@/pages/monthlyPanel.helpers';
 
 const DEBUG_MAINTENANCE = false;
 
@@ -40,6 +41,7 @@ export default function MonthlyPanelPage() {
   const [clearingPending, setClearingPending] = useState(false);
   const [exportingCompleted, setExportingCompleted] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const requestGuardRef = useRef(createLatestRequestGuard());
   
   // Use filter hook for state management
   const { filters, setFilter } = useFilters({
@@ -65,17 +67,18 @@ export default function MonthlyPanelPage() {
   }, [user, role, resumeTourIfNeeded]);
 
   const fetchJobs = async () => {
-    // Pass filters including search for backend filtering if supported or client side filtering later
-    const result = await getJobsByDateRange(filters.startDate, filters.endDate, filters);
+    const requestId = requestGuardRef.current.next();
+    const queryFilters = { ...filters };
+    delete queryFilters.search;
+    const result = await getJobsByDateRange(filters.startDate, filters.endDate, queryFilters);
+    if (!requestGuardRef.current.isLatest(requestId)) return;
     if (result.success) setJobs(result.data);
   };
 
-  // Client-side search filtering if needed (or rely on API if implemented)
-  const filteredJobs = jobs.filter(job => {
-      if (!filters.search) return true;
-      const term = filters.search.toLowerCase();
-      return job.description?.toLowerCase().includes(term) || job.location?.toLowerCase().includes(term);
-  });
+  const filteredJobs = useMemo(
+    () => filterMonthlyJobsBySearch(jobs, filters.search),
+    [jobs, filters.search]
+  );
   const hasJobs = filteredJobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;

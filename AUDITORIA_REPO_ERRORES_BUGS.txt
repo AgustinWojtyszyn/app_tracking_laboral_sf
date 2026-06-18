@@ -1,0 +1,38 @@
+Auditoria del repo - errores y bugs detectados
+Fecha: 2026-06-18
+
+Hallazgos
+
+1. Critico: usuarios pueden crear trabajos en grupos ajenos si RLS no lo bloquea.
+   El formulario carga todos los grupos sin filtrar membresia en src/hooks/jobs/useJobFormData.js:71, el selector los expone en src/components/jobs/form/JobAssignmentSection.jsx:92, y el payload manda group_id directo en src/utils/jobs/buildJobPayload.js:15. createJob inserta/upsertea sin validar actor, membresia ni admin en src/services/jobs.service.js:474.
+
+2. Critico: borrados masivos dependen del control del frontend.
+   DailyJobsPage y MonthlyPanelPage validan isAdmin antes de llamar, pero jobsService.deleteCompletedJobs y deletePendingJobs borran por rango sin resolver usuario ni validar rol en src/services/jobs.service.js:560. Si las politicas RLS no son estrictas, cualquier cliente autenticado que invoque el servicio puede borrar trabajos completados o pendientes.
+
+3. Alto: solicitudes de ingreso a grupos pueden ser visibles/procesables por miembros comunes.
+   GroupMembers permite cargar solicitudes con isCreator || isMember en src/components/groups/GroupMembers.jsx:74. El servicio replica esa logica en getJoinRequests y permite "creador o miembro" en src/services/groups.service.js:349. Ademas, respondToJoinRequest no revalida actor, grupo ni rol antes de aprobar/rechazar en src/services/groups.service.js:368.
+
+4. Alto: HTML de emails sin escape.
+   La Edge Function de email concatena campos de usuario/trabajo directamente dentro de HTML (title, requestedBy, description, location, groupName, etc.) en supabase/functions/notify-worker-email/index.ts:93. Un valor con HTML puede romper el template o inyectar contenido en el correo.
+
+5. Medio: busqueda del panel mensual queda inconsistente.
+   fetchJobs envia filters.search al backend, pero el useEffect no depende de filters.search en src/pages/MonthlyPanelPage.jsx:53. Ademas el filtro cliente solo busca description y location, no title, en src/pages/MonthlyPanelPage.jsx:73. Resultado: busquedas por titulo fallan o quedan con datos viejos hasta cambiar otro filtro.
+
+6. Medio: loading puede quedar prendido si una promesa revienta fuera del contrato del servicio.
+   useJobs no usa try/finally; si jobsService.* lanza una excepcion inesperada, setLoading(false) no corre en src/hooks/useJobs.js:9. El patron se repite para create/update/delete.
+
+7. Medio: el cliente de Supabase esta atado a un unico proyecto.
+   src/lib/customSupabaseClient.js:27 hace throw si VITE_SUPABASE_URL no contiene kaprywsyjqmqinyggsjt. Eso rompe staging, local, forks o recuperacion con otro proyecto aunque las env vars sean validas.
+
+8. Calidad rota: scripts de validacion no son confiables ahora mismo.
+   npm run build pasa.
+   npm run lint falla porque no hay config de ESLint.
+   npm test -- --run falla con "vitest: not found"; npm ls vitest eslint vite --depth=0 muestra eslint y vite, pero no vitest instalado en node_modules.
+
+Prioridad recomendada
+
+1. Corregir permisos reales en Supabase/RLS o mover operaciones sensibles a RPCs/Edge Functions con service role y validacion explicita.
+2. Agregar validaciones de actor/rol/membresia en servicios: createJob, deleteCompletedJobs, deletePendingJobs, respondToJoinRequest, deleteJoinRequest, addMember/removeMember/updateGroup/deleteGroup.
+3. Escapar contenido dinamico en emails HTML.
+4. Arreglar busqueda mensual y estados loading con try/finally.
+5. Reparar scripts de lint/test para que la validacion local vuelva a ser confiable.

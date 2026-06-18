@@ -15,6 +15,15 @@ const logTiming = (label: string, startMs: number) => {
   console.log(`[timing] ${label}: ${duration.toFixed(1)}ms`);
 };
 
+export const escapeHtml = (value) => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
 const buildEmail = (
   job: Record<string, any>,
   worker: Record<string, any>,
@@ -57,6 +66,19 @@ const buildEmail = (
 
   const costSpent = formatCurrency(job.cost_spent);
   const amountToCharge = formatCurrency(job.amount_to_charge);
+  const htmlWorkerName = escapeHtml(workerName);
+  const htmlRequestedBy = escapeHtml(requestedBy);
+  const htmlDescription = escapeHtml(description);
+  const htmlLocation = escapeHtml(location);
+  const htmlDate = escapeHtml(date);
+  const htmlTitle = escapeHtml(title);
+  const htmlStatusLabel = escapeHtml(statusLabel);
+  const htmlActionType = escapeHtml(actionType);
+  const htmlSectorLabel = escapeHtml(sectorLabel);
+  const htmlCostSpent = escapeHtml(costSpent);
+  const htmlAmountToCharge = escapeHtml(amountToCharge);
+  const htmlGroupName = escapeHtml(groupName);
+  const htmlEditableByGroup = escapeHtml(editableByGroup);
 
   const subjectSectorLabel = rawSectorType === 'Otro' && rawSectorCustom ? rawSectorCustom : rawSectorType;
   const subjectDetail = rawActionType && subjectSectorLabel
@@ -98,18 +120,19 @@ const buildEmail = (
         '</div>' +
         '<div style="padding:24px; color:#111827;">' +
           '<h2 style="margin:0 0 16px; font-size:20px;">Nueva solicitud asignada</h2>' +
-          '<p style="margin:6px 0;"><strong>Título:</strong> ' + title + '</p>' +
-          '<p style="margin:6px 0;"><strong>Estado:</strong> ' + statusLabel + '</p>' +
-          '<p style="margin:6px 0;"><strong>Solicita:</strong> ' + requestedBy + '</p>' +
-          '<p style="margin:6px 0;"><strong>Tipo de acción:</strong> ' + actionType + '</p>' +
-          '<p style="margin:6px 0;"><strong>Sector / equipo:</strong> ' + sectorLabel + '</p>' +
-          '<p style="margin:6px 0;"><strong>Descripción:</strong> ' + description + '</p>' +
-          '<p style="margin:6px 0;"><strong>Costo trabajador:</strong> ' + costSpent + '</p>' +
-          '<p style="margin:6px 0;"><strong>Cobrar:</strong> ' + amountToCharge + '</p>' +
-          '<p style="margin:6px 0;"><strong>Lugar:</strong> ' + location + '</p>' +
-          '<p style="margin:6px 0;"><strong>Fecha:</strong> ' + date + '</p>' +
-          (groupName ? ('<p style="margin:6px 0;"><strong>Grupo:</strong> ' + groupName + '</p>') : '') +
-          '<p style="margin:6px 0;"><strong>Editable por grupo:</strong> ' + editableByGroup + '</p>' +
+          '<p style="margin:6px 0;"><strong>Trabajador:</strong> ' + htmlWorkerName + '</p>' +
+          '<p style="margin:6px 0;"><strong>Título:</strong> ' + htmlTitle + '</p>' +
+          '<p style="margin:6px 0;"><strong>Estado:</strong> ' + htmlStatusLabel + '</p>' +
+          '<p style="margin:6px 0;"><strong>Solicita:</strong> ' + htmlRequestedBy + '</p>' +
+          '<p style="margin:6px 0;"><strong>Tipo de acción:</strong> ' + htmlActionType + '</p>' +
+          '<p style="margin:6px 0;"><strong>Sector / equipo:</strong> ' + htmlSectorLabel + '</p>' +
+          '<p style="margin:6px 0;"><strong>Descripción:</strong> ' + htmlDescription + '</p>' +
+          '<p style="margin:6px 0;"><strong>Costo trabajador:</strong> ' + htmlCostSpent + '</p>' +
+          '<p style="margin:6px 0;"><strong>Cobrar:</strong> ' + htmlAmountToCharge + '</p>' +
+          '<p style="margin:6px 0;"><strong>Lugar:</strong> ' + htmlLocation + '</p>' +
+          '<p style="margin:6px 0;"><strong>Fecha:</strong> ' + htmlDate + '</p>' +
+          (groupName ? ('<p style="margin:6px 0;"><strong>Grupo:</strong> ' + htmlGroupName + '</p>') : '') +
+          '<p style="margin:6px 0;"><strong>Editable por grupo:</strong> ' + htmlEditableByGroup + '</p>' +
         '</div>' +
       '</div>' +
     '</div>';

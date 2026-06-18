@@ -31,7 +31,7 @@ export default function GroupMembers({
   const closeRef = useRef(null);
   const { addToast } = useToast();
   const { user } = useAuth();
-  const canSeeRequests = isCreator || isMember;
+  const canSeeRequests = isCreator || isGroupAdmin;
 
   useEffect(() => {
     fetchMembers();
@@ -72,7 +72,7 @@ export default function GroupMembers({
   };
 
     const fetchJoinRequests = async () => {
-        if (!isCreator && !isMember) return;
+        if (!canSeeRequests) return;
         setLoadingRequests(true);
         const result = await groupsService.getJoinRequests(group.id);
         if (result.success) {
@@ -82,10 +82,10 @@ export default function GroupMembers({
     };
 
     useEffect(() => {
-        if (isCreator || isMember) {
+        if (canSeeRequests) {
             fetchJoinRequests();
         }
-    }, [group.id, isCreator, isMember]);
+    }, [group.id, canSeeRequests]);
 
   const handleAddMember = async (e) => {
     e.preventDefault();

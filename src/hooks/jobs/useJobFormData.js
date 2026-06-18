@@ -69,7 +69,29 @@ export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
   }, []);
 
   const fetchGroups = useCallback(async () => {
-    const { data } = await supabase.from('groups').select('id, name');
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id || null;
+    if (!userId) {
+      setGroups([]);
+      return;
+    }
+
+    const [{ data: profile }, { data: memberships }] = await Promise.all([
+      supabase.from('users').select('role').eq('id', userId).maybeSingle(),
+      supabase.from('group_members').select('group_id').eq('user_id', userId),
+    ]);
+
+    let query = supabase.from('groups').select('id, name, created_by').order('name', { ascending: true });
+    if (profile?.role !== 'admin') {
+      const groupIds = (memberships || []).map((membership) => membership.group_id).filter(Boolean);
+      const quotedIds = groupIds.map((id) => `"${id}"`).join(',');
+      const ownedOrMemberFilter = quotedIds
+        ? `created_by.eq.${userId},id.in.(${quotedIds})`
+        : `created_by.eq.${userId}`;
+      query = query.or(ownedOrMemberFilter);
+    }
+
+    const { data } = await query;
     if (data) setGroups(data);
   }, []);
 
