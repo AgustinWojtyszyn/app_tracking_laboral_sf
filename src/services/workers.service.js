@@ -37,6 +37,9 @@ export const workersService = {
         notes: workerData.notes || null,
         is_active: workerData.is_active ?? true,
       };
+      if (Object.prototype.hasOwnProperty.call(workerData, 'group_id')) {
+        payload.group_id = workerData.group_id || null;
+      }
 
       const { data, error } = await supabase
         .from('workers')
@@ -48,6 +51,9 @@ export const workersService = {
       return { success: true, data, message: 'Trabajador creado correctamente.' };
     } catch (error) {
       console.error('createWorker error', error);
+      if (error?.code === '42501' || /row-level security|permission denied/i.test(error?.message || '')) {
+        return { success: false, error: 'No tenés permisos para crear trabajadores en ese grupo.' };
+      }
       return { success: false, error: 'Error al crear el trabajador.' };
     }
   },
@@ -62,6 +68,9 @@ export const workersService = {
         notes: workerData.notes || null,
         is_active: workerData.is_active ?? true,
       };
+      if (Object.prototype.hasOwnProperty.call(workerData, 'group_id')) {
+        payload.group_id = workerData.group_id || null;
+      }
 
       const { data, error } = await supabase
         .from('workers')
@@ -74,6 +83,9 @@ export const workersService = {
       return { success: true, data, message: 'Trabajador actualizado correctamente.' };
     } catch (error) {
       console.error('updateWorker error', error);
+      if (error?.code === '42501' || /row-level security|permission denied/i.test(error?.message || '')) {
+        return { success: false, error: 'No tenés permisos para modificar ese trabajador.' };
+      }
       return { success: false, error: 'Error al actualizar el trabajador.' };
     }
   },
@@ -104,6 +116,9 @@ export const workersService = {
       throw error;
     } catch (error) {
       console.error('deleteWorker error', error);
+      if (error?.code === '42501' || /row-level security|permission denied/i.test(error?.message || '')) {
+        return { success: false, error: 'No tenés permisos para eliminar ese trabajador.' };
+      }
       return { success: false, error: 'Error al eliminar el trabajador.' };
     }
   },

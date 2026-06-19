@@ -1,0 +1,371 @@
+Auditoria final - app tracking laboral React/Vite/Supabase
+Fecha: 2026-06-19
+Ruta: /home/aggustin/app_tracking
+
+Alcance
+
+Se audito la app de tracking laboral para determinar si queda algun error grande o bloqueante antes de pasar a otra app.
+No se modifico codigo, auth flow, UI, estructura general ni datos productivos.
+La auditoria se centro en riesgos reales de produccion: RLS/permisos, storage de imagenes, trabajadores, estados, test SQL pendiente, historial/exportacion, async/loading legacy y comandos de validacion.
+
+
+A) BLOCKERS encontrados
+
+1. Storage de imagenes abierto
+
+Archivo:
+- supabase/20260310_add_job_image_attachments.sql
+
+Evidencia:
+- El bucket job-request-images se crea como publico:
+  - Linea 78: insert into storage.buckets
+  - Linea 82: true
+- Las policies permiten update/delete global a cualquier usuario authenticated dentro del bucket:
+  - Lineas 99-105: Authenticated users can update job request images
+  - Lineas 107-112: Authenticated users can delete job request images
+
+Detalle:
+La ruta generada por frontend incluye userId/jobIdentifier/token-file:
+- src/services/jobs.service.js:155
+
+Pero las policies de storage no validan owner, job, grupo ni prefijo de path. Solo validan bucket_id.
+Esto significa que, si un usuario autenticado conoce o descubre paths, puede actualizar o borrar objetos ajenos del bucket.
+Ademas, el bucket es publico, por lo que la lectura no queda aislada por RLS.
+
+Clasificacion:
+BLOCKER.
+
+Cambio minimo recomendado:
+- Hacer el bucket privado o, si debe seguir publico para lectura, no permitir update/delete global.
+- Reemplazar las policies por reglas que validen prefijo owner/job/grupo, por ejemplo usando split_part(name, '/', 1) = auth.uid()::text para paths por usuario, o una funcion que relacione el path con jobs/group_members.
+- Revocar update/delete global para authenticated.
+
+
+2. Trabajadores sin RLS/ownership auditable
+
+Archivo:
+- src/services/workers.service.js
+
+Evidencia:
+- getWorkers hace select global directo sobre workers:
+  - src/services/workers.service.js:5
+- createWorker hace insert directo:
+  - src/services/workers.service.js:41
+- updateWorker hace update directo por id:
+  - src/services/workers.service.js:66
+- deleteWorker hace delete directo por id:
+  - src/services/workers.service.js:84
+
+No se encontro migration/policy/RPC que proteja public.workers.
+El payload de workers no incluye group_id, company_id, created_by ni ownership:
+- src/services/workers.service.js:32-39
+
+Detalle:
+Con el repo actual no queda una barrera backend verificable para impedir que usuarios normales vean, creen, editen o borren trabajadores de otros grupos/empresas.
+Si produccion tiene RLS permisiva o la tabla no tiene RLS habilitada, cualquier usuario autenticado podria modificar trabajadores ajenos.
+Como el objetivo explicitamente pide marcar BLOCKER si cualquier autenticado puede modificar trabajadores ajenos, y no hay aislamiento backend en repo, este punto queda como blocker hasta aplicar RLS/RPC real.
+
+Clasificacion:
+BLOCKER.
+
+Cambio minimo recomendado:
+- Agregar ownership real a workers, por ejemplo group_id o company_id, y opcionalmente created_by.
+- Habilitar RLS en public.workers.
+- Crear policies de select/insert/update/delete por admin o miembro/manager del grupo.
+- Idealmente mover create/update/delete a RPCs seguras si el modelo de permisos es mas complejo.
+- Agregar test SQL que intente select/insert/update/delete de workers ajenos como usuario normal.
+
+
+3. Estados no validados en DB/RPC
+
+Archivos:
+- src/utils/jobStatus.js
+- src/components/jobs/form/JobMainInfoSection.jsx
+- supabase/20260618_groups_members_and_safe_job_update.sql
+- supabase/20260618_authorization_fixes.sql
+
+Evidencia:
+- Frontend normaliza pending, completed y archived:
+  - src/utils/jobStatus.js:4-6
+- El formulario permite pending, completed y archived:
+  - src/components/jobs/form/JobMainInfoSection.jsx:33-35
+- safe_update_job acepta status como campo permitido:
+  - supabase/20260618_groups_members_and_safe_job_update.sql:374
+- safe_update_job escribe cualquier string recibido en status:
+  - supabase/20260618_groups_members_and_safe_job_update.sql:432
+- No se encontro constraint check sobre public.jobs.status.
+- bulk_delete_jobs solo acepta completed y pending:
+  - supabase/20260618_authorization_fixes.sql:191-192
+
+Detalle:
+La lista valida efectiva del frontend/backend parece ser pending, completed, archived.
+Pero DB/RPC no rechazan estados fuera de lista.
+Ademas bulk_delete_jobs no contempla archived, lo que deja una inconsistencia entre UI y backend.
+
+Clasificacion:
+BLOCKER por falta de validacion server-side de estados permitidos.
+
+Cambio minimo recomendado:
+- Agregar constraint:
+  check (status in ('pending', 'completed', 'archived'))
+- Validar el mismo set en safe_update_job antes de hacer update.
+- Decidir si bulk_delete_jobs debe aceptar archived o si archived no debe ser borrable por ese RPC.
+
+
+B) Riesgos medianos
+
+1. Historial: boton de exportacion llama un metodo inexistente
+
+Archivos:
+- src/pages/HistoryPage.jsx
+- src/services/export.service.js
+
+Evidencia:
+- HistoryPage llama:
+  exportService.exportToExcel(filteredJobs, 'historial.xlsx')
+  en src/pages/HistoryPage.jsx:116
+- export.service.js no expone exportToExcel.
+  Expone exportRecordsToExcel, exportJobsToExcel, exportDayToExcel y exportRangeToExcel:
+  - src/services/export.service.js:55
+  - src/services/export.service.js:61
+  - src/services/export.service.js:74
+  - src/services/export.service.js:78
+
+Impacto:
+El boton Exportar del historial rompe en runtime.
+No se detecto exposicion de datos ajenos por este punto, porque exporta filteredJobs ya cargados por jobsService/RLS.
+
+Clasificacion:
+Riesgo mediano.
+
+Cambio minimo recomendado:
+- Cambiar la llamada a:
+  exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx')
+
+
+2. Async/loading legacy en HistoryPage
+
+Archivo:
+- src/pages/HistoryPage.jsx
+
+Evidencia:
+- fetchJobs hace setLoading(true), await y luego setJobs/setFilteredJobs/setLoading(false) sin guard de desmontaje ni control de request activa:
+  - src/pages/HistoryPage.jsx:79-89
+
+Impacto:
+Si el usuario cambia filtros rapido o navega fuera mientras resuelve la request, puede haber resultados viejos pisando nuevos o warning de setState after unmount.
+No se clasifico como blocker porque no se probo una rotura normal severa ni fuga de datos, y jobsService/RLS siguen limitando lo que vuelve del backend.
+
+Clasificacion:
+Riesgo mediano.
+
+Cambio minimo recomendado:
+- Agregar requestIdRef/mountedRef como en useJobFormData o usar AbortController si la libreria lo permite.
+
+
+3. Jobs RLS/RPC mejorado pero con dependencia fuerte de safe_update_job
+
+Archivos:
+- supabase/20260618_authorization_fixes.sql
+- supabase/20260618_groups_members_and_safe_job_update.sql
+
+Evidencia:
+- jobs tiene RLS para select/insert/update/delete por owner/grupo/admin:
+  - supabase/20260618_authorization_fixes.sql:56-164
+- update directo queda bloqueado por policy restrictiva:
+  - supabase/20260618_groups_members_and_safe_job_update.sql:447-454
+- update normal pasa por safe_update_job:
+  - src/services/jobs.service.js:508
+
+Impacto:
+El modelo va en buena direccion.
+El riesgo principal ya no es ownership de jobs, sino que safe_update_job todavia no valida status y permite worker_id sin validar si el worker pertenece al grupo/empresa.
+
+Clasificacion:
+Riesgo mediano asociado al blocker de workers/estados.
+
+
+C) Backlog no bloqueante
+
+1. Mejorar UX/formato de exportacion
+
+La exportacion podria mejorar nombres de hojas, columnas, totales o formato visual.
+Esto es backlog, no blocker.
+
+2. Agregar tests automatizados de storage policies
+
+Falta un test SQL que pruebe:
+- Usuario A sube imagen.
+- Usuario B no puede leer si bucket privado.
+- Usuario B no puede update/delete.
+- Usuario B no puede borrar paths de A aunque conozca el path.
+
+3. Agregar tests automatizados de workers RLS
+
+Falta un test SQL que pruebe:
+- Usuario normal no ve workers de grupo ajeno.
+- Usuario normal no crea workers en grupo ajeno.
+- Usuario normal no update/delete workers ajenos.
+- Admin si puede operar segun reglas.
+
+4. Warnings conocidos de Supabase Auth en tests
+
+Durante npm test aparecen warnings:
+"No storage option exists to persist the session..."
+
+No son blocker porque los tests pasan.
+
+5. Vulnerabilidad conocida de xlsx
+
+No se toco por indicacion del objetivo.
+No se detecto en esta auditoria una explotacion directa server-side en produccion.
+
+
+D) Tests/comandos ejecutados y resultado
+
+1. npm run lint
+
+Resultado:
+OK.
+
+Salida relevante:
+- eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0
+- Sin errores.
+
+
+2. npm run build
+
+Resultado:
+OK.
+
+Salida relevante:
+- vite v5.4.21 building for production...
+- 1985 modules transformed.
+- dist generado correctamente.
+- built in 14.65s.
+
+
+3. npm test
+
+Resultado:
+OK.
+
+Salida relevante:
+- Test Files: 7 passed
+- Tests: 39 passed
+
+Archivos de test ejecutados:
+- src/utils/jobImageAttachments.test.js
+- src/pages/monthlyPanel.helpers.test.js
+- src/onboarding/onboardingStorage.test.js
+- src/utils/notifyWorkerEmailEscape.test.js
+- src/lib/customSupabaseClient.test.js
+- src/hooks/jobs/useJobFormData.test.js
+- src/hooks/useJobs.test.js
+
+Warnings:
+- Warnings de Supabase Auth por storage de sesion en entorno de test.
+- No se consideran blocker.
+
+
+4. supabase/tests/groups_members_and_safe_job_update.sql
+
+Resultado:
+No ejecutado en este entorno.
+
+Motivo:
+- No hay supabase CLI disponible.
+- No hay psql disponible.
+- No se ejecuto contra remoto para evitar tocar datos productivos.
+
+Evaluacion estatica:
+El test cubre permisos de groups/group_members y safe_update_job para campos protegidos.
+No cubre workers RLS, storage policies ni validacion de status fuera de lista.
+
+
+5. git status --short
+
+Resultado:
+Limpio antes de crear este archivo de auditoria.
+
+
+E) Dictamen final
+
+no apta todavia
+
+Motivo:
+Aunque lint, build y 39 tests pasan, quedan blockers reales de produccion:
+
+1. Storage de imagenes permite update/delete global a authenticated y el bucket es publico.
+2. Workers no tiene aislamiento backend/RLS auditable en repo.
+3. Estados de jobs no estan validados por DB/RPC y pueden aceptar valores arbitrarios.
+
+La app no deberia considerarse lista para pasar definitivamente a otra app hasta aplicar esos fixes minimos y validar con SQL/RLS.
+
+
+F) Cambios minimos recomendados, sin implementar
+
+1. Workers RLS/RPC
+
+Crear una migration que:
+- Agregue group_id/company_id/created_by a workers, segun el modelo real.
+- Habilite RLS en public.workers.
+- Cree policies:
+  - select: admin o miembro del grupo/empresa.
+  - insert: admin o manager/creator del grupo/empresa.
+  - update: admin o manager/creator del grupo/empresa.
+  - delete/soft-delete: admin o manager/creator del grupo/empresa.
+- Opcionalmente reemplace CRUD directo con RPCs:
+  - create_worker_secure
+  - update_worker_secure
+  - delete_worker_secure
+- Agregue test SQL de acceso cruzado.
+
+
+2. Storage seguro
+
+Crear una migration que:
+- Cambie job-request-images a privado si es posible.
+- Elimine policies globales de update/delete para authenticated.
+- Restrinja insert/update/delete por prefijo owner/job o por funcion que relacione object.name con public.jobs.
+- Evite almacenar image_url publica permanente si el bucket pasa a privado; usar signed URLs.
+- Agregue test SQL/manual de usuario A vs usuario B.
+
+
+3. Estados validos
+
+Crear una migration que:
+- Normalice valores existentes si hubiera legacy.
+- Agregue constraint:
+  jobs.status in ('pending', 'completed', 'archived')
+- Valide status en safe_update_job.
+- Decida si bulk_delete_jobs acepta archived o no.
+- Agregue test SQL intentando status = 'invalid'.
+
+
+4. Exportacion historial
+
+Fix pequeno:
+- En src/pages/HistoryPage.jsx cambiar:
+  exportService.exportToExcel(filteredJobs, 'historial.xlsx')
+- Por:
+  exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx')
+
+
+5. Async HistoryPage
+
+Fix pequeno:
+- Agregar mountedRef/requestIdRef para evitar setState after unmount y evitar que respuestas viejas pisen filtros nuevos.
+
+
+Resumen final
+
+Build/lint/tests JS: OK.
+SQL pendiente: no ejecutable localmente por falta de CLI/psql.
+RLS jobs/groups: mejorado.
+Workers: blocker.
+Storage imagenes: blocker.
+Estados: blocker.
+Historial/exportacion: riesgo mediano/backlog segun prioridad.
+
+Dictamen: no apta todavia.

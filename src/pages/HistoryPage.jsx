@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { jobsService } from '@/services/jobs.service';
 import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -27,11 +27,14 @@ export default function HistoryPage() {
     status: 'all',
     search: ''
   });
+  const { startDate, endDate, status, groupId, workerId } = filters;
   
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
   const groupOptions = useMemo(() => (
     jobs.reduce((acc, job) => {
       if (!job?.group_id) return acc;
@@ -56,9 +59,44 @@ export default function HistoryPage() {
     currentPage, nextPage, prevPage, goToPage, getPageData, totalPages 
   } = usePagination(15);
 
+  const fetchJobs = useCallback(async () => {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    setLoading(true);
+
+    try {
+      const requestFilters = { startDate, endDate, status, groupId, workerId };
+      const data = await jobsService.getJobsByDateRange(startDate, endDate, requestFilters);
+      if (!mountedRef.current || requestId !== requestIdRef.current) return;
+
+      if (data.success) {
+        setJobs(data.data || []);
+        setFilteredJobs(data.data || []);
+      } else {
+        addToast(data.error, 'error');
+      }
+    } catch (error) {
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        addToast('Error al cargar trabajos.', 'error');
+      }
+    } finally {
+      if (mountedRef.current && requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [addToast, startDate, endDate, status, groupId, workerId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+    };
+  }, []);
+
   useEffect(() => {
     if (user) fetchJobs();
-  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId, filters.workerId]);
+  }, [user, fetchJobs]);
 
   useEffect(() => {
     if (!jobs) return;
@@ -75,18 +113,6 @@ export default function HistoryPage() {
     setFilteredJobs(result);
     goToPage(1);
   }, [filters.search, jobs]);
-
-  const fetchJobs = async () => {
-    setLoading(true);
-    const data = await jobsService.getJobsByDateRange(filters.startDate, filters.endDate, filters);
-    if (data.success) {
-        setJobs(data.data || []);
-        setFilteredJobs(data.data || []);
-    } else {
-        addToast(data.error, 'error');
-    }
-    setLoading(false);
-  };
 
     const handleDelete = async (id) => {
       if (!isAdmin) {
@@ -113,7 +139,7 @@ export default function HistoryPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50">Historial de Trabajos</h1>
           <p className="text-gray-500 dark:text-slate-300">Gestión completa de registros</p>
         </div>
-        <Button onClick={() => exportService.exportToExcel(filteredJobs, 'historial.xlsx')} variant="outline" className="w-full md:w-auto">
+        <Button onClick={() => exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx')} variant="outline" className="w-full md:w-auto">
           <Download className="w-5 h-5 mr-2" /> Exportar
         </Button>
       </div>
