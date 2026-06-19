@@ -67,7 +67,7 @@ export default function DailyJobsPage() {
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
   const autoTourStartedRef = useRef(false);
-  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+  const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
     : (isAdmin ? 'admin' : 'solicitante');
 

@@ -7,7 +7,7 @@ import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const normalizeRole = (userRole, isAdmin) => {
-  if (['admin', 'solicitante', 'trabajador'].includes(userRole)) return userRole;
+  if (['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)) return userRole;
   return isAdmin ? 'admin' : 'solicitante';
 };
 
@@ -28,6 +28,76 @@ export default function TutorialPage() {
   }, [user, role, resumeTourIfNeeded]);
 
   const steps = useMemo(() => {
+    if (role === 'admin') {
+      return [
+        {
+          key: 'create-group',
+          title: isEn ? 'Create a group' : 'Crear un grupo',
+          description: isEn ? 'Set name and description to define the project or team.' : 'Definí nombre y descripción para el proyecto o equipo.',
+          path: '/app/grupos',
+        },
+        {
+          key: 'invite-members',
+          title: isEn ? 'Invite members' : 'Invitar miembros',
+          description: isEn ? 'Add members by email so they can see and update jobs.' : 'Agregá miembros por email para que puedan ver y actualizar trabajos.',
+          path: '/app/grupos',
+        },
+        {
+          key: 'first-job',
+          title: isEn ? 'Create the first job' : 'Crear el primer trabajo',
+          description: isEn ? 'Create a daily job with date, description, hours, costs, and requester.' : 'Cargá fecha, descripción, horas, costos y solicitante del trabajo.',
+          path: '/app/trabajos-diarios',
+        },
+        {
+          key: 'workers',
+          title: isEn ? 'Manage workers' : 'Gestionar trabajadores',
+          description: isEn ? 'Add workers with alias and contact info for accurate assignments.' : 'Sumá trabajadores con alias y contacto para asignaciones correctas.',
+          path: '/app/trabajadores',
+        },
+        {
+          key: 'equipment-log',
+          title: isEn ? 'Manage equipment log' : 'Gestionar libro de equipo',
+          description: isEn ? 'Register vehicles, plant sectors and operative equipment.' : 'Registrá vehículos, sectores de planta y equipos operativos.',
+          path: '/app/equipment-log',
+        },
+        {
+          key: 'admin',
+          title: isEn ? 'Administer users' : 'Administrar usuarios',
+          description: isEn ? 'Review users, permissions, and activity from the admin panel.' : 'Revisá usuarios, permisos y actividad desde el panel admin.',
+          path: '/app/admin',
+        },
+      ];
+    }
+
+    if (role === 'chofer') {
+      return [
+        {
+          key: 'daily-jobs',
+          title: isEn ? 'Check daily jobs' : 'Ver trabajos del día',
+          description: isEn
+            ? 'Open the daily list and review assigned work information.'
+            : 'Abrí la lista diaria y revisá la información de los trabajos asignados.',
+          path: '/app/trabajos-diarios',
+        },
+        {
+          key: 'vehicles',
+          title: isEn ? 'Review vehicles' : 'Revisar vehículos',
+          description: isEn
+            ? 'Use the equipment log to review active vehicles and their status.'
+            : 'Usá el libro registro de equipo para consultar vehículos activos y su estado.',
+          path: '/app/equipment-log',
+        },
+        {
+          key: 'monthly-panel',
+          title: isEn ? 'Review monthly panel' : 'Ver Panel Mensual',
+          description: isEn
+            ? 'Use filters by date and status to see totals and the daily breakdown.'
+            : 'Usá filtros por fecha y estado para ver totales y el detalle por día.',
+          path: '/app/panel-mensual',
+        },
+      ];
+    }
+
     if (role === 'trabajador') {
       return [
         {

@@ -21,7 +21,7 @@ export default function GroupsPage() {
     const { getGroups, deleteGroup, requestToJoin } = useGroups();
   const { t } = useLanguage();
   const { resumeTourIfNeeded } = useOnboardingTour();
-  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+  const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
     : (isAdmin ? 'admin' : 'solicitante');
   

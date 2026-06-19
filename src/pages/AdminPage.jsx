@@ -20,6 +20,7 @@ const FEATURE_OPTIONS = [
 
 const ROLE_OPTIONS = [
   { value: 'admin', label: 'Administrador' },
+  { value: 'chofer', label: 'Chofer' },
   { value: 'user', label: 'Usuario' }
 ];
 
@@ -27,7 +28,7 @@ export default function AdminPage() {
   const { language } = useLanguage();
   const { user, isAdmin, userRole } = useAuth();
   const { resumeTourIfNeeded } = useOnboardingTour();
-  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+  const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
     : (isAdmin ? 'admin' : 'solicitante');
 

@@ -15,6 +15,7 @@ const translations = {
       admin: 'Panel Admin',
       adminTutorial: 'Tutorial Admin',
       tutorial: 'Tutorial',
+      equipmentLog: 'Libro registro de equipo',
       logout: 'Cerrar Sesión',
     },
     auth: {
@@ -134,6 +135,7 @@ const translations = {
       admin: 'Admin Panel',
       adminTutorial: 'Admin Tutorial',
       tutorial: 'Tutorial',
+      equipmentLog: 'Equipment log book',
       logout: 'Sign Out',
     },
     auth: {

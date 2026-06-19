@@ -1,0 +1,259 @@
+-- Equipment log book: vehicles, operative plant assets and chofer role.
+
+create extension if not exists pgcrypto;
+
+do $$
+declare
+  constraint_row record;
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'users'
+      and column_name = 'role'
+  ) then
+    for constraint_row in
+      select conname
+      from pg_constraint
+      where conrelid = 'public.users'::regclass
+        and contype = 'c'
+        and pg_get_constraintdef(oid) ilike '%role%'
+    loop
+      execute format('alter table public.users drop constraint if exists %I', constraint_row.conname);
+    end loop;
+
+    alter table public.users
+      add constraint users_role_check
+      check (role is null or role in ('admin', 'user', 'solicitante', 'trabajador', 'chofer'));
+  end if;
+end;
+$$;
+
+create or replace function public.app_has_role(check_user_id uuid, expected_role text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.users u
+    where u.id = check_user_id
+      and u.role = expected_role
+      and u.deleted_at is null
+  );
+$$;
+
+revoke all on function public.app_has_role(uuid, text) from public, anon;
+grant execute on function public.app_has_role(uuid, text) to authenticated;
+
+create table if not exists public.vehicles (
+  id uuid primary key default gen_random_uuid(),
+  license_plate text not null,
+  name text,
+  vehicle_type text not null default 'utilitario',
+  brand text,
+  model text,
+  year integer,
+  assigned_driver_id uuid references public.users(id) on delete set null,
+  registration_expires_at date,
+  insurance_expires_at date,
+  inspection_expires_at date,
+  status text not null default 'activo',
+  notes text,
+  created_by uuid references public.users(id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  archived_at timestamptz,
+  constraint vehicles_license_plate_not_blank check (btrim(license_plate) <> ''),
+  constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
+  constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
+  constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
+  constraint vehicles_year_check check (year is null or (year between 1950 and 2100))
+);
+
+create unique index if not exists vehicles_license_plate_uidx
+  on public.vehicles (license_plate);
+create index if not exists vehicles_status_idx
+  on public.vehicles (status);
+create index if not exists vehicles_created_at_idx
+  on public.vehicles (created_at desc);
+create index if not exists vehicles_assigned_driver_id_idx
+  on public.vehicles (assigned_driver_id);
+create index if not exists vehicles_archived_at_idx
+  on public.vehicles (archived_at);
+
+create table if not exists public.plant_assets (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null,
+  location_description text,
+  status text not null default 'activo',
+  responsible_user_id uuid references public.users(id) on delete set null,
+  notes text,
+  created_by uuid references public.users(id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  archived_at timestamptz,
+  constraint plant_assets_name_not_blank check (btrim(name) <> ''),
+  constraint plant_assets_category_check check (category in (
+    'Área fría',
+    'Área caliente',
+    'Depósito',
+    'Cámara frigorífica',
+    'Parte común',
+    'Planta alta operativa',
+    'Comedor de personal',
+    'Equipo operativo',
+    'Otro sector operativo'
+  )),
+  constraint plant_assets_status_check check (status in ('activo', 'inactivo', 'mantenimiento', 'requiere_revision'))
+);
+
+create index if not exists plant_assets_category_idx
+  on public.plant_assets (category);
+create index if not exists plant_assets_status_idx
+  on public.plant_assets (status);
+create index if not exists plant_assets_created_at_idx
+  on public.plant_assets (created_at desc);
+create index if not exists plant_assets_responsible_user_id_idx
+  on public.plant_assets (responsible_user_id);
+create index if not exists plant_assets_archived_at_idx
+  on public.plant_assets (archived_at);
+
+create or replace function public.set_equipment_log_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists set_vehicles_updated_at on public.vehicles;
+create trigger set_vehicles_updated_at
+before update on public.vehicles
+for each row
+execute function public.set_equipment_log_updated_at();
+
+drop trigger if exists set_plant_assets_updated_at on public.plant_assets;
+create trigger set_plant_assets_updated_at
+before update on public.plant_assets
+for each row
+execute function public.set_equipment_log_updated_at();
+
+create or replace function public.enforce_vehicle_driver_role()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.assigned_driver_id is not null
+    and not public.app_has_role(new.assigned_driver_id, 'chofer')
+  then
+    raise exception 'Assigned driver must have chofer role' using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_vehicle_driver_role on public.vehicles;
+create trigger enforce_vehicle_driver_role
+before insert or update of assigned_driver_id on public.vehicles
+for each row
+execute function public.enforce_vehicle_driver_role();
+
+alter table public.vehicles enable row level security;
+alter table public.plant_assets enable row level security;
+
+do $$
+declare
+  policy_row record;
+begin
+  for policy_row in
+    select policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'vehicles'
+  loop
+    execute format('drop policy if exists %I on public.vehicles', policy_row.policyname);
+  end loop;
+
+  for policy_row in
+    select policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'plant_assets'
+  loop
+    execute format('drop policy if exists %I on public.plant_assets', policy_row.policyname);
+  end loop;
+end;
+$$;
+
+create policy "Vehicles select authenticated active rows"
+  on public.vehicles
+  for select
+  to authenticated
+  using (
+    archived_at is null
+    and auth.uid() is not null
+  );
+
+create policy "Vehicles insert admin only"
+  on public.vehicles
+  for insert
+  to authenticated
+  with check (
+    public.app_is_admin(auth.uid())
+    and (created_by is null or created_by = auth.uid())
+  );
+
+create policy "Vehicles update admin only"
+  on public.vehicles
+  for update
+  to authenticated
+  using (public.app_is_admin(auth.uid()))
+  with check (public.app_is_admin(auth.uid()));
+
+create policy "Vehicles delete admin only"
+  on public.vehicles
+  for delete
+  to authenticated
+  using (public.app_is_admin(auth.uid()));
+
+create policy "Plant assets select authenticated active rows"
+  on public.plant_assets
+  for select
+  to authenticated
+  using (
+    archived_at is null
+    and auth.uid() is not null
+  );
+
+create policy "Plant assets insert admin only"
+  on public.plant_assets
+  for insert
+  to authenticated
+  with check (
+    public.app_is_admin(auth.uid())
+    and (created_by is null or created_by = auth.uid())
+  );
+
+create policy "Plant assets update admin only"
+  on public.plant_assets
+  for update
+  to authenticated
+  using (public.app_is_admin(auth.uid()))
+  with check (public.app_is_admin(auth.uid()));
+
+create policy "Plant assets delete admin only"
+  on public.plant_assets
+  for delete
+  to authenticated
+  using (public.app_is_admin(auth.uid()));

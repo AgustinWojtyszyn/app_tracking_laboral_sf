@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/layout/ThemeToggle';
 import { isOnboardingInProgress, markManualNavNow, clearOnboardingState } from '@/onboarding/onboardingStorage';
 import { 
   Calendar, CalendarDays, Users, UserCog, BookOpen,
-  Settings, ShieldAlert, LogOut, Menu, X, UserCircle
+  ClipboardList, ShieldAlert, LogOut, Menu, X
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -25,9 +25,8 @@ export default function Sidebar() {
     { label: t('nav.monthly'), path: '/app/panel-mensual', icon: CalendarDays },
     { label: t('nav.workers'), path: '/app/trabajadores', icon: UserCog },
     { label: t('nav.groups'), path: '/app/grupos', icon: Users, adminOnly: true },
-    { label: t('nav.settings'), path: '/app/configuracion', icon: Settings },
+    { label: t('nav.equipmentLog'), path: '/app/equipment-log', icon: ClipboardList },
     { label: t('nav.admin'), path: '/app/admin', icon: ShieldAlert, adminOnly: true },
-    { label: t('nav.adminTutorial'), path: '/app/tutorial-admin', icon: BookOpen, adminOnly: true },
     { label: t('nav.tutorial'), path: '/app/tutorial', icon: BookOpen },
   ];
 
@@ -108,18 +107,10 @@ export default function Sidebar() {
           </div>
 
           <div className="sidebar-user-actions">
-            <Link
-              to="/app/configuracion"
-              onClick={handleNavClick}
-              className="flex flex-1 items-center justify-center gap-2 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-800 rounded-md transition-colors"
-            >
-              <UserCircle className="w-5 h-5 flex-shrink-0" />
-              <span className="truncate">{t('nav.settings')}</span>
-            </Link>
             <button
               type="button"
               onClick={signOut}
-              className="flex flex-1 items-center justify-center gap-2 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-800 rounded-md transition-colors"
+              className="flex w-full items-center justify-center gap-2 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-800 rounded-md transition-colors"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               <span className="truncate">{t('nav.logout')}</span>

@@ -82,10 +82,10 @@ const basePlanEs = [
     requiresAdmin: true
   },
   {
-    route: '/app/tutorial-admin',
-    selector: '[data-tour="tutorial-admin-hub"]',
-    title: 'Tutorial Admin',
-    description: 'Accede a la guía específica para administradores.',
+    route: '/app/tutorial',
+    selector: '[data-tour="tutorial-hub"]',
+    title: 'Tutorial',
+    description: 'Accede a la guía específica para tu rol.',
     requiresAdmin: true
   },
   {
@@ -186,10 +186,10 @@ const basePlanEn = [
     requiresAdmin: true
   },
   {
-    route: '/app/tutorial-admin',
-    selector: '[data-tour="tutorial-admin-hub"]',
-    title: 'Admin tutorial',
-    description: 'Open the admin-only tutorial steps.',
+    route: '/app/tutorial',
+    selector: '[data-tour="tutorial-hub"]',
+    title: 'Tutorial',
+    description: 'Open the guide for your role.',
     requiresAdmin: true
   },
   {

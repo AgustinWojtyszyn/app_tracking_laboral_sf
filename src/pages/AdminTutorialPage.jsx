@@ -7,7 +7,7 @@ import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 
 const normalizeRole = (userRole, isAdmin) => {
-  if (['admin', 'solicitante', 'trabajador'].includes(userRole)) return userRole;
+  if (['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)) return userRole;
   return isAdmin ? 'admin' : 'solicitante';
 };
 

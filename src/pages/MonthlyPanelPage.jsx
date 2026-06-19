@@ -37,7 +37,7 @@ export default function MonthlyPanelPage() {
   const { addToast } = useToast();
   const { resumeTourIfNeeded } = useOnboardingTour();
   const isEn = language === 'en';
-  const role = ['admin', 'solicitante', 'trabajador'].includes(userRole)
+  const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
     : (isAdmin ? 'admin' : 'solicitante');
   const [jobs, setJobs] = useState([]);

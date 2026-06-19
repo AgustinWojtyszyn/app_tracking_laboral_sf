@@ -52,6 +52,7 @@ export default function AdminUsersSection({
             >
               <option value="all">Todos</option>
               <option value="admin">Admins</option>
+              <option value="chofer">Choferes</option>
               <option value="user">Usuarios</option>
             </select>
           </div>

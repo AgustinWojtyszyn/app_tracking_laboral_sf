@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/ToastContext';
 import { Loader2, MailWarning } from 'lucide-react';
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, loading, isAdmin, isEmailVerified, resendVerification } = useAuth();
+export default function ProtectedRoute({ children, adminOnly = false, allowedRoles = null }) {
+  const { user, loading, isAdmin, isEmailVerified, resendVerification, userRole } = useAuth();
   const location = useLocation();
   const { addToast } = useToast();
   const [resending, setResending] = useState(false);
@@ -67,6 +67,10 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && !isAdmin) {
+    return <Navigate to="/app/trabajos-diarios" replace />;
+  }
+
+  if (Array.isArray(allowedRoles) && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
     return <Navigate to="/app/trabajos-diarios" replace />;
   }
 

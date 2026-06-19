@@ -10,7 +10,7 @@ import {
 } from '@/onboarding/onboardingStorage';
 
 const normalizeRole = (role) => {
-  if (role === 'admin' || role === 'trabajador' || role === 'solicitante') return role;
+  if (role === 'admin' || role === 'trabajador' || role === 'solicitante' || role === 'chofer') return role;
   return 'solicitante';
 };
 

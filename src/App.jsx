@@ -22,7 +22,7 @@ import SettingsPage from '@/pages/SettingsPage';
 import AdminPage from '@/pages/AdminPage';
 import WorkersPage from '@/pages/WorkersPage';
 import TutorialPage from '@/pages/TutorialPage';
-import AdminTutorialPage from '@/pages/AdminTutorialPage';
+import EquipmentLogPage from '@/pages/EquipmentLogPage';
 
 // Components
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
@@ -84,8 +84,11 @@ function App() {
           } />
           <Route path="tutorial" element={<TutorialPage />} />
           <Route path="tutorial-admin" element={
-            <ProtectedRoute adminOnly={true}>
-              <AdminTutorialPage />
+            <Navigate to="/app/tutorial" replace />
+          } />
+          <Route path="equipment-log" element={
+            <ProtectedRoute allowedRoles={['admin', 'chofer', 'user', 'solicitante', 'trabajador']}>
+              <EquipmentLogPage />
             </ProtectedRoute>
           } />
           <Route path="configuracion" element={<SettingsPage />} />
