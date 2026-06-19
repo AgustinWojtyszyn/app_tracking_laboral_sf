@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/layout/ThemeToggle';
 import { isOnboardingInProgress, markManualNavNow, clearOnboardingState } from '@/onboarding/onboardingStorage';
 import { 
   Calendar, CalendarDays, Users, UserCog, BookOpen,
-  Settings, ShieldAlert, LogOut, Menu, X 
+  Settings, ShieldAlert, LogOut, Menu, X, UserCircle
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -18,6 +18,7 @@ export default function Sidebar() {
   const location = useLocation();
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Usuario';
   const displayEmail = profile?.email || user?.email || '';
+  const displayRole = profile?.role || '';
 
   const baseNavItems = [
     { label: t('nav.daily'), path: '/app/trabajos-diarios', icon: Calendar },
@@ -72,9 +73,9 @@ export default function Sidebar() {
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50 w-72 bg-primary text-primary-foreground transform transition-transform duration-200 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        flex flex-col h-full lg:h-screen pt-12 lg:pt-0 shadow-xl
+        flex flex-col h-dvh lg:h-screen pt-12 lg:pt-0 shadow-xl overflow-hidden
       `}>
-        <nav className="flex-1 px-6 py-6 space-y-3 text-nav-lg">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-3 text-nav-lg">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -95,19 +96,35 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="p-4 sm:p-5 border-t border-blue-800 bg-[#152e6e]">
-          <div className="mb-4 px-1">
-            <p className="text-base sm:text-xl font-semibold leading-snug break-words">{displayName}</p>
-            <p className="text-sm sm:text-lg text-blue-200 leading-snug break-words">{displayEmail}</p>
+        <div className="mt-auto flex-shrink-0 p-4 sm:p-5 border-t border-blue-800 bg-[#152e6e]">
+          <div className="mb-4 px-1 min-w-0">
+            <p className="text-base sm:text-lg font-semibold leading-snug whitespace-normal break-words">{displayName}</p>
+            {displayEmail && (
+              <p className="mt-1 text-xs sm:text-sm text-blue-200 leading-snug truncate">{displayEmail}</p>
+            )}
+            {displayRole && (
+              <p className="mt-1 text-xs uppercase tracking-wide text-blue-300">{displayRole}</p>
+            )}
           </div>
-          
-          <button 
-             onClick={signOut}
-             className="w-full flex items-center px-4 py-3 text-sm sm:text-base font-medium text-blue-100 hover:text-white hover:bg-blue-800 rounded-md transition-colors"
-          >
-              <LogOut className="w-6 h-6 mr-3" />
-              {t('nav.logout')}
-          </button>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              to="/app/configuracion"
+              onClick={handleNavClick}
+              className="flex items-center justify-center gap-2 px-3 py-3 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-800 rounded-md transition-colors"
+            >
+              <UserCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate">{t('nav.settings')}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={signOut}
+              className="flex items-center justify-center gap-2 px-3 py-3 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-800 rounded-md transition-colors"
+            >
+              <LogOut className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate">{t('nav.logout')}</span>
+            </button>
+          </div>
         </div>
       </aside>
     </>
