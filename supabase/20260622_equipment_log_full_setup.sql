@@ -92,7 +92,7 @@ alter table public.vehicles
   add constraint vehicles_license_plate_length_check check (char_length(license_plate) <= 10),
   add constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
   add constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
-  add constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
+  add constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento', 'fuera_servicio')),
   add constraint vehicles_year_check check (year is null or (year > 1950 and year <= extract(year from current_date)::integer)),
   add constraint vehicles_mileage_start_check check (mileage_start is null or (mileage_start >= 0 and mileage_start <= 999999999)),
   add constraint vehicles_mileage_end_check check (mileage_end is null or (mileage_end >= 0 and mileage_end <= 999999999)),
@@ -117,9 +117,13 @@ create table if not exists public.vehicle_fuel_loads (
   estimated_time time not null,
   liters numeric(10,2) not null,
   mileage integer not null,
+  notes text,
   created_by uuid references public.users(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now()
 );
+
+alter table public.vehicle_fuel_loads
+  add column if not exists notes text;
 
 alter table public.vehicle_fuel_loads
   drop constraint if exists vehicle_fuel_loads_price_ars_check,
@@ -143,10 +147,19 @@ create table if not exists public.vehicle_maintenance_logs (
   maintenance_date date not null,
   detail text not null,
   mileage integer not null,
-  value_ars numeric(12,2) not null,
+  value_ars numeric(12,2),
+  next_control_date date,
+  notes text,
   created_by uuid references public.users(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now()
 );
+
+alter table public.vehicle_maintenance_logs
+  add column if not exists next_control_date date,
+  add column if not exists notes text;
+
+alter table public.vehicle_maintenance_logs
+  alter column value_ars drop not null;
 
 alter table public.vehicle_maintenance_logs
   drop constraint if exists vehicle_maintenance_logs_type_check,
@@ -158,7 +171,7 @@ alter table public.vehicle_maintenance_logs
   add constraint vehicle_maintenance_logs_type_check check (maintenance_type in ('preventivo', 'correctivo')),
   add constraint vehicle_maintenance_logs_detail_check check (btrim(detail) <> ''),
   add constraint vehicle_maintenance_logs_mileage_check check (mileage >= 0 and mileage <= 999999999),
-  add constraint vehicle_maintenance_logs_value_ars_check check (value_ars >= 0 and value_ars <= 999999999.99);
+  add constraint vehicle_maintenance_logs_value_ars_check check (value_ars is null or (value_ars >= 0 and value_ars <= 999999999.99));
 
 create index if not exists vehicle_maintenance_logs_vehicle_id_idx
   on public.vehicle_maintenance_logs (vehicle_id);

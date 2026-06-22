@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, Building2, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
+import { AlertCircle, Ban, BookOpen, Building2, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -28,8 +28,9 @@ import {
 
 const statusLabels = {
   activo: 'Activo',
-  inactivo: 'Inactivo',
-  mantenimiento: 'Mantenimiento',
+  inactivo: 'Fuera de servicio',
+  mantenimiento: 'En mantenimiento',
+  fuera_servicio: 'Fuera de servicio',
   requiere_revision: 'Requiere revisión',
 };
 
@@ -55,6 +56,7 @@ const statusClass = {
   activo: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-100',
   inactivo: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-200',
   mantenimiento: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100',
+  fuera_servicio: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-200',
   requiere_revision: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-100',
 };
 
@@ -94,6 +96,7 @@ const emptyFuelLoad = () => ({
   estimated_time: currentInputTime(),
   liters: '',
   mileage: '',
+  notes: '',
 });
 
 const emptyMaintenanceLog = () => ({
@@ -103,6 +106,8 @@ const emptyMaintenanceLog = () => ({
   detail: '',
   mileage: '',
   value_ars: '',
+  next_control_date: '',
+  notes: '',
 });
 
 const compactUserLabel = (user) => user?.full_name || user?.email || 'Sin asignar';
@@ -175,6 +180,7 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
       inspection_expires_at: vehicle.inspection_expires_at || '',
       mileage_start: vehicle.mileage_start ?? '',
       mileage_end: vehicle.mileage_end ?? '',
+      status: vehicle.status === 'inactivo' ? 'fuera_servicio' : vehicle.status || 'activo',
     } : emptyVehicle);
   }, [open, vehicle]);
 
@@ -331,7 +337,7 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
   );
 }
 
-function FuelLoadFormDialog({ fuelLoad, vehicles, trigger, onSaved }) {
+function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -350,11 +356,12 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, trigger, onSaved }) {
       estimated_time: fuelLoad.estimated_time?.slice(0, 5) || currentInputTime(),
       liters: fuelLoad.liters ?? '',
       mileage: fuelLoad.mileage ?? '',
+      notes: fuelLoad.notes || '',
     } : {
       ...emptyFuelLoad(),
-      vehicle_id: vehicles[0]?.id || '',
+      vehicle_id: selectedVehicleId || vehicles[0]?.id || '',
     });
-  }, [fuelLoad, open, vehicles]);
+  }, [fuelLoad, open, selectedVehicleId, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
@@ -435,6 +442,9 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, trigger, onSaved }) {
               />
             </Field>
           </div>
+          <Field label="Observaciones">
+            <textarea className={`${inputClass} min-h-20`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
+          </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving || vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
@@ -447,7 +457,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, trigger, onSaved }) {
   );
 }
 
-function MaintenanceLogFormDialog({ maintenanceLog, vehicles, trigger, onSaved }) {
+function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId = '', trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -466,11 +476,13 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, trigger, onSaved }
       detail: maintenanceLog.detail || '',
       mileage: maintenanceLog.mileage ?? '',
       value_ars: maintenanceLog.value_ars ?? '',
+      next_control_date: maintenanceLog.next_control_date || '',
+      notes: maintenanceLog.notes || '',
     } : {
       ...emptyMaintenanceLog(),
-      vehicle_id: vehicles[0]?.id || '',
+      vehicle_id: selectedVehicleId || vehicles[0]?.id || '',
     });
-  }, [maintenanceLog, open, vehicles]);
+  }, [maintenanceLog, open, selectedVehicleId, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
@@ -549,12 +561,18 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, trigger, onSaved }
                 required
               />
             </Field>
-            <Field label="Valor en ARS *">
-              <input className={inputClass} type="text" inputMode="decimal" value={form.value_ars} onChange={(e) => setValue('value_ars', decimalValue(e.target.value))} required />
+            <Field label="Costo en ARS">
+              <input className={inputClass} type="text" inputMode="decimal" value={form.value_ars ?? ''} onChange={(e) => setValue('value_ars', decimalValue(e.target.value))} />
             </Field>
           </div>
           <Field label="Detalle *">
             <textarea className={`${inputClass} min-h-24`} value={form.detail} onChange={(e) => setValue('detail', e.target.value)} required />
+          </Field>
+          <Field label="Próximo control">
+            <input className={inputClass} type="date" value={form.next_control_date || ''} onChange={(e) => setValue('next_control_date', e.target.value)} />
+          </Field>
+          <Field label="Observaciones">
+            <textarea className={`${inputClass} min-h-20`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
           </Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -650,11 +668,13 @@ export default function EquipmentLogPage() {
   const [vehicles, setVehicles] = useState([]);
   const [fuelLoads, setFuelLoads] = useState([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [plantAssets, setPlantAssets] = useState([]);
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportSection, setExportSection] = useState('todo');
 
   const canEdit = isAdmin;
 
@@ -700,13 +720,24 @@ export default function EquipmentLogPage() {
     loadCurrentTab();
   }, [activeTab, search]);
 
+  useEffect(() => {
+    if (activeTab !== 'vehicles') return;
+    if (vehicles.length === 0) {
+      setSelectedVehicleId('');
+      return;
+    }
+    if (!selectedVehicleId || !vehicles.some((vehicle) => vehicle.id === selectedVehicleId)) {
+      setSelectedVehicleId(vehicles[0].id);
+    }
+  }, [activeTab, selectedVehicleId, vehicles]);
+
   const tabs = useMemo(() => ([
     { key: 'vehicles', label: 'Vehículos', icon: Car },
     { key: 'plant', label: 'Planta', icon: Building2 },
   ]), []);
 
-  const handleDeleteVehicle = async (id) => {
-    const result = await equipmentLogService.deleteVehicle(id);
+  const handleDeactivateVehicle = async (id) => {
+    const result = await equipmentLogService.deactivateVehicle(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -729,7 +760,7 @@ export default function EquipmentLogPage() {
     if (result.success) loadCurrentTab();
   };
 
-  const handleExportEquipmentLog = async () => {
+  const handleExportEquipmentLog = async (section = 'todo') => {
     setExporting(true);
     const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult] = await Promise.all([
       equipmentLogService.getVehicles(),
@@ -751,7 +782,7 @@ export default function EquipmentLogPage() {
       fuelLoads: fuelLoadsResult.data || [],
       maintenanceLogs: maintenanceLogsResult.data || [],
       plantAssets: plantAssetsResult.data || [],
-    });
+    }, 'libro_registro_equipo.xlsx', section);
     addToast('Excel exportado correctamente.', 'success');
   };
 
@@ -767,7 +798,7 @@ export default function EquipmentLogPage() {
       <PlantFormDialog
         users={users}
         onSaved={loadCurrentTab}
-        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo elemento</Button>}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo elemento de planta</Button>}
       />
     );
 
@@ -780,19 +811,28 @@ export default function EquipmentLogPage() {
               <BookOpen className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-50">Libro registro de equipo</h1>
-              <p className="text-base text-gray-600 dark:text-slate-300">Registro interno de vehículos, sectores de planta y equipos operativos</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-50">Registro de equipo y planta</h1>
+              <p className="text-base text-gray-600 dark:text-slate-300">Control interno de vehículos, mantenimiento, cargas de combustible y sectores operativos de planta.</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button variant="outline" onClick={handleExportEquipmentLog} disabled={exporting} className="gap-2">
+            <select className={inputClass} value={exportSection} onChange={(event) => setExportSection(event.target.value)}>
+              <option value="todo">Todo el libro</option>
+              <option value="vehiculos">Vehículos</option>
+              <option value="combustible">Cargas</option>
+              <option value="mantenimiento">Mantenimientos</option>
+              <option value="planta">Planta</option>
+            </select>
+            <Button variant="outline" onClick={() => handleExportEquipmentLog(exportSection)} disabled={exporting} className="gap-2">
               <FileSpreadsheet className="h-4 w-4" />
-              {exporting ? 'Exportando...' : 'Exportar Excel'}
+              {exporting ? 'Exportando...' : exportSection === 'todo' ? 'Exportar libro completo' : 'Exportar sección'}
             </Button>
             {canEdit && createButton}
           </div>
         </div>
       </div>
+
+      <EquipmentSummaryCards vehicles={vehicles} maintenanceLogs={maintenanceLogs} plantAssets={plantAssets} />
 
       <div className="grid gap-4 lg:grid-cols-[230px,1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -825,8 +865,8 @@ export default function EquipmentLogPage() {
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">{activeTab === 'vehicles' ? 'Vehículos' : 'Planta'}</h2>
               <p className="text-sm text-gray-500 dark:text-slate-300">
                 {activeTab === 'vehicles'
-                  ? 'Patentes, estado, chofer asignado y vencimientos.'
-                  : 'Sectores operativos y equipos internos. Administración queda excluida.'}
+                  ? 'Fichas, historial de combustible, mantenimiento y vencimientos.'
+                  : 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.'}
               </p>
             </div>
             <div className="relative w-full md:w-80">
@@ -847,10 +887,12 @@ export default function EquipmentLogPage() {
               vehicles={vehicles}
               fuelLoads={fuelLoads}
               maintenanceLogs={maintenanceLogs}
+              selectedVehicleId={selectedVehicleId}
+              onSelectVehicle={setSelectedVehicleId}
               users={users}
               canEdit={canEdit}
               onSaved={loadCurrentTab}
-              onDelete={handleDeleteVehicle}
+              onDeactivate={handleDeactivateVehicle}
               onDeleteFuelLoad={handleDeleteFuelLoad}
               onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
             />
@@ -863,11 +905,70 @@ export default function EquipmentLogPage() {
   );
 }
 
-function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, onSaved, onDelete, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
+const isDateWithinDays = (value, days) => {
+  if (!value) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${value}T00:00:00`);
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() + days);
+  return target >= today && target <= limit;
+};
+
+function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets }) {
+  const activeVehicles = vehicles.filter((vehicle) => vehicle.status === 'activo').length;
+  const upcomingExpirations = vehicles.reduce((count, vehicle) => (
+    count
+    + ['registration_expires_at', 'insurance_expires_at', 'inspection_expires_at']
+      .filter((key) => isDateWithinDays(vehicle[key], 30)).length
+  ), 0);
+  const pendingMaintenance = maintenanceLogs.filter((log) => isDateWithinDays(log.next_control_date, 30)).length;
+  const plantNews = plantAssets.filter((asset) => (
+    ['mantenimiento', 'requiere_revision'].includes(asset.status) || Boolean(asset.notes?.trim())
+  )).length;
+
+  const cards = [
+    { label: 'Vehículos activos', value: activeVehicles, detail: vehicles.length ? `${vehicles.length} en registro` : 'Sin vehículos cargados', icon: Car },
+    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: 'Próximos 30 días', icon: AlertCircle },
+    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: 'Con próximo control cercano', icon: Wrench },
+    { label: 'Novedades de planta', value: plantNews, detail: 'Revisión, mantenimiento u observaciones', icon: Building2 },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {cards.map((card) => {
+        const Icon = card.icon;
+        return (
+          <div key={card.label} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">{card.label}</p>
+                <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-slate-50">{card.value}</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{card.detail}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-[#1e3a8a] dark:bg-blue-900/40 dark:text-blue-100">
+                <Icon className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId, onSelectVehicle, users, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
+  const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) || null;
+  const selectedFuelLoads = selectedVehicleId ? fuelLoads.filter((load) => load.vehicle_id === selectedVehicleId) : [];
+  const selectedMaintenanceLogs = selectedVehicleId ? maintenanceLogs.filter((log) => log.vehicle_id === selectedVehicleId) : [];
+
   return (
     <div className="divide-y divide-gray-100 dark:divide-slate-800">
       {vehicles.length === 0 ? (
-        <div className="p-10 text-center text-gray-600 dark:text-slate-300">No hay vehículos registrados.</div>
+        <div className="p-10 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-slate-50">Todavía no hay vehículos registrados.</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Agregá el primero para habilitar cargas de combustible y mantenimientos.</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -877,14 +978,17 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, on
                 <th className="px-5 py-3">Vehículo</th>
                 <th className="px-5 py-3">Chofer</th>
                 <th className="px-5 py-3">Estado</th>
-                <th className="px-5 py-3">Kilometraje</th>
+                <th className="px-5 py-3">Kilometraje actual</th>
                 <th className="px-5 py-3">Vencimientos</th>
                 {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
               {vehicles.map((vehicle) => (
-                <tr key={vehicle.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                <tr
+                  key={vehicle.id}
+                  className={`align-top hover:bg-gray-50 dark:hover:bg-slate-800/70 ${selectedVehicleId === vehicle.id ? 'bg-blue-50/70 dark:bg-blue-950/30' : ''}`}
+                >
                   <td className="px-5 py-4 font-bold text-gray-900 dark:text-slate-50">{vehicle.license_plate}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
                     <p className="font-semibold">{vehicle.name || vehicleTypeLabels[vehicle.vehicle_type] || 'Vehículo'}</p>
@@ -893,8 +997,8 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, on
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{compactUserLabel(vehicle.assigned_driver)}</td>
                   <td className="px-5 py-4"><Badge value={vehicle.status}>{statusLabels[vehicle.status]}</Badge></td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
-                    <p>Inicio: {vehicle.mileage_start ?? '-'}</p>
-                    <p>Cierre: {vehicle.mileage_end ?? '-'}</p>
+                    <p className="font-semibold text-gray-900 dark:text-slate-50">{vehicle.mileage_end ?? vehicle.mileage_start ?? '-'}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Inicio: {vehicle.mileage_start ?? '-'} | Cierre: {vehicle.mileage_end ?? '-'}</p>
                   </td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
                     <p>Registro: {vehicle.registration_expires_at ? formatDate(vehicle.registration_expires_at) : '-'}</p>
@@ -910,12 +1014,15 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, on
                           onSaved={onSaved}
                           trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
                         />
+                        <Button variant="ghost" size="icon" title="Ver historial" onClick={() => onSelectVehicle(vehicle.id)}>
+                          <BookOpen className="h-5 w-5 text-slate-600 dark:text-slate-200" />
+                        </Button>
                         <ConfirmationModal
-                          title="¿Eliminar vehículo?"
-                          description="El vehículo se eliminará definitivamente."
-                          confirmLabel="Sí, eliminar"
-                          onConfirm={() => onDelete(vehicle.id)}
-                          trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                          title="¿Desactivar vehículo?"
+                          description="El vehículo quedará fuera de servicio, pero conservará su historial."
+                          confirmLabel="Sí, desactivar"
+                          onConfirm={() => onDeactivate(vehicle.id)}
+                          trigger={<Button variant="ghost" size="icon"><Ban className="h-5 w-5 text-red-600" /></Button>}
                         />
                       </div>
                     </td>
@@ -929,14 +1036,16 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, on
 
       <FuelLoadsSection
         vehicles={vehicles}
-        fuelLoads={fuelLoads}
+        selectedVehicle={selectedVehicle}
+        fuelLoads={selectedFuelLoads}
         canEdit={canEdit}
         onSaved={onSaved}
         onDelete={onDeleteFuelLoad}
       />
       <MaintenanceLogsSection
         vehicles={vehicles}
-        maintenanceLogs={maintenanceLogs}
+        selectedVehicle={selectedVehicle}
+        maintenanceLogs={selectedMaintenanceLogs}
         canEdit={canEdit}
         onSaved={onSaved}
         onDelete={onDeleteMaintenanceLog}
@@ -945,7 +1054,8 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, on
   );
 }
 
-function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
+function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canEdit, onSaved, onDelete }) {
+  const disabled = !selectedVehicle;
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -955,21 +1065,28 @@ function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Cargas de combustible</h3>
-            <p className="text-sm text-gray-500 dark:text-slate-300">Registro separado de precio, fecha, hora, litros y kilometraje.</p>
+            <p className="text-sm text-gray-500 dark:text-slate-300">
+              {selectedVehicle ? `Historial de ${selectedVehicle.license_plate}.` : 'Seleccioná un vehículo para ver su historial de cargas y mantenimiento.'}
+            </p>
           </div>
         </div>
         {canEdit && (
           <FuelLoadFormDialog
             vehicles={vehicles}
+            selectedVehicleId={selectedVehicle?.id || ''}
             onSaved={onSaved}
-            trigger={<Button disabled={vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva carga</Button>}
+            trigger={<Button disabled={disabled} className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva carga</Button>}
           />
         )}
       </div>
 
-      {fuelLoads.length === 0 ? (
+      {!selectedVehicle ? (
         <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-gray-600 dark:border-slate-700 dark:text-slate-300">
-          No hay cargas de combustible registradas.
+          Seleccioná un vehículo para ver su historial de cargas y mantenimiento.
+        </div>
+      ) : fuelLoads.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          No hay cargas de combustible para este vehículo.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
@@ -981,6 +1098,7 @@ function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
                 <th className="px-5 py-3">Precio</th>
                 <th className="px-5 py-3">Litros</th>
                 <th className="px-5 py-3">Kilometraje</th>
+                <th className="px-5 py-3">Observaciones</th>
                 {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
               </tr>
             </thead>
@@ -998,6 +1116,7 @@ function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
                   <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{formatCurrency(load.price_ars)}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{formatNumber(load.liters, 2)} L</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.mileage}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.notes || '-'}</td>
                   {canEdit && (
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
@@ -1027,7 +1146,8 @@ function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
   );
 }
 
-function MaintenanceLogsSection({ vehicles, maintenanceLogs, canEdit, onSaved, onDelete }) {
+function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, canEdit, onSaved, onDelete }) {
+  const disabled = !selectedVehicle;
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1037,21 +1157,28 @@ function MaintenanceLogsSection({ vehicles, maintenanceLogs, canEdit, onSaved, o
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Mantenimiento</h3>
-            <p className="text-sm text-gray-500 dark:text-slate-300">Registro separado de mantenimiento preventivo y correctivo.</p>
+            <p className="text-sm text-gray-500 dark:text-slate-300">
+              {selectedVehicle ? `Historial técnico de ${selectedVehicle.license_plate}.` : 'Seleccioná un vehículo para ver su historial de cargas y mantenimiento.'}
+            </p>
           </div>
         </div>
         {canEdit && (
           <MaintenanceLogFormDialog
             vehicles={vehicles}
+            selectedVehicleId={selectedVehicle?.id || ''}
             onSaved={onSaved}
-            trigger={<Button disabled={vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo mantenimiento</Button>}
+            trigger={<Button disabled={disabled} className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo mantenimiento</Button>}
           />
         )}
       </div>
 
-      {maintenanceLogs.length === 0 ? (
+      {!selectedVehicle ? (
         <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-gray-600 dark:border-slate-700 dark:text-slate-300">
-          No hay mantenimientos registrados.
+          Seleccioná un vehículo para ver su historial de cargas y mantenimiento.
+        </div>
+      ) : maintenanceLogs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          No hay mantenimientos registrados para este vehículo.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
@@ -1064,6 +1191,7 @@ function MaintenanceLogsSection({ vehicles, maintenanceLogs, canEdit, onSaved, o
                 <th className="px-5 py-3">Detalle</th>
                 <th className="px-5 py-3">Kilometraje</th>
                 <th className="px-5 py-3">Valor</th>
+                <th className="px-5 py-3">Próximo control</th>
                 {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
               </tr>
             </thead>
@@ -1082,7 +1210,11 @@ function MaintenanceLogsSection({ vehicles, maintenanceLogs, canEdit, onSaved, o
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{formatDate(log.maintenance_date)}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{log.detail}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{log.mileage}</td>
-                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{formatCurrency(log.value_ars)}</td>
+                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{log.value_ars === null || log.value_ars === undefined ? '-' : formatCurrency(log.value_ars)}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p>{log.next_control_date ? formatDate(log.next_control_date) : '-'}</p>
+                    {log.notes && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{log.notes}</p>}
+                  </td>
                   {canEdit && (
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
@@ -1112,21 +1244,45 @@ function MaintenanceLogsSection({ vehicles, maintenanceLogs, canEdit, onSaved, o
   );
 }
 
-function PlantAssetsList({ assets, users, canEdit, onSaved, onDelete }) {
-  if (assets.length === 0) {
-    return <div className="p-10 text-center text-gray-600 dark:text-slate-300">No hay elementos de planta registrados.</div>;
-  }
+const plantSections = [
+  {
+    key: 'camaras',
+    title: 'Cámaras',
+    description: 'Cámaras frigoríficas y sectores de conservación.',
+    match: (asset) => /cámara|camara/i.test(asset.category || ''),
+  },
+  {
+    key: 'areas',
+    title: 'Áreas operativas',
+    description: 'Áreas de producción, depósito y sectores de trabajo.',
+    match: (asset) => ['Área fría', 'Área caliente', 'Depósito', 'Planta alta operativa'].includes(asset.category),
+  },
+  {
+    key: 'comunes',
+    title: 'Partes comunes',
+    description: 'Zonas comunes operativas, comedor y circulación interna.',
+    match: (asset) => ['Parte común', 'Comedor de personal'].includes(asset.category),
+  },
+  {
+    key: 'equipos',
+    title: 'Equipos de planta',
+    description: 'Equipos operativos y otros sectores técnicos.',
+    match: (asset) => ['Equipo operativo', 'Otro sector operativo'].includes(asset.category),
+  },
+];
 
+function PlantAssetRows({ assets, users, canEdit, onSaved, onDelete }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
       <table className="w-full text-left text-sm">
         <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
           <tr>
             <th className="px-5 py-3">Nombre</th>
             <th className="px-5 py-3">Categoría</th>
-            <th className="px-5 py-3">Ubicación</th>
+            <th className="px-5 py-3">Ubicación/sector</th>
             <th className="px-5 py-3">Responsable</th>
             <th className="px-5 py-3">Estado</th>
+            <th className="px-5 py-3">Observaciones</th>
             {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
           </tr>
         </thead>
@@ -1140,6 +1296,7 @@ function PlantAssetsList({ assets, users, canEdit, onSaved, onDelete }) {
               <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{asset.location_description || '-'}</td>
               <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{compactUserLabel(asset.responsible_user)}</td>
               <td className="px-5 py-4"><Badge value={asset.status}>{statusLabels[asset.status]}</Badge></td>
+              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{asset.notes || '-'}</td>
               {canEdit && (
                 <td className="px-5 py-4">
                   <div className="flex justify-end gap-2">
@@ -1163,6 +1320,72 @@ function PlantAssetsList({ assets, users, canEdit, onSaved, onDelete }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function PlantAssetsList({ assets, users, canEdit, onSaved, onDelete }) {
+  if (assets.length === 0) {
+    return (
+      <div className="p-10 text-center">
+        <p className="text-base font-semibold text-gray-900 dark:text-slate-50">Todavía no hay registros de planta.</p>
+        <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Agregá cámaras, áreas operativas, partes comunes o equipos de planta para construir el registro.</p>
+      </div>
+    );
+  }
+
+  const assigned = new Set();
+  const sections = plantSections.map((section) => {
+    const sectionAssets = assets.filter((asset) => section.match(asset));
+    sectionAssets.forEach((asset) => assigned.add(asset.id));
+    return { ...section, assets: sectionAssets };
+  });
+  const unassigned = assets.filter((asset) => !assigned.has(asset.id));
+  const news = assets.filter((asset) => (
+    ['mantenimiento', 'requiere_revision'].includes(asset.status) || Boolean(asset.notes?.trim())
+  ));
+
+  return (
+    <div className="space-y-6 p-4">
+      {sections.map((section) => (
+        <div key={section.key} className="space-y-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">{section.title}</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-300">{section.description}</p>
+          </div>
+          {section.assets.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-gray-200 p-5 text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
+              Sin registros en esta subcategoría.
+            </div>
+          ) : (
+            <PlantAssetRows assets={section.assets} users={users} canEdit={canEdit} onSaved={onSaved} onDelete={onDelete} />
+          )}
+        </div>
+      ))}
+
+      {unassigned.length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Otros operativos</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-300">Registros operativos de planta sin subcategoría específica. Administración queda excluida.</p>
+          </div>
+          <PlantAssetRows assets={unassigned} users={users} canEdit={canEdit} onSaved={onSaved} onDelete={onDelete} />
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Novedades / observaciones</h3>
+          <p className="text-sm text-gray-500 dark:text-slate-300">Elementos con revisión, mantenimiento u observaciones cargadas.</p>
+        </div>
+        {news.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 p-5 text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
+            No hay novedades de planta registradas.
+          </div>
+        ) : (
+          <PlantAssetRows assets={news} users={users} canEdit={canEdit} onSaved={onSaved} onDelete={onDelete} />
+        )}
+      </div>
     </div>
   );
 }

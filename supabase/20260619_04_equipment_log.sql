@@ -73,7 +73,7 @@ create table if not exists public.vehicles (
   constraint vehicles_license_plate_length_check check (char_length(license_plate) <= 10),
   constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
   constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
-  constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
+  constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento', 'fuera_servicio')),
   constraint vehicles_year_check check (year is null or (year > 1950 and year <= extract(year from current_date)::integer)),
   constraint vehicles_mileage_start_check check (mileage_start is null or (mileage_start >= 0 and mileage_start <= 999999999)),
   constraint vehicles_mileage_end_check check (mileage_end is null or (mileage_end >= 0 and mileage_end <= 999999999)),
@@ -99,6 +99,7 @@ create table if not exists public.vehicle_fuel_loads (
   estimated_time time not null,
   liters numeric(10,2) not null,
   mileage integer not null,
+  notes text,
   created_by uuid references public.users(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now(),
   constraint vehicle_fuel_loads_price_ars_check check (price_ars > 0 and price_ars <= 999999999.99),
@@ -118,13 +119,15 @@ create table if not exists public.vehicle_maintenance_logs (
   maintenance_date date not null,
   detail text not null,
   mileage integer not null,
-  value_ars numeric(12,2) not null,
+  value_ars numeric(12,2),
+  next_control_date date,
+  notes text,
   created_by uuid references public.users(id) on delete set null default auth.uid(),
   created_at timestamptz not null default now(),
   constraint vehicle_maintenance_logs_type_check check (maintenance_type in ('preventivo', 'correctivo')),
   constraint vehicle_maintenance_logs_detail_check check (btrim(detail) <> ''),
   constraint vehicle_maintenance_logs_mileage_check check (mileage >= 0 and mileage <= 999999999),
-  constraint vehicle_maintenance_logs_value_ars_check check (value_ars >= 0 and value_ars <= 999999999.99)
+  constraint vehicle_maintenance_logs_value_ars_check check (value_ars is null or (value_ars >= 0 and value_ars <= 999999999.99))
 );
 
 create index if not exists vehicle_maintenance_logs_vehicle_id_idx

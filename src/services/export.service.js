@@ -158,8 +158,9 @@ export const exportService = {
     fuelLoads = [],
     maintenanceLogs = [],
     plantAssets = [],
-  } = {}, filename = 'libro_registro_equipo.xlsx') {
+  } = {}, filename = 'libro_registro_equipo.xlsx', section = 'todo') {
     const workbook = XLSX.utils.book_new();
+    const shouldExport = (name) => section === 'todo' || section === name;
     const textCompare = (a, b) => String(a || '').localeCompare(String(b || ''), 'es');
     const sortedVehicles = [...vehicles].sort((a, b) => (
       textCompare(a.vehicle_type, b.vehicle_type)
@@ -194,7 +195,7 @@ export const exportService = {
       return acc;
     }, {});
 
-    this._appendJsonSheet(workbook, [
+    if (shouldExport('resumen')) this._appendJsonSheet(workbook, [
       { Clasificación: 'Vehículos registrados', Total: sortedVehicles.length },
       { Clasificación: 'Cargas de combustible', Total: sortedFuelLoads.length },
       { Clasificación: 'Mantenimientos', Total: sortedMaintenanceLogs.length },
@@ -205,7 +206,7 @@ export const exportService = {
       ...Object.entries(plantByCategory).map(([category, total]) => ({ Clasificación: `Planta - ${category}`, Total: total })),
     ], 'Resumen', [{ wch: 34 }, { wch: 12 }]);
 
-    this._appendJsonSheet(workbook, sortedVehicles.map((vehicle) => ({
+    if (shouldExport('vehiculos')) this._appendJsonSheet(workbook, sortedVehicles.map((vehicle) => ({
       Clasificación: 'Vehículo',
       Tipo: vehicle.vehicle_type || '',
       Estado: vehicle.status || '',
@@ -227,7 +228,7 @@ export const exportService = {
       { wch: 16 }, { wch: 16 }, { wch: 36 },
     ]);
 
-    this._appendJsonSheet(workbook, sortedFuelLoads.map((load) => ({
+    if (shouldExport('combustible')) this._appendJsonSheet(workbook, sortedFuelLoads.map((load) => ({
       Clasificación: 'Combustible',
       Patente: load.vehicle?.license_plate || '',
       Vehículo: [load.vehicle?.name || load.vehicle?.brand, load.vehicle?.model].filter(Boolean).join(' '),
@@ -236,12 +237,13 @@ export const exportService = {
       'Precio ARS': Number(load.price_ars || 0),
       Litros: Number(load.liters || 0),
       Kilometraje: load.mileage ?? '',
+      Observaciones: load.notes || '',
     })), 'Combustible', [
       { wch: 16 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-      { wch: 12 }, { wch: 14 },
+      { wch: 12 }, { wch: 14 }, { wch: 36 },
     ]);
 
-    this._appendJsonSheet(workbook, sortedMaintenanceLogs.map((log) => ({
+    if (shouldExport('mantenimiento')) this._appendJsonSheet(workbook, sortedMaintenanceLogs.map((log) => ({
       Clasificación: 'Mantenimiento',
       Tipo: log.maintenance_type || '',
       Patente: log.vehicle?.license_plate || '',
@@ -249,13 +251,15 @@ export const exportService = {
       Fecha: log.maintenance_date ? formatDate(log.maintenance_date) : '',
       Detalle: log.detail || '',
       Kilometraje: log.mileage ?? '',
-      'Valor ARS': Number(log.value_ars || 0),
+      'Valor ARS': log.value_ars === null || log.value_ars === undefined ? '' : Number(log.value_ars),
+      'Próximo control': log.next_control_date ? formatDate(log.next_control_date) : '',
+      Observaciones: log.notes || '',
     })), 'Mantenimiento', [
       { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 48 },
-      { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 36 },
     ]);
 
-    this._appendJsonSheet(workbook, sortedPlantAssets.map((asset) => ({
+    if (shouldExport('planta')) this._appendJsonSheet(workbook, sortedPlantAssets.map((asset) => ({
       Clasificación: 'Planta',
       Categoría: asset.category || '',
       Estado: asset.status || '',

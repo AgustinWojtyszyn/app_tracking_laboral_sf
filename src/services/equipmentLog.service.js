@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
-export const VEHICLE_STATUS = ['activo', 'inactivo', 'mantenimiento'];
+export const VEHICLE_STATUS = ['activo', 'mantenimiento', 'fuera_servicio'];
 export const VEHICLE_TYPES = ['utilitario', 'camion', 'auto', 'moto', 'otro'];
 export const VEHICLE_LICENSE_PLATE_MAX_LENGTH = 10;
 export const VEHICLE_MILEAGE_MAX_DIGITS = 9;
@@ -163,6 +163,19 @@ export const equipmentLogService = {
     }
   },
 
+  async deactivateVehicle(id) {
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .update({ status: 'fuera_servicio' })
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Vehículo desactivado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo desactivar el vehículo.') };
+    }
+  },
+
   async getFuelLoads() {
     try {
       const { data, error } = await supabase
@@ -207,6 +220,7 @@ export const equipmentLogService = {
       estimated_time: fuelLoad.estimated_time,
       liters,
       mileage,
+      notes: fuelLoad.notes?.trim() || null,
     };
 
     try {
@@ -265,8 +279,10 @@ export const equipmentLogService = {
       return { success: false, error: `El kilometraje debe ser numérico y de hasta ${VEHICLE_MILEAGE_MAX_DIGITS} dígitos.` };
     }
 
-    const valueArs = normalizeDecimal(maintenanceLog.value_ars);
-    if (Number.isNaN(valueArs) || valueArs < 0 || valueArs > FUEL_AMOUNT_MAX_VALUE) {
+    const valueArs = maintenanceLog.value_ars === '' || maintenanceLog.value_ars === null || maintenanceLog.value_ars === undefined
+      ? null
+      : normalizeDecimal(maintenanceLog.value_ars);
+    if (Number.isNaN(valueArs) || (valueArs !== null && (valueArs < 0 || valueArs > FUEL_AMOUNT_MAX_VALUE))) {
       return { success: false, error: 'El valor debe ser un importe válido en pesos.' };
     }
 
@@ -277,6 +293,8 @@ export const equipmentLogService = {
       detail: maintenanceLog.detail.trim(),
       mileage,
       value_ars: valueArs,
+      next_control_date: maintenanceLog.next_control_date || null,
+      notes: maintenanceLog.notes?.trim() || null,
     };
 
     try {
