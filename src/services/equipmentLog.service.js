@@ -209,14 +209,14 @@ export const equipmentLogService = {
     };
 
     try {
-      const { data, error } = await supabase
-        .from('vehicle_fuel_loads')
-        .insert([payload])
-        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model)')
-        .single();
+      const request = fuelLoad.id
+        ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
+        : supabase.from('vehicle_fuel_loads').insert([payload]);
+
+      const { data, error } = await request.select('*, vehicle:vehicle_id(id, license_plate, name, brand, model)').single();
 
       if (error) throw error;
-      return { success: true, data, message: 'Carga de combustible registrada.' };
+      return { success: true, data, message: fuelLoad.id ? 'Carga de combustible actualizada.' : 'Carga de combustible registrada.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo guardar la carga de combustible.') };
     }

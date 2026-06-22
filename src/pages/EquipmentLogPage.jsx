@@ -310,7 +310,7 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
   );
 }
 
-function FuelLoadFormDialog({ vehicles, trigger, onSaved }) {
+function FuelLoadFormDialog({ fuelLoad, vehicles, trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -320,11 +320,20 @@ function FuelLoadFormDialog({ vehicles, trigger, onSaved }) {
   useEffect(() => {
     if (!open) return;
     setFormError('');
-    setForm({
+    setForm(fuelLoad ? {
+      ...emptyFuelLoad(),
+      ...fuelLoad,
+      vehicle_id: fuelLoad.vehicle_id || '',
+      price_ars: fuelLoad.price_ars ?? '',
+      load_date: fuelLoad.load_date || todayInputDate(),
+      estimated_time: fuelLoad.estimated_time?.slice(0, 5) || currentInputTime(),
+      liters: fuelLoad.liters ?? '',
+      mileage: fuelLoad.mileage ?? '',
+    } : {
       ...emptyFuelLoad(),
       vehicle_id: vehicles[0]?.id || '',
     });
-  }, [open, vehicles]);
+  }, [fuelLoad, open, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
@@ -352,7 +361,7 @@ function FuelLoadFormDialog({ vehicles, trigger, onSaved }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader>
-          <DialogTitle>Registrar carga de combustible</DialogTitle>
+          <DialogTitle>{fuelLoad ? 'Editar carga de combustible' : 'Registrar carga de combustible'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           {formError && (
@@ -796,7 +805,13 @@ function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.mileage}</td>
                   {canEdit && (
                     <td className="px-5 py-4">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        <FuelLoadFormDialog
+                          fuelLoad={load}
+                          vehicles={vehicles}
+                          onSaved={onSaved}
+                          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                        />
                         <ConfirmationModal
                           title="¿Eliminar carga de combustible?"
                           description="La carga se eliminará definitivamente."
