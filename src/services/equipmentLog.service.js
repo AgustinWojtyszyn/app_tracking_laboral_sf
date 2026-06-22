@@ -24,8 +24,16 @@ export const normalizeLicensePlate = (value) => (
 
 const normalizeMileage = (value) => {
   if (value === '' || value === null || value === undefined) return null;
-  const mileage = Number(value);
-  return Number.isFinite(mileage) ? Math.trunc(mileage) : NaN;
+  const rawMileage = String(value).trim();
+  if (!/^\d+$/.test(rawMileage)) return NaN;
+  return Number(rawMileage);
+};
+
+const normalizeVehicleYear = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const rawYear = String(value).trim();
+  if (!/^\d{4}$/.test(rawYear)) return NaN;
+  return Number(rawYear);
 };
 
 const mapSupabaseError = (error, fallback) => {
@@ -78,7 +86,7 @@ export const equipmentLogService = {
     const mileageStart = normalizeMileage(vehicle.mileage_start);
     const mileageEnd = normalizeMileage(vehicle.mileage_end);
     if (Number.isNaN(mileageStart) || Number.isNaN(mileageEnd)) {
-      return { success: false, error: 'El kilometraje debe ser un número válido.' };
+      return { success: false, error: 'El kilometraje debe ser únicamente numérico.' };
     }
     if ((mileageStart !== null && mileageStart < 0) || (mileageEnd !== null && mileageEnd < 0)) {
       return { success: false, error: 'El kilometraje no puede ser negativo.' };
@@ -87,13 +95,19 @@ export const equipmentLogService = {
       return { success: false, error: 'El kilometraje al terminar la jornada debe ser SIEMPRE SUPERIOR al iniciar.' };
     }
 
+    const currentYear = new Date().getFullYear();
+    const year = normalizeVehicleYear(vehicle.year);
+    if (Number.isNaN(year) || (year !== null && (year <= 1950 || year > currentYear))) {
+      return { success: false, error: `Año: 4 dígitos, mayor a 1950 y máximo ${currentYear}.` };
+    }
+
     const payload = {
       license_plate: licensePlate,
       name: vehicle.name?.trim() || null,
       vehicle_type: vehicle.vehicle_type || 'utilitario',
       brand: vehicle.brand?.trim() || null,
       model: vehicle.model?.trim() || null,
-      year: vehicle.year ? Number(vehicle.year) : null,
+      year,
       assigned_driver_id: vehicle.assigned_driver_id || null,
       registration_expires_at: vehicle.registration_expires_at || null,
       insurance_expires_at: vehicle.insurance_expires_at || null,

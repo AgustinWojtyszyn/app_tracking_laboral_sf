@@ -90,6 +90,8 @@ function Field({ label, children }) {
 }
 
 const inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50';
+const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
+const yearDigits = (value) => onlyDigits(value).slice(0, 4);
 
 function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
   const { addToast } = useToast();
@@ -134,7 +136,6 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
       onSaved();
     } else {
       setFormError(result.error);
-      addToast(result.error, 'error');
     }
   };
 
@@ -192,7 +193,7 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
               <input className={inputClass} value={form.model || ''} onChange={(e) => setValue('model', e.target.value)} />
             </Field>
             <Field label="Año">
-              <input className={inputClass} type="number" min="1950" max="2100" value={form.year || ''} onChange={(e) => setValue('year', e.target.value)} />
+              <input className={inputClass} type="text" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={form.year || ''} onChange={(e) => setValue('year', yearDigits(e.target.value))} />
             </Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -208,10 +209,10 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Kilometraje inicio de actividades">
-              <input className={inputClass} type="number" min="0" step="1" value={form.mileage_start ?? ''} onChange={(e) => setValue('mileage_start', e.target.value)} />
+              <input className={inputClass} type="text" inputMode="numeric" pattern="[0-9]*" value={form.mileage_start ?? ''} onChange={(e) => setValue('mileage_start', onlyDigits(e.target.value))} />
             </Field>
             <Field label="Kilometraje cierre de actividades">
-              <input className={inputClass} type="number" min="0" step="1" value={form.mileage_end ?? ''} onChange={(e) => setValue('mileage_end', e.target.value)} />
+              <input className={inputClass} type="text" inputMode="numeric" pattern="[0-9]*" value={form.mileage_end ?? ''} onChange={(e) => setValue('mileage_end', onlyDigits(e.target.value))} />
             </Field>
           </div>
           <Field label="Observaciones">

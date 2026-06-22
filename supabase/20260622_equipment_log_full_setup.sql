@@ -91,7 +91,7 @@ alter table public.vehicles
   add constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
   add constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
   add constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
-  add constraint vehicles_year_check check (year is null or (year between 1950 and 2100)),
+  add constraint vehicles_year_check check (year is null or (year > 1950 and year <= extract(year from current_date)::integer)),
   add constraint vehicles_mileage_start_check check (mileage_start is null or mileage_start >= 0),
   add constraint vehicles_mileage_end_check check (mileage_end is null or mileage_end >= 0),
   add constraint vehicles_mileage_range_check check (mileage_start is null or mileage_end is null or mileage_end > mileage_start);
