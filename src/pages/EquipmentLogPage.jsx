@@ -18,6 +18,8 @@ import {
   normalizeLicensePlate,
   PLANT_CATEGORIES,
   PLANT_STATUS,
+  VEHICLE_LICENSE_PLATE_MAX_LENGTH,
+  VEHICLE_MILEAGE_MAX_DIGITS,
   VEHICLE_STATUS,
   VEHICLE_TYPES,
 } from '@/services/equipmentLog.service';
@@ -92,6 +94,28 @@ function Field({ label, children }) {
 const inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50';
 const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
 const yearDigits = (value) => onlyDigits(value).slice(0, 4);
+const mileageDigits = (value) => onlyDigits(value).slice(0, VEHICLE_MILEAGE_MAX_DIGITS);
+const licensePlateValue = (value) => normalizeLicensePlate(value).slice(0, VEHICLE_LICENSE_PLATE_MAX_LENGTH);
+
+const selectedLength = (input) => Math.max(0, (input.selectionEnd || 0) - (input.selectionStart || 0));
+
+const preventInvalidLimitedInput = ({ pattern, maxLength }) => (event) => {
+  const data = event.data || '';
+  if (!data) return;
+  const input = event.currentTarget;
+  const nextLength = input.value.length - selectedLength(input) + data.length;
+  if (!pattern.test(data) || nextLength > maxLength) event.preventDefault();
+};
+
+const pasteLimitedValue = ({ formatter, maxLength, onValue }) => (event) => {
+  event.preventDefault();
+  const input = event.currentTarget;
+  const pasted = event.clipboardData.getData('text');
+  const start = input.selectionStart || 0;
+  const end = input.selectionEnd || 0;
+  const next = formatter(`${input.value.slice(0, start)}${pasted}${input.value.slice(end)}`).slice(0, maxLength);
+  onValue(next);
+};
 
 function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
   const { addToast } = useToast();
@@ -159,7 +183,15 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Patente *">
-              <input className={inputClass} value={form.license_plate} onChange={(e) => setValue('license_plate', normalizeLicensePlate(e.target.value))} required />
+              <input
+                className={inputClass}
+                maxLength={VEHICLE_LICENSE_PLATE_MAX_LENGTH}
+                value={form.license_plate}
+                onBeforeInput={preventInvalidLimitedInput({ pattern: /^[a-zA-Z0-9]+$/, maxLength: VEHICLE_LICENSE_PLATE_MAX_LENGTH })}
+                onPaste={pasteLimitedValue({ formatter: licensePlateValue, maxLength: VEHICLE_LICENSE_PLATE_MAX_LENGTH, onValue: (value) => setValue('license_plate', value) })}
+                onChange={(e) => setValue('license_plate', licensePlateValue(e.target.value))}
+                required
+              />
             </Field>
             <Field label="Estado">
               <select className={inputClass} value={form.status} onChange={(e) => setValue('status', e.target.value)}>
@@ -193,7 +225,17 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
               <input className={inputClass} value={form.model || ''} onChange={(e) => setValue('model', e.target.value)} />
             </Field>
             <Field label="Año">
-              <input className={inputClass} type="text" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={form.year || ''} onChange={(e) => setValue('year', yearDigits(e.target.value))} />
+              <input
+                className={inputClass}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{4}"
+                maxLength={4}
+                value={form.year || ''}
+                onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: 4 })}
+                onPaste={pasteLimitedValue({ formatter: yearDigits, maxLength: 4, onValue: (value) => setValue('year', value) })}
+                onChange={(e) => setValue('year', yearDigits(e.target.value))}
+              />
             </Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -209,10 +251,30 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Kilometraje inicio de actividades">
-              <input className={inputClass} type="text" inputMode="numeric" pattern="[0-9]*" value={form.mileage_start ?? ''} onChange={(e) => setValue('mileage_start', onlyDigits(e.target.value))} />
+              <input
+                className={inputClass}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={VEHICLE_MILEAGE_MAX_DIGITS}
+                value={form.mileage_start ?? ''}
+                onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
+                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage_start', value) })}
+                onChange={(e) => setValue('mileage_start', mileageDigits(e.target.value))}
+              />
             </Field>
             <Field label="Kilometraje cierre de actividades">
-              <input className={inputClass} type="text" inputMode="numeric" pattern="[0-9]*" value={form.mileage_end ?? ''} onChange={(e) => setValue('mileage_end', onlyDigits(e.target.value))} />
+              <input
+                className={inputClass}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={VEHICLE_MILEAGE_MAX_DIGITS}
+                value={form.mileage_end ?? ''}
+                onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
+                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage_end', value) })}
+                onChange={(e) => setValue('mileage_end', mileageDigits(e.target.value))}
+              />
             </Field>
           </div>
           <Field label="Observaciones">

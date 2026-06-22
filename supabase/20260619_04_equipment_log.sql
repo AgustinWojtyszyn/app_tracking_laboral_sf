@@ -70,12 +70,13 @@ create table if not exists public.vehicles (
   updated_at timestamptz not null default now(),
   archived_at timestamptz,
   constraint vehicles_license_plate_not_blank check (btrim(license_plate) <> ''),
+  constraint vehicles_license_plate_length_check check (char_length(license_plate) <= 10),
   constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
   constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
   constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
   constraint vehicles_year_check check (year is null or (year > 1950 and year <= extract(year from current_date)::integer)),
-  constraint vehicles_mileage_start_check check (mileage_start is null or mileage_start >= 0),
-  constraint vehicles_mileage_end_check check (mileage_end is null or mileage_end >= 0),
+  constraint vehicles_mileage_start_check check (mileage_start is null or (mileage_start >= 0 and mileage_start <= 999999999)),
+  constraint vehicles_mileage_end_check check (mileage_end is null or (mileage_end >= 0 and mileage_end <= 999999999)),
   constraint vehicles_mileage_range_check check (mileage_start is null or mileage_end is null or mileage_end > mileage_start)
 );
 

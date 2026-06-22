@@ -2,6 +2,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 export const VEHICLE_STATUS = ['activo', 'inactivo', 'mantenimiento'];
 export const VEHICLE_TYPES = ['utilitario', 'camion', 'auto', 'moto', 'otro'];
+export const VEHICLE_LICENSE_PLATE_MAX_LENGTH = 10;
+export const VEHICLE_MILEAGE_MAX_DIGITS = 9;
+export const VEHICLE_MILEAGE_MAX_VALUE = 999999999;
 export const PLANT_STATUS = ['activo', 'inactivo', 'mantenimiento', 'requiere_revision'];
 export const PLANT_CATEGORIES = [
   'Área fría',
@@ -26,6 +29,7 @@ const normalizeMileage = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const rawMileage = String(value).trim();
   if (!/^\d+$/.test(rawMileage)) return NaN;
+  if (rawMileage.length > VEHICLE_MILEAGE_MAX_DIGITS) return NaN;
   return Number(rawMileage);
 };
 
@@ -82,14 +86,20 @@ export const equipmentLogService = {
   async saveVehicle(vehicle) {
     const licensePlate = normalizeLicensePlate(vehicle.license_plate);
     if (!licensePlate) return { success: false, error: 'La patente es obligatoria.' };
+    if (licensePlate.length > VEHICLE_LICENSE_PLATE_MAX_LENGTH) {
+      return { success: false, error: `La patente no puede superar ${VEHICLE_LICENSE_PLATE_MAX_LENGTH} caracteres.` };
+    }
 
     const mileageStart = normalizeMileage(vehicle.mileage_start);
     const mileageEnd = normalizeMileage(vehicle.mileage_end);
     if (Number.isNaN(mileageStart) || Number.isNaN(mileageEnd)) {
-      return { success: false, error: 'El kilometraje debe ser únicamente numérico.' };
+      return { success: false, error: `El kilometraje debe ser numérico y de hasta ${VEHICLE_MILEAGE_MAX_DIGITS} dígitos.` };
     }
-    if ((mileageStart !== null && mileageStart < 0) || (mileageEnd !== null && mileageEnd < 0)) {
-      return { success: false, error: 'El kilometraje no puede ser negativo.' };
+    if (
+      (mileageStart !== null && (mileageStart < 0 || mileageStart > VEHICLE_MILEAGE_MAX_VALUE))
+      || (mileageEnd !== null && (mileageEnd < 0 || mileageEnd > VEHICLE_MILEAGE_MAX_VALUE))
+    ) {
+      return { success: false, error: `El kilometraje debe estar entre 0 y ${VEHICLE_MILEAGE_MAX_VALUE}.` };
     }
     if (mileageStart !== null && mileageEnd !== null && mileageEnd <= mileageStart) {
       return { success: false, error: 'El kilometraje al terminar la jornada debe ser SIEMPRE SUPERIOR al iniciar.' };

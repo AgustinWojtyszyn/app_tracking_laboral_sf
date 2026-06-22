@@ -78,6 +78,7 @@ alter table public.vehicles
 
 alter table public.vehicles
   drop constraint if exists vehicles_license_plate_not_blank,
+  drop constraint if exists vehicles_license_plate_length_check,
   drop constraint if exists vehicles_license_plate_upper_normalized,
   drop constraint if exists vehicles_type_check,
   drop constraint if exists vehicles_status_check,
@@ -88,12 +89,13 @@ alter table public.vehicles
 
 alter table public.vehicles
   add constraint vehicles_license_plate_not_blank check (btrim(license_plate) <> ''),
+  add constraint vehicles_license_plate_length_check check (char_length(license_plate) <= 10),
   add constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
   add constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
   add constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
   add constraint vehicles_year_check check (year is null or (year > 1950 and year <= extract(year from current_date)::integer)),
-  add constraint vehicles_mileage_start_check check (mileage_start is null or mileage_start >= 0),
-  add constraint vehicles_mileage_end_check check (mileage_end is null or mileage_end >= 0),
+  add constraint vehicles_mileage_start_check check (mileage_start is null or (mileage_start >= 0 and mileage_start <= 999999999)),
+  add constraint vehicles_mileage_end_check check (mileage_end is null or (mileage_end >= 0 and mileage_end <= 999999999)),
   add constraint vehicles_mileage_range_check check (mileage_start is null or mileage_end is null or mileage_end > mileage_start);
 
 create unique index if not exists vehicles_license_plate_uidx
