@@ -76,7 +76,7 @@ create table if not exists public.vehicles (
   constraint vehicles_year_check check (year is null or (year between 1950 and 2100)),
   constraint vehicles_mileage_start_check check (mileage_start is null or mileage_start >= 0),
   constraint vehicles_mileage_end_check check (mileage_end is null or mileage_end >= 0),
-  constraint vehicles_mileage_range_check check (mileage_start is null or mileage_end is null or mileage_end >= mileage_start)
+  constraint vehicles_mileage_range_check check (mileage_start is null or mileage_end is null or mileage_end > mileage_start)
 );
 
 create unique index if not exists vehicles_license_plate_uidx

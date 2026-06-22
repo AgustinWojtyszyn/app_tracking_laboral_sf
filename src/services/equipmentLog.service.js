@@ -83,8 +83,8 @@ export const equipmentLogService = {
     if ((mileageStart !== null && mileageStart < 0) || (mileageEnd !== null && mileageEnd < 0)) {
       return { success: false, error: 'El kilometraje no puede ser negativo.' };
     }
-    if (mileageStart !== null && mileageEnd !== null && mileageEnd < mileageStart) {
-      return { success: false, error: 'El kilometraje de cierre no puede ser menor al de inicio.' };
+    if (mileageStart !== null && mileageEnd !== null && mileageEnd <= mileageStart) {
+      return { success: false, error: 'El kilometraje al terminar la jornada debe ser SIEMPRE SUPERIOR al iniciar.' };
     }
 
     const payload = {
