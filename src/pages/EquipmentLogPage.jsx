@@ -55,6 +55,8 @@ const emptyVehicle = {
   registration_expires_at: '',
   insurance_expires_at: '',
   inspection_expires_at: '',
+  mileage_start: '',
+  mileage_end: '',
   status: 'activo',
   notes: '',
 };
@@ -104,6 +106,8 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
       registration_expires_at: vehicle.registration_expires_at || '',
       insurance_expires_at: vehicle.insurance_expires_at || '',
       inspection_expires_at: vehicle.inspection_expires_at || '',
+      mileage_start: vehicle.mileage_start ?? '',
+      mileage_end: vehicle.mileage_end ?? '',
     } : emptyVehicle);
   }, [open, vehicle]);
 
@@ -183,6 +187,14 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
             </Field>
             <Field label="Vence VTV/RTO">
               <input className={inputClass} type="date" value={form.inspection_expires_at || ''} onChange={(e) => setValue('inspection_expires_at', e.target.value)} />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Kilometraje inicio de actividades">
+              <input className={inputClass} type="number" min="0" step="1" value={form.mileage_start ?? ''} onChange={(e) => setValue('mileage_start', e.target.value)} />
+            </Field>
+            <Field label="Kilometraje cierre de actividades">
+              <input className={inputClass} type="number" min="0" step="1" value={form.mileage_end ?? ''} onChange={(e) => setValue('mileage_end', e.target.value)} />
             </Field>
           </div>
           <Field label="Observaciones">
@@ -439,6 +451,7 @@ function VehiclesList({ vehicles, users, canEdit, onSaved, onDelete }) {
             <th className="px-5 py-3">Vehículo</th>
             <th className="px-5 py-3">Chofer</th>
             <th className="px-5 py-3">Estado</th>
+            <th className="px-5 py-3">Kilometraje</th>
             <th className="px-5 py-3">Vencimientos</th>
             {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
           </tr>
@@ -453,6 +466,10 @@ function VehiclesList({ vehicles, users, canEdit, onSaved, onDelete }) {
               </td>
               <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{compactUserLabel(vehicle.assigned_driver)}</td>
               <td className="px-5 py-4"><Badge value={vehicle.status}>{statusLabels[vehicle.status]}</Badge></td>
+              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                <p>Inicio: {vehicle.mileage_start ?? '-'}</p>
+                <p>Cierre: {vehicle.mileage_end ?? '-'}</p>
+              </td>
               <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
                 <p>Registro: {vehicle.registration_expires_at ? formatDate(vehicle.registration_expires_at) : '-'}</p>
                 <p>Seguro: {vehicle.insurance_expires_at ? formatDate(vehicle.insurance_expires_at) : '-'}</p>

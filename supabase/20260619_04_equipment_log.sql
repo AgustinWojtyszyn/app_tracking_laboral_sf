@@ -61,6 +61,8 @@ create table if not exists public.vehicles (
   registration_expires_at date,
   insurance_expires_at date,
   inspection_expires_at date,
+  mileage_start integer,
+  mileage_end integer,
   status text not null default 'activo',
   notes text,
   created_by uuid references public.users(id) on delete set null default auth.uid(),
@@ -71,7 +73,10 @@ create table if not exists public.vehicles (
   constraint vehicles_license_plate_upper_normalized check (license_plate = upper(regexp_replace(license_plate, '[^A-Z0-9]', '', 'g'))),
   constraint vehicles_type_check check (vehicle_type in ('utilitario', 'camion', 'auto', 'moto', 'otro')),
   constraint vehicles_status_check check (status in ('activo', 'inactivo', 'mantenimiento')),
-  constraint vehicles_year_check check (year is null or (year between 1950 and 2100))
+  constraint vehicles_year_check check (year is null or (year between 1950 and 2100)),
+  constraint vehicles_mileage_start_check check (mileage_start is null or mileage_start >= 0),
+  constraint vehicles_mileage_end_check check (mileage_end is null or mileage_end >= 0),
+  constraint vehicles_mileage_range_check check (mileage_start is null or mileage_end is null or mileage_end >= mileage_start)
 );
 
 create unique index if not exists vehicles_license_plate_uidx

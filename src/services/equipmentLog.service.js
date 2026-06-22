@@ -22,6 +22,12 @@ export const normalizeLicensePlate = (value) => (
     .replace(/[^A-Z0-9]/g, '')
 );
 
+const normalizeMileage = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const mileage = Number(value);
+  return Number.isFinite(mileage) ? Math.trunc(mileage) : NaN;
+};
+
 const mapSupabaseError = (error, fallback) => {
   if (error?.code === '23505') return 'Ya existe un vehículo con esa patente.';
   if (error?.code === '42501' || /row-level security|permission denied/i.test(error?.message || '')) {
@@ -69,6 +75,18 @@ export const equipmentLogService = {
     const licensePlate = normalizeLicensePlate(vehicle.license_plate);
     if (!licensePlate) return { success: false, error: 'La patente es obligatoria.' };
 
+    const mileageStart = normalizeMileage(vehicle.mileage_start);
+    const mileageEnd = normalizeMileage(vehicle.mileage_end);
+    if (Number.isNaN(mileageStart) || Number.isNaN(mileageEnd)) {
+      return { success: false, error: 'El kilometraje debe ser un número válido.' };
+    }
+    if ((mileageStart !== null && mileageStart < 0) || (mileageEnd !== null && mileageEnd < 0)) {
+      return { success: false, error: 'El kilometraje no puede ser negativo.' };
+    }
+    if (mileageStart !== null && mileageEnd !== null && mileageEnd < mileageStart) {
+      return { success: false, error: 'El kilometraje de cierre no puede ser menor al de inicio.' };
+    }
+
     const payload = {
       license_plate: licensePlate,
       name: vehicle.name?.trim() || null,
@@ -80,6 +98,8 @@ export const equipmentLogService = {
       registration_expires_at: vehicle.registration_expires_at || null,
       insurance_expires_at: vehicle.insurance_expires_at || null,
       inspection_expires_at: vehicle.inspection_expires_at || null,
+      mileage_start: mileageStart,
+      mileage_end: mileageEnd,
       status: vehicle.status || 'activo',
       notes: vehicle.notes?.trim() || null,
     };
