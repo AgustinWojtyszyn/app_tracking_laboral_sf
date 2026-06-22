@@ -96,9 +96,11 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyVehicle);
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     if (!open) return;
+    setFormError('');
     setForm(vehicle ? {
       ...emptyVehicle,
       ...vehicle,
@@ -111,10 +113,14 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
     } : emptyVehicle);
   }, [open, vehicle]);
 
-  const setValue = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setFormError('');
     setSaving(true);
     const result = await equipmentLogService.saveVehicle({
       ...form,
@@ -127,6 +133,7 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
       setOpen(false);
       onSaved();
     } else {
+      setFormError(result.error);
       addToast(result.error, 'error');
     }
   };
@@ -139,6 +146,11 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
           <DialogTitle>{vehicle ? 'Editar vehículo' : 'Crear vehículo'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 dark:border-red-900/70 dark:bg-red-950 dark:text-red-100">
+              {formError}
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Patente *">
               <input className={inputClass} value={form.license_plate} onChange={(e) => setValue('license_plate', normalizeLicensePlate(e.target.value))} required />

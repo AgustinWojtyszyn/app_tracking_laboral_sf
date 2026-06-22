@@ -20,7 +20,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none items-center w-full px-4">
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 pointer-events-none items-center w-full px-4">
         <AnimatePresence>
           {toasts.map((toast) => (
             <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
