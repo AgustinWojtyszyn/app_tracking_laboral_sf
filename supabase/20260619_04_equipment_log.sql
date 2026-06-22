@@ -91,6 +91,26 @@ create index if not exists vehicles_assigned_driver_id_idx
 create index if not exists vehicles_archived_at_idx
   on public.vehicles (archived_at);
 
+create table if not exists public.vehicle_fuel_loads (
+  id uuid primary key default gen_random_uuid(),
+  vehicle_id uuid not null references public.vehicles(id) on delete cascade,
+  price_ars numeric(12,2) not null,
+  load_date date not null,
+  estimated_time time not null,
+  liters numeric(10,2) not null,
+  mileage integer not null,
+  created_by uuid references public.users(id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now(),
+  constraint vehicle_fuel_loads_price_ars_check check (price_ars > 0 and price_ars <= 999999999.99),
+  constraint vehicle_fuel_loads_liters_check check (liters > 0 and liters <= 999999999.99),
+  constraint vehicle_fuel_loads_mileage_check check (mileage >= 0 and mileage <= 999999999)
+);
+
+create index if not exists vehicle_fuel_loads_vehicle_id_idx
+  on public.vehicle_fuel_loads (vehicle_id);
+create index if not exists vehicle_fuel_loads_load_date_idx
+  on public.vehicle_fuel_loads (load_date desc, estimated_time desc);
+
 create table if not exists public.plant_assets (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -176,6 +196,7 @@ for each row
 execute function public.enforce_vehicle_driver_role();
 
 alter table public.vehicles enable row level security;
+alter table public.vehicle_fuel_loads enable row level security;
 alter table public.plant_assets enable row level security;
 
 do $$
@@ -189,6 +210,15 @@ begin
       and tablename = 'vehicles'
   loop
     execute format('drop policy if exists %I on public.vehicles', policy_row.policyname);
+  end loop;
+
+  for policy_row in
+    select policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'vehicle_fuel_loads'
+  loop
+    execute format('drop policy if exists %I on public.vehicle_fuel_loads', policy_row.policyname);
   end loop;
 
   for policy_row in
@@ -229,6 +259,34 @@ create policy "Vehicles update admin only"
 
 create policy "Vehicles delete admin only"
   on public.vehicles
+  for delete
+  to authenticated
+  using (public.app_is_admin(auth.uid()));
+
+create policy "Vehicle fuel loads select authenticated"
+  on public.vehicle_fuel_loads
+  for select
+  to authenticated
+  using (auth.uid() is not null);
+
+create policy "Vehicle fuel loads insert admin only"
+  on public.vehicle_fuel_loads
+  for insert
+  to authenticated
+  with check (
+    public.app_is_admin(auth.uid())
+    and (created_by is null or created_by = auth.uid())
+  );
+
+create policy "Vehicle fuel loads update admin only"
+  on public.vehicle_fuel_loads
+  for update
+  to authenticated
+  using (public.app_is_admin(auth.uid()))
+  with check (public.app_is_admin(auth.uid()));
+
+create policy "Vehicle fuel loads delete admin only"
+  on public.vehicle_fuel_loads
   for delete
   to authenticated
   using (public.app_is_admin(auth.uid()));

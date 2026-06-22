@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, Building2, Car, Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, BookOpen, Building2, Car, Edit2, Fuel, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,7 +12,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { formatDate } from '@/utils/formatters';
+import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import {
   equipmentLogService,
   normalizeLicensePlate,
@@ -72,6 +72,18 @@ const emptyPlantAsset = {
   notes: '',
 };
 
+const todayInputDate = () => new Date().toISOString().split('T')[0];
+const currentInputTime = () => new Date().toTimeString().slice(0, 5);
+
+const emptyFuelLoad = () => ({
+  vehicle_id: '',
+  price_ars: '',
+  load_date: todayInputDate(),
+  estimated_time: currentInputTime(),
+  liters: '',
+  mileage: '',
+});
+
 const compactUserLabel = (user) => user?.full_name || user?.email || 'Sin asignar';
 
 function Badge({ value, children }) {
@@ -96,6 +108,12 @@ const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
 const yearDigits = (value) => onlyDigits(value).slice(0, 4);
 const mileageDigits = (value) => onlyDigits(value).slice(0, VEHICLE_MILEAGE_MAX_DIGITS);
 const licensePlateValue = (value) => normalizeLicensePlate(value).slice(0, VEHICLE_LICENSE_PLATE_MAX_LENGTH);
+const decimalValue = (value) => {
+  const normalized = String(value || '').replace(',', '.').replace(/[^\d.]/g, '');
+  const [integerPart, decimalPart = '', ...rest] = normalized.split('.');
+  if (decimalPart || normalized.includes('.') || rest.length > 0) return `${integerPart}.${decimalPart.slice(0, 2)}`;
+  return integerPart;
+};
 
 const selectedLength = (input) => Math.max(0, (input.selectionEnd || 0) - (input.selectionStart || 0));
 
@@ -292,6 +310,113 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
   );
 }
 
+function FuelLoadFormDialog({ vehicles, trigger, onSaved }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyFuelLoad());
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    setForm({
+      ...emptyFuelLoad(),
+      vehicle_id: vehicles[0]?.id || '',
+    });
+  }, [open, vehicles]);
+
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    setSaving(true);
+    const result = await equipmentLogService.saveFuelLoad(form);
+    setSaving(false);
+
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader>
+          <DialogTitle>Registrar carga de combustible</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="sticky top-0 z-20 flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 shadow-lg ring-4 ring-red-100 dark:border-red-400 dark:bg-red-950 dark:text-red-50 dark:ring-red-950"
+            >
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+          <Field label="Vehículo *">
+            <select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required>
+              <option value="">Seleccionar vehículo</option>
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {[vehicle.license_plate, vehicle.name || vehicle.brand, vehicle.model].filter(Boolean).join(' - ')}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Precio en pesos argentinos *">
+              <input className={inputClass} type="text" inputMode="decimal" value={form.price_ars} onChange={(e) => setValue('price_ars', decimalValue(e.target.value))} required />
+            </Field>
+            <Field label="Litros *">
+              <input className={inputClass} type="text" inputMode="decimal" value={form.liters} onChange={(e) => setValue('liters', decimalValue(e.target.value))} required />
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Fecha exacta *">
+              <input className={inputClass} type="date" value={form.load_date} onChange={(e) => setValue('load_date', e.target.value)} required />
+            </Field>
+            <Field label="Hora estimada *">
+              <input className={inputClass} type="time" value={form.estimated_time} onChange={(e) => setValue('estimated_time', e.target.value)} required />
+            </Field>
+            <Field label="Kilometraje *">
+              <input
+                className={inputClass}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={VEHICLE_MILEAGE_MAX_DIGITS}
+                value={form.mileage}
+                onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
+                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
+                onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
+                required
+              />
+            </Field>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving || vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function PlantFormDialog({ asset, users, trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
@@ -372,6 +497,7 @@ export default function EquipmentLogPage() {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('vehicles');
   const [vehicles, setVehicles] = useState([]);
+  const [fuelLoads, setFuelLoads] = useState([]);
   const [plantAssets, setPlantAssets] = useState([]);
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -388,13 +514,22 @@ export default function EquipmentLogPage() {
   const loadCurrentTab = async () => {
     setLoading(true);
     const result = activeTab === 'vehicles'
-      ? await equipmentLogService.getVehicles({ search })
+      ? await Promise.all([
+        equipmentLogService.getVehicles({ search }),
+        equipmentLogService.getFuelLoads(),
+      ])
       : await equipmentLogService.getPlantAssets({ search });
     setLoading(false);
 
-    if (result.success) {
-      if (activeTab === 'vehicles') setVehicles(result.data || []);
-      else setPlantAssets(result.data || []);
+    if (activeTab === 'vehicles') {
+      const [vehiclesResult, fuelLoadsResult] = result;
+      if (vehiclesResult.success) setVehicles(vehiclesResult.data || []);
+      else addToast(vehiclesResult.error, 'error');
+
+      if (fuelLoadsResult.success) setFuelLoads(fuelLoadsResult.data || []);
+      else addToast(fuelLoadsResult.error, 'error');
+    } else if (result.success) {
+      setPlantAssets(result.data || []);
     } else {
       addToast(result.error, 'error');
     }
@@ -415,6 +550,12 @@ export default function EquipmentLogPage() {
 
   const handleDeleteVehicle = async (id) => {
     const result = await equipmentLogService.deleteVehicle(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteFuelLoad = async (id) => {
+    const result = await equipmentLogService.deleteFuelLoad(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -507,7 +648,15 @@ export default function EquipmentLogPage() {
           {loading ? (
             <div className="p-10"><LoadingSpinner /></div>
           ) : activeTab === 'vehicles' ? (
-            <VehiclesList vehicles={vehicles} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeleteVehicle} />
+            <VehiclesList
+              vehicles={vehicles}
+              fuelLoads={fuelLoads}
+              users={users}
+              canEdit={canEdit}
+              onSaved={loadCurrentTab}
+              onDelete={handleDeleteVehicle}
+              onDeleteFuelLoad={handleDeleteFuelLoad}
+            />
           ) : (
             <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
           )}
@@ -517,67 +666,153 @@ export default function EquipmentLogPage() {
   );
 }
 
-function VehiclesList({ vehicles, users, canEdit, onSaved, onDelete }) {
-  if (vehicles.length === 0) {
-    return <div className="p-10 text-center text-gray-600 dark:text-slate-300">No hay vehículos registrados.</div>;
-  }
-
+function VehiclesList({ vehicles, fuelLoads, users, canEdit, onSaved, onDelete, onDeleteFuelLoad }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
-          <tr>
-            <th className="px-5 py-3">Patente</th>
-            <th className="px-5 py-3">Vehículo</th>
-            <th className="px-5 py-3">Chofer</th>
-            <th className="px-5 py-3">Estado</th>
-            <th className="px-5 py-3">Kilometraje</th>
-            <th className="px-5 py-3">Vencimientos</th>
-            {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-          {vehicles.map((vehicle) => (
-            <tr key={vehicle.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
-              <td className="px-5 py-4 font-bold text-gray-900 dark:text-slate-50">{vehicle.license_plate}</td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
-                <p className="font-semibold">{vehicle.name || vehicleTypeLabels[vehicle.vehicle_type] || 'Vehículo'}</p>
-                <p>{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ') || '-'}</p>
-              </td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{compactUserLabel(vehicle.assigned_driver)}</td>
-              <td className="px-5 py-4"><Badge value={vehicle.status}>{statusLabels[vehicle.status]}</Badge></td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
-                <p>Inicio: {vehicle.mileage_start ?? '-'}</p>
-                <p>Cierre: {vehicle.mileage_end ?? '-'}</p>
-              </td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
-                <p>Registro: {vehicle.registration_expires_at ? formatDate(vehicle.registration_expires_at) : '-'}</p>
-                <p>Seguro: {vehicle.insurance_expires_at ? formatDate(vehicle.insurance_expires_at) : '-'}</p>
-                <p>VTV/RTO: {vehicle.inspection_expires_at ? formatDate(vehicle.inspection_expires_at) : '-'}</p>
-              </td>
-              {canEdit && (
-                <td className="px-5 py-4">
-                  <div className="flex justify-end gap-2">
-                    <VehicleFormDialog
-                      vehicle={vehicle}
-                      users={users}
-                      onSaved={onSaved}
-                      trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
-                    />
-                    <ConfirmationModal
-                      title="¿Eliminar vehículo?"
-                      description="El vehículo se eliminará definitivamente."
-                      confirmLabel="Sí, eliminar"
-                      onConfirm={() => onDelete(vehicle.id)}
-                      trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
-                    />
-                  </div>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="divide-y divide-gray-100 dark:divide-slate-800">
+      {vehicles.length === 0 ? (
+        <div className="p-10 text-center text-gray-600 dark:text-slate-300">No hay vehículos registrados.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+              <tr>
+                <th className="px-5 py-3">Patente</th>
+                <th className="px-5 py-3">Vehículo</th>
+                <th className="px-5 py-3">Chofer</th>
+                <th className="px-5 py-3">Estado</th>
+                <th className="px-5 py-3">Kilometraje</th>
+                <th className="px-5 py-3">Vencimientos</th>
+                {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {vehicles.map((vehicle) => (
+                <tr key={vehicle.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                  <td className="px-5 py-4 font-bold text-gray-900 dark:text-slate-50">{vehicle.license_plate}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p className="font-semibold">{vehicle.name || vehicleTypeLabels[vehicle.vehicle_type] || 'Vehículo'}</p>
+                    <p>{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ') || '-'}</p>
+                  </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{compactUserLabel(vehicle.assigned_driver)}</td>
+                  <td className="px-5 py-4"><Badge value={vehicle.status}>{statusLabels[vehicle.status]}</Badge></td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p>Inicio: {vehicle.mileage_start ?? '-'}</p>
+                    <p>Cierre: {vehicle.mileage_end ?? '-'}</p>
+                  </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p>Registro: {vehicle.registration_expires_at ? formatDate(vehicle.registration_expires_at) : '-'}</p>
+                    <p>Seguro: {vehicle.insurance_expires_at ? formatDate(vehicle.insurance_expires_at) : '-'}</p>
+                    <p>VTV/RTO: {vehicle.inspection_expires_at ? formatDate(vehicle.inspection_expires_at) : '-'}</p>
+                  </td>
+                  {canEdit && (
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <VehicleFormDialog
+                          vehicle={vehicle}
+                          users={users}
+                          onSaved={onSaved}
+                          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                        />
+                        <ConfirmationModal
+                          title="¿Eliminar vehículo?"
+                          description="El vehículo se eliminará definitivamente."
+                          confirmLabel="Sí, eliminar"
+                          onConfirm={() => onDelete(vehicle.id)}
+                          trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                        />
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <FuelLoadsSection
+        vehicles={vehicles}
+        fuelLoads={fuelLoads}
+        canEdit={canEdit}
+        onSaved={onSaved}
+        onDelete={onDeleteFuelLoad}
+      />
+    </div>
+  );
+}
+
+function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
+            <Fuel className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Cargas de combustible</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-300">Registro separado de precio, fecha, hora, litros y kilometraje.</p>
+          </div>
+        </div>
+        {canEdit && (
+          <FuelLoadFormDialog
+            vehicles={vehicles}
+            onSaved={onSaved}
+            trigger={<Button disabled={vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva carga</Button>}
+          />
+        )}
+      </div>
+
+      {fuelLoads.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          No hay cargas de combustible registradas.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+              <tr>
+                <th className="px-5 py-3">Vehículo</th>
+                <th className="px-5 py-3">Fecha y hora</th>
+                <th className="px-5 py-3">Precio</th>
+                <th className="px-5 py-3">Litros</th>
+                <th className="px-5 py-3">Kilometraje</th>
+                {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {fuelLoads.map((load) => (
+                <tr key={load.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p className="font-semibold text-gray-900 dark:text-slate-50">{load.vehicle?.license_plate || '-'}</p>
+                    <p>{[load.vehicle?.name || load.vehicle?.brand, load.vehicle?.model].filter(Boolean).join(' ') || '-'}</p>
+                  </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p>{formatDate(load.load_date)}</p>
+                    <p>{load.estimated_time?.slice(0, 5) || '-'}</p>
+                  </td>
+                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{formatCurrency(load.price_ars)}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{formatNumber(load.liters, 2)} L</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.mileage}</td>
+                  {canEdit && (
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end">
+                        <ConfirmationModal
+                          title="¿Eliminar carga de combustible?"
+                          description="La carga se eliminará definitivamente."
+                          confirmLabel="Sí, eliminar"
+                          onConfirm={() => onDelete(load.id)}
+                          trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                        />
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
