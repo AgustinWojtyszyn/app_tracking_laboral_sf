@@ -30,6 +30,17 @@ const mapSupabaseError = (error, fallback) => {
   return fallback;
 };
 
+export const isMissingEquipmentLogTableError = (error) => (
+  error?.code === 'PGRST205'
+  || error?.status === 404
+  || /could not find the table|schema cache/i.test(error?.message || '')
+);
+
+const emptyListIfUnavailable = (error) => {
+  if (!isMissingEquipmentLogTableError(error)) return null;
+  return { success: true, data: [] };
+};
+
 export const equipmentLogService = {
   async getVehicles({ search = '' } = {}) {
     try {
@@ -48,6 +59,8 @@ export const equipmentLogService = {
       if (error) throw error;
       return { success: true, data: data || [] };
     } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
       return { success: false, error: mapSupabaseError(error, 'Error al cargar vehículos.') };
     }
   },
@@ -114,6 +127,8 @@ export const equipmentLogService = {
       if (error) throw error;
       return { success: true, data: data || [] };
     } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
       return { success: false, error: mapSupabaseError(error, 'Error al cargar planta.') };
     }
   },
