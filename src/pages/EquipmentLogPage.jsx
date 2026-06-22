@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, Building2, Car, Edit2, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
+import { AlertCircle, BookOpen, Building2, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { exportService } from '@/services/export.service';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import {
   equipmentLogService,
@@ -653,6 +654,7 @@ export default function EquipmentLogPage() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const canEdit = isAdmin;
 
@@ -727,6 +729,32 @@ export default function EquipmentLogPage() {
     if (result.success) loadCurrentTab();
   };
 
+  const handleExportEquipmentLog = async () => {
+    setExporting(true);
+    const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult] = await Promise.all([
+      equipmentLogService.getVehicles(),
+      equipmentLogService.getFuelLoads(),
+      equipmentLogService.getMaintenanceLogs(),
+      equipmentLogService.getPlantAssets(),
+    ]);
+    setExporting(false);
+
+    const results = [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult];
+    const failed = results.find((result) => !result.success);
+    if (failed) {
+      addToast(failed.error, 'error');
+      return;
+    }
+
+    exportService.exportEquipmentLogToExcel({
+      vehicles: vehiclesResult.data || [],
+      fuelLoads: fuelLoadsResult.data || [],
+      maintenanceLogs: maintenanceLogsResult.data || [],
+      plantAssets: plantAssetsResult.data || [],
+    });
+    addToast('Excel exportado correctamente.', 'success');
+  };
+
   const createButton = activeTab === 'vehicles'
     ? (
       <VehicleFormDialog
@@ -756,7 +784,13 @@ export default function EquipmentLogPage() {
               <p className="text-base text-gray-600 dark:text-slate-300">Registro interno de vehículos, sectores de planta y equipos operativos</p>
             </div>
           </div>
-          {canEdit && createButton}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button variant="outline" onClick={handleExportEquipmentLog} disabled={exporting} className="gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              {exporting ? 'Exportando...' : 'Exportar Excel'}
+            </Button>
+            {canEdit && createButton}
+          </div>
         </div>
       </div>
 

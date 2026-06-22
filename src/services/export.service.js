@@ -145,5 +145,129 @@ export const exportService = {
     if (!message) return;
     const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+  },
+
+  _appendJsonSheet(workbook, rows, sheetName, columnWidths = []) {
+    const worksheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{}]);
+    worksheet['!cols'] = columnWidths;
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  },
+
+  exportEquipmentLogToExcel({
+    vehicles = [],
+    fuelLoads = [],
+    maintenanceLogs = [],
+    plantAssets = [],
+  } = {}, filename = 'libro_registro_equipo.xlsx') {
+    const workbook = XLSX.utils.book_new();
+    const textCompare = (a, b) => String(a || '').localeCompare(String(b || ''), 'es');
+    const sortedVehicles = [...vehicles].sort((a, b) => (
+      textCompare(a.vehicle_type, b.vehicle_type)
+      || textCompare(a.status, b.status)
+      || textCompare(a.license_plate, b.license_plate)
+    ));
+    const sortedFuelLoads = [...fuelLoads].sort((a, b) => (
+      textCompare(a.vehicle?.license_plate, b.vehicle?.license_plate)
+      || textCompare(b.load_date, a.load_date)
+      || textCompare(b.estimated_time, a.estimated_time)
+    ));
+    const sortedMaintenanceLogs = [...maintenanceLogs].sort((a, b) => (
+      textCompare(a.maintenance_type, b.maintenance_type)
+      || textCompare(a.vehicle?.license_plate, b.vehicle?.license_plate)
+      || textCompare(b.maintenance_date, a.maintenance_date)
+    ));
+    const sortedPlantAssets = [...plantAssets].sort((a, b) => (
+      textCompare(a.category, b.category)
+      || textCompare(a.status, b.status)
+      || textCompare(a.name, b.name)
+    ));
+
+    const vehiclesByType = sortedVehicles.reduce((acc, vehicle) => {
+      const key = vehicle.vehicle_type || 'sin_tipo';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const plantByCategory = sortedPlantAssets.reduce((acc, asset) => {
+      const key = asset.category || 'Sin categoría';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    this._appendJsonSheet(workbook, [
+      { Clasificación: 'Vehículos registrados', Total: sortedVehicles.length },
+      { Clasificación: 'Cargas de combustible', Total: sortedFuelLoads.length },
+      { Clasificación: 'Mantenimientos', Total: sortedMaintenanceLogs.length },
+      { Clasificación: 'Elementos de planta', Total: sortedPlantAssets.length },
+      {},
+      ...Object.entries(vehiclesByType).map(([type, total]) => ({ Clasificación: `Vehículos - ${type}`, Total: total })),
+      {},
+      ...Object.entries(plantByCategory).map(([category, total]) => ({ Clasificación: `Planta - ${category}`, Total: total })),
+    ], 'Resumen', [{ wch: 34 }, { wch: 12 }]);
+
+    this._appendJsonSheet(workbook, sortedVehicles.map((vehicle) => ({
+      Clasificación: 'Vehículo',
+      Tipo: vehicle.vehicle_type || '',
+      Estado: vehicle.status || '',
+      Patente: vehicle.license_plate || '',
+      Nombre: vehicle.name || '',
+      Marca: vehicle.brand || '',
+      Modelo: vehicle.model || '',
+      Año: vehicle.year || '',
+      Chofer: vehicle.assigned_driver?.full_name || vehicle.assigned_driver?.email || '',
+      'Km inicio': vehicle.mileage_start ?? '',
+      'Km cierre': vehicle.mileage_end ?? '',
+      'Vence registro/cédula': vehicle.registration_expires_at ? formatDate(vehicle.registration_expires_at) : '',
+      'Vence seguro': vehicle.insurance_expires_at ? formatDate(vehicle.insurance_expires_at) : '',
+      'Vence VTV/RTO': vehicle.inspection_expires_at ? formatDate(vehicle.inspection_expires_at) : '',
+      Observaciones: vehicle.notes || '',
+    })), 'Vehículos', [
+      { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 24 }, { wch: 18 },
+      { wch: 18 }, { wch: 10 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+      { wch: 16 }, { wch: 16 }, { wch: 36 },
+    ]);
+
+    this._appendJsonSheet(workbook, sortedFuelLoads.map((load) => ({
+      Clasificación: 'Combustible',
+      Patente: load.vehicle?.license_plate || '',
+      Vehículo: [load.vehicle?.name || load.vehicle?.brand, load.vehicle?.model].filter(Boolean).join(' '),
+      Fecha: load.load_date ? formatDate(load.load_date) : '',
+      'Hora estimada': load.estimated_time?.slice(0, 5) || '',
+      'Precio ARS': Number(load.price_ars || 0),
+      Litros: Number(load.liters || 0),
+      Kilometraje: load.mileage ?? '',
+    })), 'Combustible', [
+      { wch: 16 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+      { wch: 12 }, { wch: 14 },
+    ]);
+
+    this._appendJsonSheet(workbook, sortedMaintenanceLogs.map((log) => ({
+      Clasificación: 'Mantenimiento',
+      Tipo: log.maintenance_type || '',
+      Patente: log.vehicle?.license_plate || '',
+      Vehículo: [log.vehicle?.name || log.vehicle?.brand, log.vehicle?.model].filter(Boolean).join(' '),
+      Fecha: log.maintenance_date ? formatDate(log.maintenance_date) : '',
+      Detalle: log.detail || '',
+      Kilometraje: log.mileage ?? '',
+      'Valor ARS': Number(log.value_ars || 0),
+    })), 'Mantenimiento', [
+      { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 48 },
+      { wch: 14 }, { wch: 14 },
+    ]);
+
+    this._appendJsonSheet(workbook, sortedPlantAssets.map((asset) => ({
+      Clasificación: 'Planta',
+      Categoría: asset.category || '',
+      Estado: asset.status || '',
+      Nombre: asset.name || '',
+      Ubicación: asset.location_description || '',
+      Responsable: asset.responsible_user?.full_name || asset.responsible_user?.email || '',
+      Observaciones: asset.notes || '',
+    })), 'Planta', [
+      { wch: 14 }, { wch: 26 }, { wch: 18 }, { wch: 28 }, { wch: 34 }, { wch: 28 },
+      { wch: 40 },
+    ]);
+
+    XLSX.writeFile(workbook, filename);
   }
 };
