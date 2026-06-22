@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BookOpen, Building2, Car, Edit2, Fuel, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, BookOpen, Building2, Car, Edit2, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   PLANT_CATEGORIES,
   PLANT_STATUS,
   VEHICLE_LICENSE_PLATE_MAX_LENGTH,
+  VEHICLE_MAINTENANCE_TYPES,
   VEHICLE_MILEAGE_MAX_DIGITS,
   VEHICLE_STATUS,
   VEHICLE_TYPES,
@@ -37,6 +38,16 @@ const vehicleTypeLabels = {
   auto: 'Auto',
   moto: 'Moto',
   otro: 'Otro',
+};
+
+const maintenanceTypeLabels = {
+  preventivo: 'Preventivo',
+  correctivo: 'Correctivo',
+};
+
+const maintenanceTypeDescriptions = {
+  preventivo: 'Tareas programadas para evitar fallas: controles, cambios y revisiones periódicas.',
+  correctivo: 'Intervenciones realizadas para reparar una falla o problema detectado.',
 };
 
 const statusClass = {
@@ -82,6 +93,15 @@ const emptyFuelLoad = () => ({
   estimated_time: currentInputTime(),
   liters: '',
   mileage: '',
+});
+
+const emptyMaintenanceLog = () => ({
+  vehicle_id: '',
+  maintenance_type: 'preventivo',
+  maintenance_date: todayInputDate(),
+  detail: '',
+  mileage: '',
+  value_ars: '',
 });
 
 const compactUserLabel = (user) => user?.full_name || user?.email || 'Sin asignar';
@@ -426,6 +446,127 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, trigger, onSaved }) {
   );
 }
 
+function MaintenanceLogFormDialog({ maintenanceLog, vehicles, trigger, onSaved }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyMaintenanceLog());
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    setForm(maintenanceLog ? {
+      ...emptyMaintenanceLog(),
+      ...maintenanceLog,
+      vehicle_id: maintenanceLog.vehicle_id || '',
+      maintenance_type: maintenanceLog.maintenance_type || 'preventivo',
+      maintenance_date: maintenanceLog.maintenance_date || todayInputDate(),
+      detail: maintenanceLog.detail || '',
+      mileage: maintenanceLog.mileage ?? '',
+      value_ars: maintenanceLog.value_ars ?? '',
+    } : {
+      ...emptyMaintenanceLog(),
+      vehicle_id: vehicles[0]?.id || '',
+    });
+  }, [maintenanceLog, open, vehicles]);
+
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    setSaving(true);
+    const result = await equipmentLogService.saveMaintenanceLog(form);
+    setSaving(false);
+
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader>
+          <DialogTitle>{maintenanceLog ? 'Editar mantenimiento' : 'Registrar mantenimiento'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="sticky top-0 z-20 flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 shadow-lg ring-4 ring-red-100 dark:border-red-400 dark:bg-red-950 dark:text-red-50 dark:ring-red-950"
+            >
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+          <Field label="Vehículo *">
+            <select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required>
+              <option value="">Seleccionar vehículo</option>
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {[vehicle.license_plate, vehicle.name || vehicle.brand, vehicle.model].filter(Boolean).join(' - ')}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Tipo de mantenimiento *">
+            <select className={inputClass} value={form.maintenance_type} onChange={(e) => setValue('maintenance_type', e.target.value)} required>
+              {VEHICLE_MAINTENANCE_TYPES.map((type) => (
+                <option key={type} value={type}>{maintenanceTypeLabels[type]}</option>
+              ))}
+            </select>
+          </Field>
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-900/60 dark:bg-blue-950 dark:text-blue-100">
+            {maintenanceTypeDescriptions[form.maintenance_type]}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Fecha *">
+              <input className={inputClass} type="date" value={form.maintenance_date} onChange={(e) => setValue('maintenance_date', e.target.value)} required />
+            </Field>
+            <Field label="Kilometraje *">
+              <input
+                className={inputClass}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={VEHICLE_MILEAGE_MAX_DIGITS}
+                value={form.mileage}
+                onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
+                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
+                onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
+                required
+              />
+            </Field>
+            <Field label="Valor en ARS *">
+              <input className={inputClass} type="text" inputMode="decimal" value={form.value_ars} onChange={(e) => setValue('value_ars', decimalValue(e.target.value))} required />
+            </Field>
+          </div>
+          <Field label="Detalle *">
+            <textarea className={`${inputClass} min-h-24`} value={form.detail} onChange={(e) => setValue('detail', e.target.value)} required />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving || vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function PlantFormDialog({ asset, users, trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
@@ -507,6 +648,7 @@ export default function EquipmentLogPage() {
   const [activeTab, setActiveTab] = useState('vehicles');
   const [vehicles, setVehicles] = useState([]);
   const [fuelLoads, setFuelLoads] = useState([]);
+  const [maintenanceLogs, setMaintenanceLogs] = useState([]);
   const [plantAssets, setPlantAssets] = useState([]);
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
@@ -526,17 +668,21 @@ export default function EquipmentLogPage() {
       ? await Promise.all([
         equipmentLogService.getVehicles({ search }),
         equipmentLogService.getFuelLoads(),
+        equipmentLogService.getMaintenanceLogs(),
       ])
       : await equipmentLogService.getPlantAssets({ search });
     setLoading(false);
 
     if (activeTab === 'vehicles') {
-      const [vehiclesResult, fuelLoadsResult] = result;
+      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult] = result;
       if (vehiclesResult.success) setVehicles(vehiclesResult.data || []);
       else addToast(vehiclesResult.error, 'error');
 
       if (fuelLoadsResult.success) setFuelLoads(fuelLoadsResult.data || []);
       else addToast(fuelLoadsResult.error, 'error');
+
+      if (maintenanceLogsResult.success) setMaintenanceLogs(maintenanceLogsResult.data || []);
+      else addToast(maintenanceLogsResult.error, 'error');
     } else if (result.success) {
       setPlantAssets(result.data || []);
     } else {
@@ -565,6 +711,12 @@ export default function EquipmentLogPage() {
 
   const handleDeleteFuelLoad = async (id) => {
     const result = await equipmentLogService.deleteFuelLoad(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteMaintenanceLog = async (id) => {
+    const result = await equipmentLogService.deleteMaintenanceLog(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -660,11 +812,13 @@ export default function EquipmentLogPage() {
             <VehiclesList
               vehicles={vehicles}
               fuelLoads={fuelLoads}
+              maintenanceLogs={maintenanceLogs}
               users={users}
               canEdit={canEdit}
               onSaved={loadCurrentTab}
               onDelete={handleDeleteVehicle}
               onDeleteFuelLoad={handleDeleteFuelLoad}
+              onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
             />
           ) : (
             <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
@@ -675,7 +829,7 @@ export default function EquipmentLogPage() {
   );
 }
 
-function VehiclesList({ vehicles, fuelLoads, users, canEdit, onSaved, onDelete, onDeleteFuelLoad }) {
+function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, users, canEdit, onSaved, onDelete, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
   return (
     <div className="divide-y divide-gray-100 dark:divide-slate-800">
       {vehicles.length === 0 ? (
@@ -745,6 +899,13 @@ function VehiclesList({ vehicles, fuelLoads, users, canEdit, onSaved, onDelete, 
         canEdit={canEdit}
         onSaved={onSaved}
         onDelete={onDeleteFuelLoad}
+      />
+      <MaintenanceLogsSection
+        vehicles={vehicles}
+        maintenanceLogs={maintenanceLogs}
+        canEdit={canEdit}
+        onSaved={onSaved}
+        onDelete={onDeleteMaintenanceLog}
       />
     </div>
   );
@@ -817,6 +978,91 @@ function FuelLoadsSection({ vehicles, fuelLoads, canEdit, onSaved, onDelete }) {
                           description="La carga se eliminará definitivamente."
                           confirmLabel="Sí, eliminar"
                           onConfirm={() => onDelete(load.id)}
+                          trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                        />
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MaintenanceLogsSection({ vehicles, maintenanceLogs, canEdit, onSaved, onDelete }) {
+  return (
+    <div className="space-y-4 p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-100">
+            <Wrench className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Mantenimiento</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-300">Registro separado de mantenimiento preventivo y correctivo.</p>
+          </div>
+        </div>
+        {canEdit && (
+          <MaintenanceLogFormDialog
+            vehicles={vehicles}
+            onSaved={onSaved}
+            trigger={<Button disabled={vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo mantenimiento</Button>}
+          />
+        )}
+      </div>
+
+      {maintenanceLogs.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          No hay mantenimientos registrados.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+              <tr>
+                <th className="px-5 py-3">Vehículo</th>
+                <th className="px-5 py-3">Tipo</th>
+                <th className="px-5 py-3">Fecha</th>
+                <th className="px-5 py-3">Detalle</th>
+                <th className="px-5 py-3">Kilometraje</th>
+                <th className="px-5 py-3">Valor</th>
+                {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {maintenanceLogs.map((log) => (
+                <tr key={log.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
+                    <p className="font-semibold text-gray-900 dark:text-slate-50">{log.vehicle?.license_plate || '-'}</p>
+                    <p>{[log.vehicle?.name || log.vehicle?.brand, log.vehicle?.model].filter(Boolean).join(' ') || '-'}</p>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-100">
+                      {maintenanceTypeLabels[log.maintenance_type] || log.maintenance_type}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{formatDate(log.maintenance_date)}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{log.detail}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{log.mileage}</td>
+                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{formatCurrency(log.value_ars)}</td>
+                  {canEdit && (
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <MaintenanceLogFormDialog
+                          maintenanceLog={log}
+                          vehicles={vehicles}
+                          onSaved={onSaved}
+                          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                        />
+                        <ConfirmationModal
+                          title="¿Eliminar mantenimiento?"
+                          description="El mantenimiento se eliminará definitivamente."
+                          confirmLabel="Sí, eliminar"
+                          onConfirm={() => onDelete(log.id)}
                           trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
                         />
                       </div>

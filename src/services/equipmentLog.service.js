@@ -6,6 +6,7 @@ export const VEHICLE_LICENSE_PLATE_MAX_LENGTH = 10;
 export const VEHICLE_MILEAGE_MAX_DIGITS = 9;
 export const VEHICLE_MILEAGE_MAX_VALUE = 999999999;
 export const FUEL_AMOUNT_MAX_VALUE = 999999999.99;
+export const VEHICLE_MAINTENANCE_TYPES = ['preventivo', 'correctivo'];
 export const PLANT_STATUS = ['activo', 'inactivo', 'mantenimiento', 'requiere_revision'];
 export const PLANT_CATEGORIES = [
   'Área fría',
@@ -232,6 +233,76 @@ export const equipmentLogService = {
       return { success: true, message: 'Carga de combustible eliminada.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar la carga de combustible.') };
+    }
+  },
+
+  async getMaintenanceLogs() {
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_maintenance_logs')
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model)')
+        .order('maintenance_date', { ascending: false });
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar mantenimientos.') };
+    }
+  },
+
+  async saveMaintenanceLog(maintenanceLog) {
+    if (!maintenanceLog.vehicle_id) return { success: false, error: 'Seleccioná un vehículo.' };
+    if (!VEHICLE_MAINTENANCE_TYPES.includes(maintenanceLog.maintenance_type)) {
+      return { success: false, error: 'Seleccioná un tipo de mantenimiento válido.' };
+    }
+    if (!maintenanceLog.maintenance_date) return { success: false, error: 'La fecha es obligatoria.' };
+    if (!maintenanceLog.detail?.trim()) return { success: false, error: 'El detalle es obligatorio.' };
+
+    const mileage = normalizeMileage(maintenanceLog.mileage);
+    if (Number.isNaN(mileage) || mileage === null) {
+      return { success: false, error: `El kilometraje debe ser numérico y de hasta ${VEHICLE_MILEAGE_MAX_DIGITS} dígitos.` };
+    }
+
+    const valueArs = normalizeDecimal(maintenanceLog.value_ars);
+    if (Number.isNaN(valueArs) || valueArs < 0 || valueArs > FUEL_AMOUNT_MAX_VALUE) {
+      return { success: false, error: 'El valor debe ser un importe válido en pesos.' };
+    }
+
+    const payload = {
+      vehicle_id: maintenanceLog.vehicle_id,
+      maintenance_type: maintenanceLog.maintenance_type,
+      maintenance_date: maintenanceLog.maintenance_date,
+      detail: maintenanceLog.detail.trim(),
+      mileage,
+      value_ars: valueArs,
+    };
+
+    try {
+      const request = maintenanceLog.id
+        ? supabase.from('vehicle_maintenance_logs').update(payload).eq('id', maintenanceLog.id)
+        : supabase.from('vehicle_maintenance_logs').insert([payload]);
+
+      const { data, error } = await request.select('*, vehicle:vehicle_id(id, license_plate, name, brand, model)').single();
+
+      if (error) throw error;
+      return { success: true, data, message: maintenanceLog.id ? 'Mantenimiento actualizado.' : 'Mantenimiento registrado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar el mantenimiento.') };
+    }
+  },
+
+  async deleteMaintenanceLog(id) {
+    try {
+      const { error } = await supabase
+        .from('vehicle_maintenance_logs')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Mantenimiento eliminado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el mantenimiento.') };
     }
   },
 
