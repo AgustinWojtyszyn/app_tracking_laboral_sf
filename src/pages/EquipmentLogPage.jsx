@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Building2, Car, Edit2, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, BookOpen, Building2, Car, Edit2, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -147,8 +147,13 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           {formError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 dark:border-red-900/70 dark:bg-red-950 dark:text-red-100">
-              {formError}
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="sticky top-0 z-20 flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 shadow-lg ring-4 ring-red-100 dark:border-red-400 dark:bg-red-950 dark:text-red-50 dark:ring-red-950"
+            >
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <span>{formError}</span>
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
