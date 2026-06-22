@@ -321,14 +321,14 @@ export default function EquipmentLogPage() {
     { key: 'plant', label: 'Planta', icon: Building2 },
   ]), []);
 
-  const handleArchiveVehicle = async (id) => {
-    const result = await equipmentLogService.archiveVehicle(id);
+  const handleDeleteVehicle = async (id) => {
+    const result = await equipmentLogService.deleteVehicle(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
 
-  const handleArchivePlantAsset = async (id) => {
-    const result = await equipmentLogService.archivePlantAsset(id);
+  const handleDeletePlantAsset = async (id) => {
+    const result = await equipmentLogService.deletePlantAsset(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -415,9 +415,9 @@ export default function EquipmentLogPage() {
           {loading ? (
             <div className="p-10"><LoadingSpinner /></div>
           ) : activeTab === 'vehicles' ? (
-            <VehiclesList vehicles={vehicles} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onArchive={handleArchiveVehicle} />
+            <VehiclesList vehicles={vehicles} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeleteVehicle} />
           ) : (
-            <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onArchive={handleArchivePlantAsset} />
+            <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
           )}
         </div>
       </div>
@@ -425,7 +425,7 @@ export default function EquipmentLogPage() {
   );
 }
 
-function VehiclesList({ vehicles, users, canEdit, onSaved, onArchive }) {
+function VehiclesList({ vehicles, users, canEdit, onSaved, onDelete }) {
   if (vehicles.length === 0) {
     return <div className="p-10 text-center text-gray-600 dark:text-slate-300">No hay vehículos registrados.</div>;
   }
@@ -468,10 +468,10 @@ function VehiclesList({ vehicles, users, canEdit, onSaved, onArchive }) {
                       trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
                     />
                     <ConfirmationModal
-                      title="¿Archivar vehículo?"
-                      description="El vehículo dejará de aparecer en el listado activo."
-                      confirmLabel="Sí, archivar"
-                      onConfirm={() => onArchive(vehicle.id)}
+                      title="¿Eliminar vehículo?"
+                      description="El vehículo se eliminará definitivamente."
+                      confirmLabel="Sí, eliminar"
+                      onConfirm={() => onDelete(vehicle.id)}
                       trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
                     />
                   </div>
@@ -485,7 +485,7 @@ function VehiclesList({ vehicles, users, canEdit, onSaved, onArchive }) {
   );
 }
 
-function PlantAssetsList({ assets, users, canEdit, onSaved, onArchive }) {
+function PlantAssetsList({ assets, users, canEdit, onSaved, onDelete }) {
   if (assets.length === 0) {
     return <div className="p-10 text-center text-gray-600 dark:text-slate-300">No hay elementos de planta registrados.</div>;
   }
@@ -523,10 +523,10 @@ function PlantAssetsList({ assets, users, canEdit, onSaved, onArchive }) {
                       trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
                     />
                     <ConfirmationModal
-                      title="¿Archivar elemento de planta?"
-                      description="El elemento dejará de aparecer en el listado activo."
-                      confirmLabel="Sí, archivar"
-                      onConfirm={() => onArchive(asset.id)}
+                      title="¿Eliminar elemento de planta?"
+                      description="El elemento se eliminará definitivamente."
+                      confirmLabel="Sí, eliminar"
+                      onConfirm={() => onDelete(asset.id)}
                       trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
                     />
                   </div>

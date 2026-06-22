@@ -97,16 +97,16 @@ export const equipmentLogService = {
     }
   },
 
-  async archiveVehicle(id) {
+  async deleteVehicle(id) {
     try {
       const { error } = await supabase
         .from('vehicles')
-        .update({ archived_at: new Date().toISOString() })
+        .delete()
         .eq('id', id);
       if (error) throw error;
-      return { success: true, message: 'Vehículo archivado.' };
+      return { success: true, message: 'Vehículo eliminado.' };
     } catch (error) {
-      return { success: false, error: mapSupabaseError(error, 'No se pudo archivar el vehículo.') };
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el vehículo.') };
     }
   },
 
@@ -159,16 +159,16 @@ export const equipmentLogService = {
     }
   },
 
-  async archivePlantAsset(id) {
+  async deletePlantAsset(id) {
     try {
       const { error } = await supabase
         .from('plant_assets')
-        .update({ archived_at: new Date().toISOString() })
+        .delete()
         .eq('id', id);
       if (error) throw error;
-      return { success: true, message: 'Elemento de planta archivado.' };
+      return { success: true, message: 'Elemento de planta eliminado.' };
     } catch (error) {
-      return { success: false, error: mapSupabaseError(error, 'No se pudo archivar el elemento de planta.') };
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el elemento de planta.') };
     }
   },
 
