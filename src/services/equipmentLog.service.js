@@ -164,17 +164,15 @@ export const equipmentLogService = {
 
   async archiveVehicle(id) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('vehicles')
         .update({
           status: 'inactivo',
           archived_at: new Date().toISOString(),
         })
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
       if (error) throw error;
-      return { success: true, data, message: 'Vehículo eliminado del listado activo.' };
+      return { success: true, message: 'Vehículo eliminado del listado activo.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el vehículo.') };
     }
