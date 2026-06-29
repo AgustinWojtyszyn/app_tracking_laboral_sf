@@ -1116,10 +1116,15 @@ export default function EquipmentLogPage() {
     { key: 'checks', label: 'Mantenimiento / Calibración', icon: Wrench },
   ]), []);
 
-  const handleDeactivateVehicle = async (id) => {
-    const result = await equipmentLogService.deactivateVehicle(id);
+  const handleArchiveVehicle = async (id) => {
+    const result = await equipmentLogService.archiveVehicle(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
-    if (result.success) loadCurrentTab();
+    if (result.success) {
+      setVehicles((currentVehicles) => currentVehicles.filter((vehicle) => vehicle.id !== id));
+      setFuelLoads((currentLoads) => currentLoads.filter((load) => load.vehicle_id !== id));
+      setMaintenanceLogs((currentLogs) => currentLogs.filter((log) => log.vehicle_id !== id));
+      if (selectedVehicleId === id) setSelectedVehicleId('');
+    }
   };
 
   const handleDeleteFuelLoad = async (id) => {
@@ -1333,7 +1338,7 @@ export default function EquipmentLogPage() {
               drivers={drivers}
               canEdit={canEdit}
               onSaved={loadCurrentTab}
-              onDeactivate={handleDeactivateVehicle}
+              onDeactivate={handleArchiveVehicle}
               onDeleteFuelLoad={handleDeleteFuelLoad}
               onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
             />
@@ -1531,11 +1536,11 @@ function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, d
                 trigger={<Button variant="outline"><Edit2 className="mr-2 h-4 w-4" /> Editar</Button>}
               />
               <ConfirmationModal
-                title="¿Desactivar vehículo?"
-                description="El vehículo quedará fuera de servicio, pero conservará su historial."
-                confirmLabel="Sí, desactivar"
+                title="¿Eliminar vehículo del listado activo?"
+                description="El vehículo se archivará y conservará su historial en la base de datos."
+                confirmLabel="Sí, eliminar"
                 onConfirm={() => onDeactivate(vehicle.id)}
-                trigger={<Button variant="outline"><Ban className="mr-2 h-4 w-4 text-red-600" /> Desactivar</Button>}
+                trigger={<Button variant="outline"><Ban className="mr-2 h-4 w-4 text-red-600" /> Eliminar</Button>}
               />
             </div>
           )}

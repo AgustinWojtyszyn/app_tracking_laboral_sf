@@ -162,30 +162,30 @@ export const equipmentLogService = {
     }
   },
 
-  async deleteVehicle(id) {
+  async archiveVehicle(id) {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('vehicles')
-        .delete()
-        .eq('id', id);
+        .update({
+          status: 'inactivo',
+          archived_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
       if (error) throw error;
-      return { success: true, message: 'Vehículo eliminado.' };
+      return { success: true, data, message: 'Vehículo eliminado del listado activo.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el vehículo.') };
     }
   },
 
+  async deleteVehicle(id) {
+    return this.archiveVehicle(id);
+  },
+
   async deactivateVehicle(id) {
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .update({ status: 'fuera_servicio' })
-        .eq('id', id);
-      if (error) throw error;
-      return { success: true, message: 'Vehículo desactivado.' };
-    } catch (error) {
-      return { success: false, error: mapSupabaseError(error, 'No se pudo desactivar el vehículo.') };
-    }
+    return this.archiveVehicle(id);
   },
 
   async getDrivers({ activeOnly = true } = {}) {
