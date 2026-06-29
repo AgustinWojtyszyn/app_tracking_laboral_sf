@@ -66,6 +66,87 @@ create table if not exists public.equipment_maintenance_checks (
   constraint equipment_maintenance_checks_component_check check (btrim(reviewed_component) <> '')
 );
 
+alter table public.equipment_daily_operations
+  add column if not exists vehicle_id uuid references public.vehicles(id) on delete cascade,
+  add column if not exists plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.equipment_incidents
+  add column if not exists vehicle_id uuid references public.vehicles(id) on delete cascade,
+  add column if not exists plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.equipment_maintenance_checks
+  add column if not exists vehicle_id uuid references public.vehicles(id) on delete cascade,
+  add column if not exists plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'equipment_daily_operations'
+      and column_name = 'equipment_id'
+  ) then
+    alter table public.equipment_daily_operations alter column equipment_id drop not null;
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'equipment_incidents'
+      and column_name = 'equipment_id'
+  ) then
+    alter table public.equipment_incidents alter column equipment_id drop not null;
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'equipment_maintenance_checks'
+      and column_name = 'equipment_id'
+  ) then
+    alter table public.equipment_maintenance_checks alter column equipment_id drop not null;
+  end if;
+end;
+$$;
+
+alter table public.equipment_daily_operations
+  drop constraint if exists equipment_daily_operations_target_check;
+alter table public.equipment_daily_operations
+  add constraint equipment_daily_operations_target_check check (
+    (vehicle_id is not null and plant_asset_id is null)
+    or (vehicle_id is null and plant_asset_id is not null)
+  ) not valid;
+
+alter table public.equipment_incidents
+  drop constraint if exists equipment_incidents_target_check;
+alter table public.equipment_incidents
+  add constraint equipment_incidents_target_check check (
+    (vehicle_id is not null and plant_asset_id is null)
+    or (vehicle_id is null and plant_asset_id is not null)
+  ) not valid;
+
+alter table public.equipment_maintenance_checks
+  drop constraint if exists equipment_maintenance_checks_target_check;
+alter table public.equipment_maintenance_checks
+  add constraint equipment_maintenance_checks_target_check check (
+    (vehicle_id is not null and plant_asset_id is null)
+    or (vehicle_id is null and plant_asset_id is not null)
+  ) not valid;
+
+alter table public.equipment_maintenance_checks
+  drop constraint if exists equipment_maintenance_checks_inspection_type_check,
+  drop constraint if exists equipment_maintenance_checks_type_check;
+alter table public.equipment_maintenance_checks
+  add constraint equipment_maintenance_checks_type_check check (
+    inspection_type in ('preventiva', 'predictiva', 'calibracion')
+  ) not valid;
+
 create index if not exists equipment_daily_operations_vehicle_date_idx
   on public.equipment_daily_operations (vehicle_id, operation_date desc);
 create index if not exists equipment_daily_operations_plant_date_idx

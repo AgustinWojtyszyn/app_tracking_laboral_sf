@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
