@@ -7,6 +7,8 @@ export const VEHICLE_MILEAGE_MAX_DIGITS = 9;
 export const VEHICLE_MILEAGE_MAX_VALUE = 999999999;
 export const FUEL_AMOUNT_MAX_VALUE = 999999999.99;
 export const VEHICLE_MAINTENANCE_TYPES = ['preventivo', 'correctivo'];
+export const EQUIPMENT_RECORD_TARGET_TYPES = ['vehicle', 'plant_asset'];
+export const EQUIPMENT_INSPECTION_TYPES = ['preventiva', 'predictiva', 'calibracion'];
 export const PLANT_STATUS = ['activo', 'inactivo', 'mantenimiento', 'requiere_revision'];
 export const PLANT_CATEGORIES = [
   'Área fría',
@@ -55,6 +57,15 @@ const mapSupabaseError = (error, fallback) => {
     return 'No tenés permisos para realizar esta acción.';
   }
   return fallback;
+};
+
+const buildEquipmentRecordPayload = (record) => {
+  const targetType = record.target_type;
+  const targetId = record.target_id;
+  return {
+    vehicle_id: targetType === 'vehicle' ? targetId : null,
+    plant_asset_id: targetType === 'plant_asset' ? targetId : null,
+  };
 };
 
 export const isMissingEquipmentLogTableError = (error) => (
@@ -399,6 +410,181 @@ export const equipmentLogService = {
       return { success: true, data: data || [] };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'Error al cargar usuarios asignables.') };
+    }
+  },
+
+  async getDailyOperations() {
+    try {
+      const { data, error } = await supabase
+        .from('equipment_daily_operations')
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model), plant_asset:plant_asset_id(id, name, category, location_description)')
+        .order('operation_date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar operaciones diarias.') };
+    }
+  },
+
+  async saveDailyOperation(record) {
+    if (!record.target_type || !record.target_id) return { success: false, error: 'Seleccioná un equipo.' };
+    if (!record.operation_date) return { success: false, error: 'La fecha es obligatoria.' };
+    if (!record.shift?.trim()) return { success: false, error: 'El turno es obligatorio.' };
+    if (!record.usage_time?.trim()) return { success: false, error: 'El tiempo de uso es obligatorio.' };
+    if (!record.operator_name?.trim()) return { success: false, error: 'El operador es obligatorio.' };
+
+    const payload = {
+      ...buildEquipmentRecordPayload(record),
+      operation_date: record.operation_date,
+      shift: record.shift.trim(),
+      usage_time: record.usage_time.trim(),
+      operator_name: record.operator_name.trim(),
+      observations: record.observations?.trim() || null,
+    };
+
+    try {
+      const request = record.id
+        ? supabase.from('equipment_daily_operations').update(payload).eq('id', record.id)
+        : supabase.from('equipment_daily_operations').insert([payload]);
+
+      const { data, error } = await request
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model), plant_asset:plant_asset_id(id, name, category, location_description)')
+        .single();
+      if (error) throw error;
+      return { success: true, data, message: record.id ? 'Operación diaria actualizada.' : 'Operación diaria registrada.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar la operación diaria.') };
+    }
+  },
+
+  async deleteDailyOperation(id) {
+    try {
+      const { error } = await supabase.from('equipment_daily_operations').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Operación diaria eliminada.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar la operación diaria.') };
+    }
+  },
+
+  async getIncidents() {
+    try {
+      const { data, error } = await supabase
+        .from('equipment_incidents')
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model), plant_asset:plant_asset_id(id, name, category, location_description)')
+        .order('incident_date', { ascending: false })
+        .order('incident_time', { ascending: false });
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar incidencias.') };
+    }
+  },
+
+  async saveIncident(record) {
+    if (!record.target_type || !record.target_id) return { success: false, error: 'Seleccioná un equipo.' };
+    if (!record.incident_date) return { success: false, error: 'La fecha es obligatoria.' };
+    if (!record.anomaly_description?.trim()) return { success: false, error: 'La anomalía es obligatoria.' };
+    if (!record.corrective_action?.trim()) return { success: false, error: 'La acción correctiva es obligatoria.' };
+
+    const payload = {
+      ...buildEquipmentRecordPayload(record),
+      incident_date: record.incident_date,
+      incident_time: record.incident_time || null,
+      anomaly_description: record.anomaly_description.trim(),
+      corrective_action: record.corrective_action.trim(),
+      downtime: record.downtime?.trim() || null,
+      maintenance_done_by: record.maintenance_done_by?.trim() || null,
+      observations: record.observations?.trim() || null,
+    };
+
+    try {
+      const request = record.id
+        ? supabase.from('equipment_incidents').update(payload).eq('id', record.id)
+        : supabase.from('equipment_incidents').insert([payload]);
+
+      const { data, error } = await request
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model), plant_asset:plant_asset_id(id, name, category, location_description)')
+        .single();
+      if (error) throw error;
+      return { success: true, data, message: record.id ? 'Incidencia actualizada.' : 'Incidencia registrada.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar la incidencia.') };
+    }
+  },
+
+  async deleteIncident(id) {
+    try {
+      const { error } = await supabase.from('equipment_incidents').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Incidencia eliminada.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar la incidencia.') };
+    }
+  },
+
+  async getMaintenanceChecks() {
+    try {
+      const { data, error } = await supabase
+        .from('equipment_maintenance_checks')
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model), plant_asset:plant_asset_id(id, name, category, location_description)')
+        .order('review_date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar revisiones.') };
+    }
+  },
+
+  async saveMaintenanceCheck(record) {
+    if (!record.target_type || !record.target_id) return { success: false, error: 'Seleccioná un equipo.' };
+    if (!record.review_date) return { success: false, error: 'La fecha de revisión es obligatoria.' };
+    if (!EQUIPMENT_INSPECTION_TYPES.includes(record.inspection_type)) return { success: false, error: 'Seleccioná un tipo de inspección válido.' };
+    if (!record.reviewed_component?.trim()) return { success: false, error: 'El componente revisado es obligatorio.' };
+    if (!record.next_review_date) return { success: false, error: 'La próxima fecha de revisión es obligatoria.' };
+
+    const payload = {
+      ...buildEquipmentRecordPayload(record),
+      review_date: record.review_date,
+      inspection_type: record.inspection_type,
+      reviewed_component: record.reviewed_component.trim(),
+      general_status_observations: record.general_status_observations?.trim() || null,
+      next_review_date: record.next_review_date,
+    };
+
+    try {
+      const request = record.id
+        ? supabase.from('equipment_maintenance_checks').update(payload).eq('id', record.id)
+        : supabase.from('equipment_maintenance_checks').insert([payload]);
+
+      const { data, error } = await request
+        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model), plant_asset:plant_asset_id(id, name, category, location_description)')
+        .single();
+      if (error) throw error;
+      return { success: true, data, message: record.id ? 'Revisión actualizada.' : 'Revisión registrada.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar la revisión.') };
+    }
+  },
+
+  async deleteMaintenanceCheck(id) {
+    try {
+      const { error } = await supabase.from('equipment_maintenance_checks').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Revisión eliminada.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar la revisión.') };
     }
   },
 };

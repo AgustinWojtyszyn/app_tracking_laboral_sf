@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Ban, BookOpen, Building2, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
+import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { exportService } from '@/services/export.service';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import {
   equipmentLogService,
+  EQUIPMENT_INSPECTION_TYPES,
   normalizeLicensePlate,
   PLANT_CATEGORIES,
   PLANT_STATUS,
@@ -110,7 +111,70 @@ const emptyMaintenanceLog = () => ({
   notes: '',
 });
 
+const emptyDailyOperation = () => ({
+  target_type: 'vehicle',
+  target_id: '',
+  operation_date: todayInputDate(),
+  shift: '',
+  usage_time: '',
+  operator_name: '',
+  observations: '',
+});
+
+const emptyIncident = () => ({
+  target_type: 'vehicle',
+  target_id: '',
+  incident_date: todayInputDate(),
+  incident_time: currentInputTime(),
+  anomaly_description: '',
+  corrective_action: '',
+  downtime: '',
+  maintenance_done_by: '',
+  observations: '',
+});
+
+const emptyMaintenanceCheck = () => ({
+  target_type: 'vehicle',
+  target_id: '',
+  review_date: todayInputDate(),
+  inspection_type: 'preventiva',
+  reviewed_component: '',
+  general_status_observations: '',
+  next_review_date: '',
+});
+
 const compactUserLabel = (user) => user?.full_name || user?.email || 'Sin asignar';
+const inspectionTypeLabels = {
+  preventiva: 'Preventiva',
+  predictiva: 'Predictiva',
+  calibracion: 'Calibración',
+};
+
+const equipmentTargetFromRecord = (record) => {
+  if (record?.vehicle_id) return { target_type: 'vehicle', target_id: record.vehicle_id };
+  if (record?.plant_asset_id) return { target_type: 'plant_asset', target_id: record.plant_asset_id };
+  return { target_type: 'vehicle', target_id: '' };
+};
+
+const equipmentLabel = (record) => {
+  if (record?.vehicle) {
+    return [record.vehicle.license_plate, record.vehicle.name || record.vehicle.brand, record.vehicle.model]
+      .filter(Boolean)
+      .join(' - ');
+  }
+  if (record?.plant_asset) {
+    return [record.plant_asset.name, record.plant_asset.category, record.plant_asset.location_description]
+      .filter(Boolean)
+      .join(' - ');
+  }
+  return 'Equipo no encontrado';
+};
+
+const firstEquipmentTarget = (vehicles, plantAssets) => {
+  if (vehicles[0]?.id) return { target_type: 'vehicle', target_id: vehicles[0].id };
+  if (plantAssets[0]?.id) return { target_type: 'plant_asset', target_id: plantAssets[0].id };
+  return { target_type: 'vehicle', target_id: '' };
+};
 
 function Badge({ value, children }) {
   return (
@@ -661,6 +725,221 @@ function PlantFormDialog({ asset, users, trigger, onSaved }) {
   );
 }
 
+function EquipmentTargetFields({ form, vehicles, plantAssets, setValue }) {
+  const availableTargets = form.target_type === 'plant_asset' ? plantAssets : vehicles;
+
+  useEffect(() => {
+    if (form.target_id && availableTargets.some((item) => item.id === form.target_id)) return;
+    setValue('target_id', availableTargets[0]?.id || '');
+  }, [availableTargets, form.target_id, setValue]);
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Tipo de equipo *">
+        <select className={inputClass} value={form.target_type} onChange={(e) => setValue('target_type', e.target.value)} required>
+          <option value="vehicle">Vehículo</option>
+          <option value="plant_asset">Equipo / activo de planta</option>
+        </select>
+      </Field>
+      <Field label="Equipo *">
+        <select className={inputClass} value={form.target_id} onChange={(e) => setValue('target_id', e.target.value)} required>
+          <option value="">Seleccionar equipo</option>
+          {form.target_type === 'vehicle' ? vehicles.map((vehicle) => (
+            <option key={vehicle.id} value={vehicle.id}>
+              {[vehicle.license_plate, vehicle.name || vehicle.brand, vehicle.model].filter(Boolean).join(' - ')}
+            </option>
+          )) : plantAssets.map((asset) => (
+            <option key={asset.id} value={asset.id}>
+              {[asset.name, asset.category, asset.location_description].filter(Boolean).join(' - ')}
+            </option>
+          ))}
+        </select>
+      </Field>
+    </div>
+  );
+}
+
+function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigger, onSaved }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const emptyByType = useMemo(() => ({
+    operation: emptyDailyOperation,
+    incident: emptyIncident,
+    check: emptyMaintenanceCheck,
+  }), []);
+  const [form, setForm] = useState(emptyByType[type]());
+
+  const labels = {
+    operation: {
+      title: record ? 'Editar operación diaria' : 'Registrar operación diaria',
+      save: equipmentLogService.saveDailyOperation,
+    },
+    incident: {
+      title: record ? 'Editar incidencia' : 'Registrar incidencia',
+      save: equipmentLogService.saveIncident,
+    },
+    check: {
+      title: record ? 'Editar mantenimiento / calibración' : 'Registrar mantenimiento / calibración',
+      save: equipmentLogService.saveMaintenanceCheck,
+    },
+  };
+
+  const setValue = useCallback((key, value) => {
+    setFormError('');
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'target_type') next.target_id = '';
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    const target = record ? equipmentTargetFromRecord(record) : firstEquipmentTarget(vehicles, plantAssets);
+    setForm(record ? {
+      ...emptyByType[type](),
+      ...record,
+      ...target,
+      incident_time: record.incident_time?.slice(0, 5) || currentInputTime(),
+    } : {
+      ...emptyByType[type](),
+      ...target,
+    });
+  }, [emptyByType, open, plantAssets, record, type, vehicles]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    setSaving(true);
+    const result = await labels[type].save(form);
+    setSaving(false);
+
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  const hasTargets = vehicles.length > 0 || plantAssets.length > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader>
+          <DialogTitle>{labels[type].title}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && (
+            <div role="alert" aria-live="assertive" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 shadow-lg dark:border-red-400 dark:bg-red-950 dark:text-red-50">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+          {!hasTargets && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950 dark:text-amber-100">
+              Primero cargá un vehículo o activo de planta.
+            </div>
+          )}
+          <EquipmentTargetFields form={form} vehicles={vehicles} plantAssets={plantAssets} setValue={setValue} />
+
+          {type === 'operation' && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Fecha *">
+                  <input className={inputClass} type="date" value={form.operation_date || ''} onChange={(e) => setValue('operation_date', e.target.value)} required />
+                </Field>
+                <Field label="Turno *">
+                  <input className={inputClass} value={form.shift || ''} onChange={(e) => setValue('shift', e.target.value)} required />
+                </Field>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Tiempo de uso *">
+                  <input className={inputClass} value={form.usage_time || ''} onChange={(e) => setValue('usage_time', e.target.value)} required />
+                </Field>
+                <Field label="Operador *">
+                  <input className={inputClass} value={form.operator_name || ''} onChange={(e) => setValue('operator_name', e.target.value)} required />
+                </Field>
+              </div>
+              <Field label="Observaciones">
+                <textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} />
+              </Field>
+            </>
+          )}
+
+          {type === 'incident' && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Fecha *">
+                  <input className={inputClass} type="date" value={form.incident_date || ''} onChange={(e) => setValue('incident_date', e.target.value)} required />
+                </Field>
+                <Field label="Hora">
+                  <input className={inputClass} type="time" value={form.incident_time || ''} onChange={(e) => setValue('incident_time', e.target.value)} />
+                </Field>
+                <Field label="Tiempo fuera de línea">
+                  <input className={inputClass} value={form.downtime || ''} onChange={(e) => setValue('downtime', e.target.value)} />
+                </Field>
+              </div>
+              <Field label="Descripción de la anomalía *">
+                <textarea className={`${inputClass} min-h-24`} value={form.anomaly_description || ''} onChange={(e) => setValue('anomaly_description', e.target.value)} required />
+              </Field>
+              <Field label="Acción correctiva aplicada *">
+                <textarea className={`${inputClass} min-h-24`} value={form.corrective_action || ''} onChange={(e) => setValue('corrective_action', e.target.value)} required />
+              </Field>
+              <Field label="Mantenimiento realizado por">
+                <input className={inputClass} value={form.maintenance_done_by || ''} onChange={(e) => setValue('maintenance_done_by', e.target.value)} />
+              </Field>
+              <Field label="Observaciones">
+                <textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} />
+              </Field>
+            </>
+          )}
+
+          {type === 'check' && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Fecha de revisión *">
+                  <input className={inputClass} type="date" value={form.review_date || ''} onChange={(e) => setValue('review_date', e.target.value)} required />
+                </Field>
+                <Field label="Tipo de inspección *">
+                  <select className={inputClass} value={form.inspection_type || 'preventiva'} onChange={(e) => setValue('inspection_type', e.target.value)} required>
+                    {EQUIPMENT_INSPECTION_TYPES.map((typeOption) => (
+                      <option key={typeOption} value={typeOption}>{inspectionTypeLabels[typeOption]}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Componente revisado *">
+                <input className={inputClass} value={form.reviewed_component || ''} onChange={(e) => setValue('reviewed_component', e.target.value)} required />
+              </Field>
+              <Field label="Observaciones del estado general">
+                <textarea className={`${inputClass} min-h-24`} value={form.general_status_observations || ''} onChange={(e) => setValue('general_status_observations', e.target.value)} />
+              </Field>
+              <Field label="Próxima fecha de revisión *">
+                <input className={inputClass} type="date" value={form.next_review_date || ''} onChange={(e) => setValue('next_review_date', e.target.value)} required />
+              </Field>
+            </>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving || !hasTargets} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function EquipmentLogPage() {
   const { addToast } = useToast();
   const { isAdmin } = useAuth();
@@ -668,6 +947,9 @@ export default function EquipmentLogPage() {
   const [vehicles, setVehicles] = useState([]);
   const [fuelLoads, setFuelLoads] = useState([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
+  const [dailyOperations, setDailyOperations] = useState([]);
+  const [incidents, setIncidents] = useState([]);
+  const [maintenanceChecks, setMaintenanceChecks] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [plantAssets, setPlantAssets] = useState([]);
   const [users, setUsers] = useState([]);
@@ -676,6 +958,7 @@ export default function EquipmentLogPage() {
   const [exporting, setExporting] = useState(false);
 
   const canEdit = isAdmin;
+  const canCreateCurrentTab = canEdit || ['operation', 'incidents', 'checks'].includes(activeTab);
 
   const loadUsers = async () => {
     if (!canEdit) return;
@@ -685,17 +968,21 @@ export default function EquipmentLogPage() {
 
   const loadCurrentTab = async () => {
     setLoading(true);
-    const result = activeTab === 'vehicles'
+    const result = ['vehicles', 'operation', 'incidents', 'checks'].includes(activeTab)
       ? await Promise.all([
         equipmentLogService.getVehicles({ search }),
         equipmentLogService.getFuelLoads(),
         equipmentLogService.getMaintenanceLogs(),
+        equipmentLogService.getPlantAssets(),
+        equipmentLogService.getDailyOperations(),
+        equipmentLogService.getIncidents(),
+        equipmentLogService.getMaintenanceChecks(),
       ])
       : await equipmentLogService.getPlantAssets({ search });
     setLoading(false);
 
-    if (activeTab === 'vehicles') {
-      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult] = result;
+    if (['vehicles', 'operation', 'incidents', 'checks'].includes(activeTab)) {
+      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult, dailyOperationsResult, incidentsResult, maintenanceChecksResult] = result;
       if (vehiclesResult.success) setVehicles(vehiclesResult.data || []);
       else addToast(vehiclesResult.error, 'error');
 
@@ -704,6 +991,18 @@ export default function EquipmentLogPage() {
 
       if (maintenanceLogsResult.success) setMaintenanceLogs(maintenanceLogsResult.data || []);
       else addToast(maintenanceLogsResult.error, 'error');
+
+      if (plantAssetsResult.success) setPlantAssets(plantAssetsResult.data || []);
+      else addToast(plantAssetsResult.error, 'error');
+
+      if (dailyOperationsResult.success) setDailyOperations(dailyOperationsResult.data || []);
+      else addToast(dailyOperationsResult.error, 'error');
+
+      if (incidentsResult.success) setIncidents(incidentsResult.data || []);
+      else addToast(incidentsResult.error, 'error');
+
+      if (maintenanceChecksResult.success) setMaintenanceChecks(maintenanceChecksResult.data || []);
+      else addToast(maintenanceChecksResult.error, 'error');
     } else if (result.success) {
       setPlantAssets(result.data || []);
     } else {
@@ -730,6 +1029,9 @@ export default function EquipmentLogPage() {
   const tabs = useMemo(() => ([
     { key: 'vehicles', label: 'Vehículos', icon: Car },
     { key: 'plant', label: 'Planta', icon: Building2 },
+    { key: 'operation', label: 'Operación diaria', icon: CalendarClock },
+    { key: 'incidents', label: 'Incidencias', icon: AlertCircle },
+    { key: 'checks', label: 'Mantenimiento / Calibración', icon: Wrench },
   ]), []);
 
   const handleDeactivateVehicle = async (id) => {
@@ -752,6 +1054,24 @@ export default function EquipmentLogPage() {
 
   const handleDeletePlantAsset = async (id) => {
     const result = await equipmentLogService.deletePlantAsset(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteDailyOperation = async (id) => {
+    const result = await equipmentLogService.deleteDailyOperation(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteIncident = async (id) => {
+    const result = await equipmentLogService.deleteIncident(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteMaintenanceCheck = async (id) => {
+    const result = await equipmentLogService.deleteMaintenanceCheck(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -782,19 +1102,41 @@ export default function EquipmentLogPage() {
     addToast('Excel exportado correctamente.', 'success');
   };
 
-  const createButton = activeTab === 'vehicles'
-    ? (
+  const createButton = activeTab === 'vehicles' ? (
       <VehicleFormDialog
         users={users}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vehículo</Button>}
       />
-    )
-    : (
+    ) : activeTab === 'plant' ? (
       <PlantFormDialog
         users={users}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo registro</Button>}
+      />
+    ) : activeTab === 'operation' ? (
+      <EquipmentRecordFormDialog
+        type="operation"
+        vehicles={vehicles}
+        plantAssets={plantAssets}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva operación</Button>}
+      />
+    ) : activeTab === 'incidents' ? (
+      <EquipmentRecordFormDialog
+        type="incident"
+        vehicles={vehicles}
+        plantAssets={plantAssets}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva incidencia</Button>}
+      />
+    ) : (
+      <EquipmentRecordFormDialog
+        type="check"
+        vehicles={vehicles}
+        plantAssets={plantAssets}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva revisión</Button>}
       />
     );
 
@@ -816,7 +1158,7 @@ export default function EquipmentLogPage() {
               <FileSpreadsheet className="h-4 w-4" />
               {exporting ? 'Exportando...' : 'Exportar Excel'}
             </Button>
-            {canEdit && createButton}
+            {canCreateCurrentTab && createButton}
           </div>
         </div>
       </div>
@@ -853,18 +1195,30 @@ export default function EquipmentLogPage() {
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">{activeTab === 'vehicles' ? 'Vehículos' : 'Planta'}</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">
+                {{
+                  vehicles: 'Vehículos',
+                  plant: 'Planta',
+                  operation: 'Operación diaria',
+                  incidents: 'Incidencias',
+                  checks: 'Mantenimiento / Calibración',
+                }[activeTab]}
+              </h2>
               <p className="text-sm text-gray-500 dark:text-slate-300">
-                {activeTab === 'vehicles'
-                  ? 'Fichas, historial de combustible, mantenimiento y vencimientos.'
-                  : 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.'}
+                {{
+                  vehicles: 'Fichas, historial de combustible, mantenimiento y vencimientos.',
+                  plant: 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.',
+                  operation: 'Uso diario por equipo, fecha, turno y operador.',
+                  incidents: 'Fallas, anomalías, mantenimiento menor y acciones correctivas.',
+                  checks: 'Revisiones preventivas, predictivas y calibraciones programadas.',
+                }[activeTab]}
               </p>
             </div>
             <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 className={`${inputClass} pl-9`}
-                placeholder={activeTab === 'vehicles' ? 'Buscar patente, nombre o marca' : 'Buscar nombre, categoría o ubicación'}
+                placeholder={activeTab === 'vehicles' ? 'Buscar patente, nombre o marca' : 'Buscar equipo, detalle o fecha'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -887,8 +1241,38 @@ export default function EquipmentLogPage() {
               onDeleteFuelLoad={handleDeleteFuelLoad}
               onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
             />
-          ) : (
+          ) : activeTab === 'plant' ? (
             <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
+          ) : activeTab === 'operation' ? (
+            <EquipmentDailyOperationsList
+              records={dailyOperations}
+              vehicles={vehicles}
+              plantAssets={plantAssets}
+              search={search}
+              canEdit={canEdit}
+              onSaved={loadCurrentTab}
+              onDelete={handleDeleteDailyOperation}
+            />
+          ) : activeTab === 'incidents' ? (
+            <EquipmentIncidentsList
+              records={incidents}
+              vehicles={vehicles}
+              plantAssets={plantAssets}
+              search={search}
+              canEdit={canEdit}
+              onSaved={loadCurrentTab}
+              onDelete={handleDeleteIncident}
+            />
+          ) : (
+            <EquipmentMaintenanceChecksList
+              records={maintenanceChecks}
+              vehicles={vehicles}
+              plantAssets={plantAssets}
+              search={search}
+              canEdit={canEdit}
+              onSaved={loadCurrentTab}
+              onDelete={handleDeleteMaintenanceCheck}
+            />
           )}
         </div>
       </div>
@@ -1236,6 +1620,187 @@ function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, ca
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+const filterEquipmentRecords = (records, search) => {
+  const term = search.trim().toLowerCase();
+  if (!term) return records;
+  return records.filter((record) => JSON.stringify({
+    equipment: equipmentLabel(record),
+    ...record,
+  }).toLowerCase().includes(term));
+};
+
+function EquipmentDailyOperationsList({ records, vehicles, plantAssets, search, canEdit, onSaved, onDelete }) {
+  const filteredRecords = filterEquipmentRecords(records, search);
+  return (
+    <EquipmentRecordTable
+      emptyTitle="No hay operaciones diarias registradas."
+      emptyDetail="Cargá el primer uso diario de un vehículo o equipo de planta."
+      headers={['Equipo', 'Fecha', 'Turno', 'Tiempo de uso', 'Operador', 'Observaciones']}
+      records={filteredRecords}
+      renderCells={(record) => [
+        equipmentLabel(record),
+        formatDate(record.operation_date),
+        record.shift,
+        record.usage_time,
+        record.operator_name,
+        record.observations || '-',
+      ]}
+      canEdit={canEdit}
+      editDialog={(record) => (
+        <EquipmentRecordFormDialog
+          type="operation"
+          record={record}
+          vehicles={vehicles}
+          plantAssets={plantAssets}
+          onSaved={onSaved}
+          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+        />
+      )}
+      onDelete={onDelete}
+      deleteTitle="¿Eliminar operación diaria?"
+    />
+  );
+}
+
+function EquipmentIncidentsList({ records, vehicles, plantAssets, search, canEdit, onSaved, onDelete }) {
+  const filteredRecords = filterEquipmentRecords(records, search);
+  return (
+    <EquipmentRecordTable
+      emptyTitle="No hay incidencias registradas."
+      emptyDetail="Cargá fallas, anomalías o arreglos menores asociados a un equipo."
+      headers={['Equipo', 'Fecha y hora', 'Anomalía', 'Acción correctiva', 'Fuera de línea', 'Realizado por']}
+      records={filteredRecords}
+      renderCells={(record) => [
+        equipmentLabel(record),
+        `${formatDate(record.incident_date)} ${record.incident_time ? record.incident_time.slice(0, 5) : ''}`.trim(),
+        record.anomaly_description,
+        record.corrective_action,
+        record.downtime || '-',
+        record.maintenance_done_by || '-',
+      ]}
+      canEdit={canEdit}
+      editDialog={(record) => (
+        <EquipmentRecordFormDialog
+          type="incident"
+          record={record}
+          vehicles={vehicles}
+          plantAssets={plantAssets}
+          onSaved={onSaved}
+          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+        />
+      )}
+      onDelete={onDelete}
+      deleteTitle="¿Eliminar incidencia?"
+    />
+  );
+}
+
+function EquipmentMaintenanceChecksList({ records, vehicles, plantAssets, search, canEdit, onSaved, onDelete }) {
+  const filteredRecords = filterEquipmentRecords(records, search);
+  return (
+    <div className="space-y-4">
+      <UpcomingChecks records={records} />
+      <EquipmentRecordTable
+        emptyTitle="No hay revisiones registradas."
+        emptyDetail="Cargá revisiones preventivas, predictivas o calibraciones."
+        headers={['Equipo', 'Revisión', 'Tipo', 'Componente', 'Estado general', 'Próxima revisión']}
+        records={filteredRecords}
+        renderCells={(record) => [
+          equipmentLabel(record),
+          formatDate(record.review_date),
+          inspectionTypeLabels[record.inspection_type] || record.inspection_type,
+          record.reviewed_component,
+          record.general_status_observations || '-',
+          formatDate(record.next_review_date),
+        ]}
+        canEdit={canEdit}
+        editDialog={(record) => (
+          <EquipmentRecordFormDialog
+            type="check"
+            record={record}
+            vehicles={vehicles}
+            plantAssets={plantAssets}
+            onSaved={onSaved}
+            trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+          />
+        )}
+        onDelete={onDelete}
+        deleteTitle="¿Eliminar revisión?"
+      />
+    </div>
+  );
+}
+
+function UpcomingChecks({ records }) {
+  const upcoming = records
+    .filter((record) => record.next_review_date)
+    .sort((a, b) => a.next_review_date.localeCompare(b.next_review_date))
+    .slice(0, 5);
+
+  if (upcoming.length === 0) return null;
+
+  return (
+    <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+      {upcoming.map((record) => (
+        <div key={record.id} className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm dark:border-emerald-900/60 dark:bg-emerald-950">
+          <p className="font-bold text-emerald-900 dark:text-emerald-100">{formatDate(record.next_review_date)}</p>
+          <p className="mt-1 text-emerald-800 dark:text-emerald-200">{equipmentLabel(record)}</p>
+          <p className="text-emerald-700 dark:text-emerald-300">{inspectionTypeLabels[record.inspection_type] || record.inspection_type}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, renderCells, canEdit, editDialog, onDelete, deleteTitle }) {
+  if (records.length === 0) {
+    return (
+      <div className="p-10 text-center">
+        <p className="text-base font-semibold text-gray-900 dark:text-slate-50">{emptyTitle}</p>
+        <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">{emptyDetail}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+          <tr>
+            {headers.map((header) => <th key={header} className="px-5 py-3">{header}</th>)}
+            {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+          {records.map((record) => (
+            <tr key={record.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
+              {renderCells(record).map((cell, index) => (
+                <td key={`${record.id}-${index}`} className="max-w-[280px] px-5 py-4 text-gray-700 dark:text-slate-200">
+                  <span className={index === 0 ? 'font-semibold text-gray-900 dark:text-slate-50' : ''}>{cell || '-'}</span>
+                </td>
+              ))}
+              {canEdit && (
+                <td className="px-5 py-4">
+                  <div className="flex justify-end gap-2">
+                    {editDialog(record)}
+                    <ConfirmationModal
+                      title={deleteTitle}
+                      description="El registro se eliminará definitivamente."
+                      confirmLabel="Sí, eliminar"
+                      onConfirm={() => onDelete(record.id)}
+                      trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                    />
+                  </div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
