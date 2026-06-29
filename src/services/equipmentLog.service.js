@@ -63,8 +63,9 @@ const buildEquipmentRecordPayload = (record) => {
   const targetType = record.target_type;
   const targetId = record.target_id;
   return {
-    vehicle_id: targetType === 'vehicle' ? targetId : null,
-    plant_asset_id: targetType === 'plant_asset' ? targetId : null,
+    vehicle_id: targetType === 'vehicle' && targetId ? targetId : null,
+    plant_asset_id: targetType === 'plant_asset' && targetId ? targetId : null,
+    equipment_name: record.equipment_name?.trim() || null,
   };
 };
 
@@ -431,7 +432,6 @@ export const equipmentLogService = {
   },
 
   async saveDailyOperation(record) {
-    if (!record.target_type || !record.target_id) return { success: false, error: 'Seleccioná un equipo.' };
     if (!record.operation_date) return { success: false, error: 'La fecha es obligatoria.' };
     if (!record.shift?.trim()) return { success: false, error: 'El turno es obligatorio.' };
     if (!record.usage_time?.trim()) return { success: false, error: 'El tiempo de uso es obligatorio.' };
@@ -489,7 +489,6 @@ export const equipmentLogService = {
   },
 
   async saveIncident(record) {
-    if (!record.target_type || !record.target_id) return { success: false, error: 'Seleccioná un equipo.' };
     if (!record.incident_date) return { success: false, error: 'La fecha es obligatoria.' };
     if (!record.anomaly_description?.trim()) return { success: false, error: 'La anomalía es obligatoria.' };
     if (!record.corrective_action?.trim()) return { success: false, error: 'La acción correctiva es obligatoria.' };
@@ -548,7 +547,6 @@ export const equipmentLogService = {
   },
 
   async saveMaintenanceCheck(record) {
-    if (!record.target_type || !record.target_id) return { success: false, error: 'Seleccioná un equipo.' };
     if (!record.review_date) return { success: false, error: 'La fecha de revisión es obligatoria.' };
     if (!EQUIPMENT_INSPECTION_TYPES.includes(record.inspection_type)) return { success: false, error: 'Seleccioná un tipo de inspección válido.' };
     if (!record.reviewed_component?.trim()) return { success: false, error: 'El componente revisado es obligatorio.' };

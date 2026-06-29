@@ -7,6 +7,7 @@ create table if not exists public.equipment_daily_operations (
   id uuid primary key default gen_random_uuid(),
   vehicle_id uuid references public.vehicles(id) on delete cascade,
   plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  equipment_name text,
   operation_date date not null,
   shift text not null,
   usage_time text not null,
@@ -16,8 +17,7 @@ create table if not exists public.equipment_daily_operations (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint equipment_daily_operations_target_check check (
-    (vehicle_id is not null and plant_asset_id is null)
-    or (vehicle_id is null and plant_asset_id is not null)
+    vehicle_id is null or plant_asset_id is null
   ),
   constraint equipment_daily_operations_shift_check check (btrim(shift) <> ''),
   constraint equipment_daily_operations_usage_time_check check (btrim(usage_time) <> ''),
@@ -28,6 +28,7 @@ create table if not exists public.equipment_incidents (
   id uuid primary key default gen_random_uuid(),
   vehicle_id uuid references public.vehicles(id) on delete cascade,
   plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  equipment_name text,
   incident_date date not null,
   incident_time time,
   anomaly_description text not null,
@@ -39,8 +40,7 @@ create table if not exists public.equipment_incidents (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint equipment_incidents_target_check check (
-    (vehicle_id is not null and plant_asset_id is null)
-    or (vehicle_id is null and plant_asset_id is not null)
+    vehicle_id is null or plant_asset_id is null
   ),
   constraint equipment_incidents_anomaly_check check (btrim(anomaly_description) <> ''),
   constraint equipment_incidents_action_check check (btrim(corrective_action) <> '')
@@ -50,6 +50,7 @@ create table if not exists public.equipment_maintenance_checks (
   id uuid primary key default gen_random_uuid(),
   vehicle_id uuid references public.vehicles(id) on delete cascade,
   plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  equipment_name text,
   review_date date not null,
   inspection_type text not null,
   reviewed_component text not null,
@@ -59,8 +60,7 @@ create table if not exists public.equipment_maintenance_checks (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint equipment_maintenance_checks_target_check check (
-    (vehicle_id is not null and plant_asset_id is null)
-    or (vehicle_id is null and plant_asset_id is not null)
+    vehicle_id is null or plant_asset_id is null
   ),
   constraint equipment_maintenance_checks_type_check check (inspection_type in ('preventiva', 'predictiva', 'calibracion')),
   constraint equipment_maintenance_checks_component_check check (btrim(reviewed_component) <> '')
@@ -69,16 +69,19 @@ create table if not exists public.equipment_maintenance_checks (
 alter table public.equipment_daily_operations
   add column if not exists vehicle_id uuid references public.vehicles(id) on delete cascade,
   add column if not exists plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  add column if not exists equipment_name text,
   add column if not exists updated_at timestamptz not null default now();
 
 alter table public.equipment_incidents
   add column if not exists vehicle_id uuid references public.vehicles(id) on delete cascade,
   add column if not exists plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  add column if not exists equipment_name text,
   add column if not exists updated_at timestamptz not null default now();
 
 alter table public.equipment_maintenance_checks
   add column if not exists vehicle_id uuid references public.vehicles(id) on delete cascade,
   add column if not exists plant_asset_id uuid references public.plant_assets(id) on delete cascade,
+  add column if not exists equipment_name text,
   add column if not exists updated_at timestamptz not null default now();
 
 do $$
@@ -119,24 +122,21 @@ alter table public.equipment_daily_operations
   drop constraint if exists equipment_daily_operations_target_check;
 alter table public.equipment_daily_operations
   add constraint equipment_daily_operations_target_check check (
-    (vehicle_id is not null and plant_asset_id is null)
-    or (vehicle_id is null and plant_asset_id is not null)
+    vehicle_id is null or plant_asset_id is null
   ) not valid;
 
 alter table public.equipment_incidents
   drop constraint if exists equipment_incidents_target_check;
 alter table public.equipment_incidents
   add constraint equipment_incidents_target_check check (
-    (vehicle_id is not null and plant_asset_id is null)
-    or (vehicle_id is null and plant_asset_id is not null)
+    vehicle_id is null or plant_asset_id is null
   ) not valid;
 
 alter table public.equipment_maintenance_checks
   drop constraint if exists equipment_maintenance_checks_target_check;
 alter table public.equipment_maintenance_checks
   add constraint equipment_maintenance_checks_target_check check (
-    (vehicle_id is not null and plant_asset_id is null)
-    or (vehicle_id is null and plant_asset_id is not null)
+    vehicle_id is null or plant_asset_id is null
   ) not valid;
 
 alter table public.equipment_maintenance_checks

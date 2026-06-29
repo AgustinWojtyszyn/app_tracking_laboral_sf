@@ -114,6 +114,7 @@ const emptyMaintenanceLog = () => ({
 const emptyDailyOperation = () => ({
   target_type: 'vehicle',
   target_id: '',
+  equipment_name: '',
   operation_date: todayInputDate(),
   shift: '',
   usage_time: '',
@@ -124,6 +125,7 @@ const emptyDailyOperation = () => ({
 const emptyIncident = () => ({
   target_type: 'vehicle',
   target_id: '',
+  equipment_name: '',
   incident_date: todayInputDate(),
   incident_time: currentInputTime(),
   anomaly_description: '',
@@ -136,6 +138,7 @@ const emptyIncident = () => ({
 const emptyMaintenanceCheck = () => ({
   target_type: 'vehicle',
   target_id: '',
+  equipment_name: '',
   review_date: todayInputDate(),
   inspection_type: 'preventiva',
   reviewed_component: '',
@@ -157,6 +160,7 @@ const equipmentTargetFromRecord = (record) => {
 };
 
 const equipmentLabel = (record) => {
+  if (record?.equipment_name) return record.equipment_name;
   if (record?.vehicle) {
     return [record.vehicle.license_plate, record.vehicle.name || record.vehicle.brand, record.vehicle.model]
       .filter(Boolean)
@@ -168,12 +172,6 @@ const equipmentLabel = (record) => {
       .join(' - ');
   }
   return 'Equipo no encontrado';
-};
-
-const firstEquipmentTarget = (vehicles, plantAssets) => {
-  if (vehicles[0]?.id) return { target_type: 'vehicle', target_id: vehicles[0].id };
-  if (plantAssets[0]?.id) return { target_type: 'plant_asset', target_id: plantAssets[0].id };
-  return { target_type: 'vehicle', target_id: '' };
 };
 
 function Badge({ value, children }) {
@@ -725,37 +723,16 @@ function PlantFormDialog({ asset, users, trigger, onSaved }) {
   );
 }
 
-function EquipmentTargetFields({ form, vehicles, plantAssets, setValue }) {
-  const availableTargets = form.target_type === 'plant_asset' ? plantAssets : vehicles;
-
-  useEffect(() => {
-    if (form.target_id && availableTargets.some((item) => item.id === form.target_id)) return;
-    setValue('target_id', availableTargets[0]?.id || '');
-  }, [availableTargets, form.target_id, setValue]);
-
+function EquipmentTargetFields({ form, setValue }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Tipo de equipo *">
-        <select className={inputClass} value={form.target_type} onChange={(e) => setValue('target_type', e.target.value)} required>
-          <option value="vehicle">Vehículo</option>
-          <option value="plant_asset">Equipo / activo de planta</option>
-        </select>
-      </Field>
-      <Field label="Equipo *">
-        <select className={inputClass} value={form.target_id} onChange={(e) => setValue('target_id', e.target.value)} required>
-          <option value="">Seleccionar equipo</option>
-          {form.target_type === 'vehicle' ? vehicles.map((vehicle) => (
-            <option key={vehicle.id} value={vehicle.id}>
-              {[vehicle.license_plate, vehicle.name || vehicle.brand, vehicle.model].filter(Boolean).join(' - ')}
-            </option>
-          )) : plantAssets.map((asset) => (
-            <option key={asset.id} value={asset.id}>
-              {[asset.name, asset.category, asset.location_description].filter(Boolean).join(' - ')}
-            </option>
-          ))}
-        </select>
-      </Field>
-    </div>
+    <Field label="Equipo">
+      <input
+        className={inputClass}
+        value={form.equipment_name || ''}
+        onChange={(e) => setValue('equipment_name', e.target.value)}
+        placeholder="Ej: Vehículo 12, cámara 1, amasadora, sector frío"
+      />
+    </Field>
   );
 }
 
@@ -799,7 +776,7 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
   useEffect(() => {
     if (!open) return;
     setFormError('');
-    const target = record ? equipmentTargetFromRecord(record) : firstEquipmentTarget(vehicles, plantAssets);
+    const target = record ? equipmentTargetFromRecord(record) : { target_type: 'vehicle', target_id: '' };
     setForm(record ? {
       ...emptyByType[type](),
       ...record,
@@ -827,8 +804,6 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
     }
   };
 
-  const hasTargets = vehicles.length > 0 || plantAssets.length > 0;
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -843,12 +818,7 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
               <span>{formError}</span>
             </div>
           )}
-          {!hasTargets && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950 dark:text-amber-100">
-              Primero cargá un vehículo o activo de planta.
-            </div>
-          )}
-          <EquipmentTargetFields form={form} vehicles={vehicles} plantAssets={plantAssets} setValue={setValue} />
+          <EquipmentTargetFields form={form} setValue={setValue} />
 
           {type === 'operation' && (
             <>
@@ -930,7 +900,7 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={saving || !hasTargets} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
+            <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
               {saving ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
