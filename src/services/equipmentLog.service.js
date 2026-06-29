@@ -85,7 +85,7 @@ export const equipmentLogService = {
     try {
       let query = supabase
         .from('vehicles')
-        .select('*, assigned_driver:assigned_driver_id(id, full_name, email)')
+        .select('*, assigned_driver:assigned_driver_id(id, full_name, email), assigned_driver_profile:assigned_driver_profile_id(id, name, phone, notes, user_id)')
         .is('archived_at', null)
         .order('created_at', { ascending: false });
 
@@ -139,7 +139,7 @@ export const equipmentLogService = {
       brand: vehicle.brand?.trim() || null,
       model: vehicle.model?.trim() || null,
       year,
-      assigned_driver_id: vehicle.assigned_driver_id || null,
+      assigned_driver_profile_id: vehicle.assigned_driver_profile_id || null,
       registration_expires_at: vehicle.registration_expires_at || null,
       insurance_expires_at: vehicle.insurance_expires_at || null,
       inspection_expires_at: vehicle.inspection_expires_at || null,
@@ -185,6 +185,105 @@ export const equipmentLogService = {
       return { success: true, message: 'Vehículo desactivado.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo desactivar el vehículo.') };
+    }
+  },
+
+  async getDrivers({ activeOnly = true } = {}) {
+    try {
+      let query = supabase
+        .from('drivers')
+        .select('id, name, phone, notes, user_id, is_active, archived_at, created_at, updated_at')
+        .order('name', { ascending: true });
+
+      if (activeOnly) {
+        query = query.eq('is_active', true).is('archived_at', null);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar choferes.') };
+    }
+  },
+
+  async createDriver(payload) {
+    const name = payload.name?.trim();
+    if (!name) return { success: false, error: 'El nombre del chofer es obligatorio.' };
+
+    try {
+      const { data, error } = await supabase
+        .from('drivers')
+        .insert([{
+          name,
+          phone: payload.phone?.trim() || null,
+          notes: payload.notes?.trim() || null,
+          is_active: true,
+          archived_at: null,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { success: true, data, message: 'Chofer creado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo crear el chofer.') };
+    }
+  },
+
+  async updateDriver(id, payload) {
+    const name = payload.name?.trim();
+    if (!name) return { success: false, error: 'El nombre del chofer es obligatorio.' };
+
+    try {
+      const { data, error } = await supabase
+        .from('drivers')
+        .update({
+          name,
+          phone: payload.phone?.trim() || null,
+          notes: payload.notes?.trim() || null,
+          is_active: payload.is_active ?? true,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { success: true, data, message: 'Chofer actualizado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo actualizar el chofer.') };
+    }
+  },
+
+  async archiveDriver(id) {
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .update({ is_active: false, archived_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+      return { success: true, message: 'Chofer desactivado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo desactivar el chofer.') };
+    }
+  },
+
+  async linkDriverToUser(driverId, userId) {
+    try {
+      const { data, error } = await supabase
+        .from('drivers')
+        .update({ user_id: userId || null })
+        .eq('id', driverId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return { success: true, data, message: 'Chofer vinculado al usuario.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo vincular el chofer al usuario.') };
     }
   },
 

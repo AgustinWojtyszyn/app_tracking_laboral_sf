@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, Wrench } from 'lucide-react';
+import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -69,6 +69,7 @@ const emptyVehicle = {
   model: '',
   year: '',
   assigned_driver_id: '',
+  assigned_driver_profile_id: '',
   registration_expires_at: '',
   insurance_expires_at: '',
   inspection_expires_at: '',
@@ -147,6 +148,12 @@ const emptyMaintenanceCheck = () => ({
 });
 
 const compactUserLabel = (user) => user?.full_name || user?.email || 'Sin asignar';
+const driverLabel = (driver) => driver?.name || 'Sin chofer asignado';
+const vehicleDriverLabel = (vehicle) => (
+  vehicle?.assigned_driver_profile?.name
+    || (vehicle?.assigned_driver ? compactUserLabel(vehicle.assigned_driver) : null)
+    || 'Sin chofer asignado'
+);
 const inspectionTypeLabels = {
   preventiva: 'Preventiva',
   predictiva: 'Predictiva',
@@ -223,7 +230,7 @@ const pasteLimitedValue = ({ formatter, maxLength, onValue }) => (event) => {
   onValue(next);
 };
 
-function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
+function VehicleFormDialog({ vehicle, drivers, trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -237,6 +244,7 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
       ...emptyVehicle,
       ...vehicle,
       assigned_driver_id: vehicle.assigned_driver_id || '',
+      assigned_driver_profile_id: vehicle.assigned_driver_profile_id || '',
       registration_expires_at: vehicle.registration_expires_at || '',
       insurance_expires_at: vehicle.insurance_expires_at || '',
       inspection_expires_at: vehicle.inspection_expires_at || '',
@@ -316,10 +324,10 @@ function VehicleFormDialog({ vehicle, users, trigger, onSaved }) {
               </select>
             </Field>
             <Field label="Chofer asignado">
-              <select className={inputClass} value={form.assigned_driver_id || ''} onChange={(e) => setValue('assigned_driver_id', e.target.value)}>
-                <option value="">Sin asignar</option>
-                {users.filter((u) => u.role === 'chofer').map((user) => (
-                  <option key={user.id} value={user.id}>{compactUserLabel(user)}</option>
+              <select className={inputClass} value={form.assigned_driver_profile_id || ''} onChange={(e) => setValue('assigned_driver_profile_id', e.target.value)}>
+                <option value="">Sin chofer asignado</option>
+                {drivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>
                 ))}
               </select>
             </Field>
@@ -723,6 +731,90 @@ function PlantFormDialog({ asset, users, trigger, onSaved }) {
   );
 }
 
+const emptyDriver = {
+  name: '',
+  phone: '',
+  notes: '',
+  is_active: true,
+};
+
+function DriverFormDialog({ driver, trigger, onSaved }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyDriver);
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    setForm(driver ? {
+      ...emptyDriver,
+      ...driver,
+      phone: driver.phone || '',
+      notes: driver.notes || '',
+      is_active: driver.is_active ?? true,
+    } : emptyDriver);
+  }, [driver, open]);
+
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setFormError('');
+    setSaving(true);
+    const result = driver
+      ? await equipmentLogService.updateDriver(driver.id, form)
+      : await equipmentLogService.createDriver(form);
+    setSaving(false);
+
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader>
+          <DialogTitle>{driver ? 'Editar chofer' : 'Agregar chofer'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && (
+            <div role="alert" aria-live="assertive" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 shadow-lg dark:border-red-400 dark:bg-red-950 dark:text-red-50">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+          <Field label="Nombre *">
+            <input className={inputClass} value={form.name || ''} onChange={(e) => setValue('name', e.target.value)} required />
+          </Field>
+          <Field label="Teléfono">
+            <input className={inputClass} value={form.phone || ''} onChange={(e) => setValue('phone', e.target.value)} />
+          </Field>
+          <Field label="Observaciones">
+            <textarea className={`${inputClass} min-h-24`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EquipmentTargetFields({ form, setValue }) {
   return (
     <Field label="Equipo">
@@ -922,6 +1014,7 @@ export default function EquipmentLogPage() {
   const [maintenanceChecks, setMaintenanceChecks] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [plantAssets, setPlantAssets] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -936,6 +1029,12 @@ export default function EquipmentLogPage() {
     if (result.success) setUsers(result.data || []);
   };
 
+  const loadDrivers = async () => {
+    const result = await equipmentLogService.getDrivers();
+    if (result.success) setDrivers(result.data || []);
+    else addToast(result.error, 'error');
+  };
+
   const loadCurrentTab = async () => {
     setLoading(true);
     const result = ['vehicles', 'operation', 'incidents', 'checks'].includes(activeTab)
@@ -944,15 +1043,18 @@ export default function EquipmentLogPage() {
         equipmentLogService.getFuelLoads(),
         equipmentLogService.getMaintenanceLogs(),
         equipmentLogService.getPlantAssets(),
+        equipmentLogService.getDrivers(),
         equipmentLogService.getDailyOperations(),
         equipmentLogService.getIncidents(),
         equipmentLogService.getMaintenanceChecks(),
       ])
+      : activeTab === 'drivers'
+        ? await equipmentLogService.getDrivers()
       : await equipmentLogService.getPlantAssets({ search });
     setLoading(false);
 
     if (['vehicles', 'operation', 'incidents', 'checks'].includes(activeTab)) {
-      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult, dailyOperationsResult, incidentsResult, maintenanceChecksResult] = result;
+      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult, driversResult, dailyOperationsResult, incidentsResult, maintenanceChecksResult] = result;
       if (vehiclesResult.success) setVehicles(vehiclesResult.data || []);
       else addToast(vehiclesResult.error, 'error');
 
@@ -965,6 +1067,9 @@ export default function EquipmentLogPage() {
       if (plantAssetsResult.success) setPlantAssets(plantAssetsResult.data || []);
       else addToast(plantAssetsResult.error, 'error');
 
+      if (driversResult.success) setDrivers(driversResult.data || []);
+      else addToast(driversResult.error, 'error');
+
       if (dailyOperationsResult.success) setDailyOperations(dailyOperationsResult.data || []);
       else addToast(dailyOperationsResult.error, 'error');
 
@@ -973,6 +1078,8 @@ export default function EquipmentLogPage() {
 
       if (maintenanceChecksResult.success) setMaintenanceChecks(maintenanceChecksResult.data || []);
       else addToast(maintenanceChecksResult.error, 'error');
+    } else if (activeTab === 'drivers' && result.success) {
+      setDrivers(result.data || []);
     } else if (result.success) {
       setPlantAssets(result.data || []);
     } else {
@@ -983,6 +1090,10 @@ export default function EquipmentLogPage() {
   useEffect(() => {
     loadUsers();
   }, [canEdit]);
+
+  useEffect(() => {
+    loadDrivers();
+  }, []);
 
   useEffect(() => {
     loadCurrentTab();
@@ -998,6 +1109,7 @@ export default function EquipmentLogPage() {
 
   const tabs = useMemo(() => ([
     { key: 'vehicles', label: 'Vehículos', icon: Car },
+    { key: 'drivers', label: 'Choferes', icon: UserCog },
     { key: 'plant', label: 'Planta', icon: Building2 },
     { key: 'operation', label: 'Operación diaria', icon: CalendarClock },
     { key: 'incidents', label: 'Incidencias', icon: AlertCircle },
@@ -1024,6 +1136,12 @@ export default function EquipmentLogPage() {
 
   const handleDeletePlantAsset = async (id) => {
     const result = await equipmentLogService.deletePlantAsset(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleArchiveDriver = async (id) => {
+    const result = await equipmentLogService.archiveDriver(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -1074,9 +1192,14 @@ export default function EquipmentLogPage() {
 
   const createButton = activeTab === 'vehicles' ? (
       <VehicleFormDialog
-        users={users}
+        drivers={drivers}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vehículo</Button>}
+      />
+    ) : activeTab === 'drivers' ? (
+      <DriverFormDialog
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo chofer</Button>}
       />
     ) : activeTab === 'plant' ? (
       <PlantFormDialog
@@ -1168,6 +1291,7 @@ export default function EquipmentLogPage() {
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">
                 {{
                   vehicles: 'Vehículos',
+                  drivers: 'Choferes',
                   plant: 'Planta',
                   operation: 'Operación diaria',
                   incidents: 'Incidencias',
@@ -1177,6 +1301,7 @@ export default function EquipmentLogPage() {
               <p className="text-sm text-gray-500 dark:text-slate-300">
                 {{
                   vehicles: 'Fichas, historial de combustible, mantenimiento y vencimientos.',
+                  drivers: 'Padrón operativo de choferes asignables a vehículos.',
                   plant: 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.',
                   operation: 'Uso diario por equipo, fecha, turno y operador.',
                   incidents: 'Fallas, anomalías, mantenimiento menor y acciones correctivas.',
@@ -1188,7 +1313,7 @@ export default function EquipmentLogPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 className={`${inputClass} pl-9`}
-                placeholder={activeTab === 'vehicles' ? 'Buscar patente, nombre o marca' : 'Buscar equipo, detalle o fecha'}
+                placeholder={activeTab === 'vehicles' ? 'Buscar patente, nombre o marca' : activeTab === 'drivers' ? 'Buscar chofer o teléfono' : 'Buscar equipo, detalle o fecha'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -1205,12 +1330,15 @@ export default function EquipmentLogPage() {
               selectedVehicleId={selectedVehicleId}
               onSelectVehicle={setSelectedVehicleId}
               users={users}
+              drivers={drivers}
               canEdit={canEdit}
               onSaved={loadCurrentTab}
               onDeactivate={handleDeactivateVehicle}
               onDeleteFuelLoad={handleDeleteFuelLoad}
               onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
             />
+          ) : activeTab === 'drivers' ? (
+            <DriversList drivers={drivers} search={search} canEdit={canEdit} onSaved={loadCurrentTab} onArchive={handleArchiveDriver} />
           ) : activeTab === 'plant' ? (
             <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
           ) : activeTab === 'operation' ? (
@@ -1302,7 +1430,7 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets }) {
   );
 }
 
-function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId, onSelectVehicle, users, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
+function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId, onSelectVehicle, users, drivers, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) || null;
   const selectedFuelLoads = selectedVehicleId ? fuelLoads.filter((load) => load.vehicle_id === selectedVehicleId) : [];
   const selectedMaintenanceLogs = selectedVehicleId ? maintenanceLogs.filter((log) => log.vehicle_id === selectedVehicleId) : [];
@@ -1339,7 +1467,7 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId,
                     <p className="font-semibold">{vehicle.name || vehicleTypeLabels[vehicle.vehicle_type] || 'Vehículo'}</p>
                     <p>{[vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ') || '-'}</p>
                   </td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{compactUserLabel(vehicle.assigned_driver)}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{vehicleDriverLabel(vehicle)}</td>
                   <td className="px-5 py-4"><Badge value={vehicle.status}>{statusLabels[vehicle.status]}</Badge></td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
                     <p className="font-semibold text-gray-900 dark:text-slate-50">{vehicle.mileage_end ?? vehicle.mileage_start ?? '-'}</p>
@@ -1364,6 +1492,7 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId,
           fuelLoads={selectedFuelLoads}
           maintenanceLogs={selectedMaintenanceLogs}
           users={users}
+          drivers={drivers}
           canEdit={canEdit}
           onSaved={onSaved}
           onDeactivate={onDeactivate}
@@ -1375,7 +1504,7 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId,
   );
 }
 
-function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
+function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, drivers, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
   return (
     <div className="space-y-5 p-4">
       <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
@@ -1385,7 +1514,7 @@ function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, c
             <h3 className="mt-1 text-xl font-bold text-gray-900 dark:text-slate-50">{vehicle.license_plate}</h3>
             <p className="text-sm text-gray-700 dark:text-slate-200">{[vehicle.name || vehicleTypeLabels[vehicle.vehicle_type], vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' - ') || 'Vehículo'}</p>
             <div className="mt-3 grid gap-2 text-sm text-gray-700 dark:text-slate-200 sm:grid-cols-2 lg:grid-cols-4">
-              <p><span className="font-semibold">Chofer:</span> {compactUserLabel(vehicle.assigned_driver)}</p>
+              <p><span className="font-semibold">Chofer:</span> {vehicleDriverLabel(vehicle)}</p>
               <p><span className="font-semibold">Estado:</span> {statusLabels[vehicle.status] || vehicle.status}</p>
               <p><span className="font-semibold">Km actual:</span> {vehicle.mileage_end ?? vehicle.mileage_start ?? '-'}</p>
               <p><span className="font-semibold">Seguro:</span> {vehicle.insurance_expires_at ? formatDate(vehicle.insurance_expires_at) : '-'}</p>
@@ -1397,7 +1526,7 @@ function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, c
             <div className="flex gap-2">
               <VehicleFormDialog
                 vehicle={vehicle}
-                users={users}
+                drivers={drivers}
                 onSaved={onSaved}
                 trigger={<Button variant="outline"><Edit2 className="mr-2 h-4 w-4" /> Editar</Button>}
               />
@@ -1762,6 +1891,66 @@ function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, rende
                       description="El registro se eliminará definitivamente."
                       confirmLabel="Sí, eliminar"
                       onConfirm={() => onDelete(record.id)}
+                      trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                    />
+                  </div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DriversList({ drivers, search, canEdit, onSaved, onArchive }) {
+  const term = search.trim().toLowerCase();
+  const filteredDrivers = term
+    ? drivers.filter((driver) => [driver.name, driver.phone, driver.notes].some((value) => String(value || '').toLowerCase().includes(term)))
+    : drivers;
+
+  if (filteredDrivers.length === 0) {
+    return (
+      <div className="p-10 text-center">
+        <p className="text-base font-semibold text-gray-900 dark:text-slate-50">No hay choferes activos.</p>
+        <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Agregá choferes operativos para asignarlos a vehículos.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+          <tr>
+            <th className="px-5 py-3">Chofer</th>
+            <th className="px-5 py-3">Teléfono</th>
+            <th className="px-5 py-3">Observaciones</th>
+            <th className="px-5 py-3">Usuario vinculado</th>
+            {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+          {filteredDrivers.map((driver) => (
+            <tr key={driver.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
+              <td className="px-5 py-4 font-bold text-gray-900 dark:text-slate-50">{driver.name}</td>
+              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.phone || '-'}</td>
+              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.notes || '-'}</td>
+              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.user_id ? 'Vinculado' : 'Sin usuario'}</td>
+              {canEdit && (
+                <td className="px-5 py-4">
+                  <div className="flex justify-end gap-2">
+                    <DriverFormDialog
+                      driver={driver}
+                      onSaved={onSaved}
+                      trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                    />
+                    <ConfirmationModal
+                      title="¿Desactivar chofer?"
+                      description="El chofer dejará de aparecer en selectores activos, pero conservará su historial."
+                      confirmLabel="Sí, desactivar"
+                      onConfirm={() => onArchive(driver.id)}
                       trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
                     />
                   </div>
