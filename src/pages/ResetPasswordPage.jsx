@@ -11,9 +11,11 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const canSubmit = useMemo(() => {
-    return password.length >= 6 && confirmPassword.length >= 6 && password === confirmPassword;
-  }, [password, confirmPassword]);
+  const canSubmit = useMemo(() => (
+    password.length >= 6 &&
+    confirmPassword.length >= 6 &&
+    password === confirmPassword
+  ), [password, confirmPassword]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -35,28 +37,31 @@ export default function ResetPasswordPage() {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.message || result.error || 'No se pudo actualizar la contraseña. Volvé a solicitar el enlace.');
+      setError(result.message || result.error || 'No se pudo actualizar la contraseña. Volvé a solicitar un nuevo enlace.');
       return;
     }
 
     setMessage('Contraseña actualizada correctamente. Ya podés iniciar sesión.');
-    setTimeout(() => navigate('/login', { replace: true }), 1600);
+
+    setTimeout(() => {
+      navigate('/login', { replace: true });
+    }, 1600);
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="bg-[#0f5b99] px-8 py-7 text-center">
-          <h1 className="text-3xl font-extrabold text-white tracking-wide">ServiFood</h1>
+          <h1 className="text-3xl font-extrabold tracking-wide text-white">ServiFood</h1>
           <p className="mt-1 text-sm text-blue-100">Sistema de mantenimiento</p>
         </div>
 
         <div className="px-8 py-8">
-          <h2 className="text-2xl font-bold text-slate-900 text-center">
+          <h2 className="text-center text-2xl font-bold text-slate-900">
             Crear nueva contraseña
           </h2>
 
-          <p className="mt-3 text-sm leading-6 text-slate-600 text-center">
+          <p className="mt-3 text-center text-sm leading-6 text-slate-600">
             Ingresá una nueva contraseña para recuperar el acceso a tu cuenta.
           </p>
 
