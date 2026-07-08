@@ -196,7 +196,7 @@ export const authService = {
   async resetPassword(email) {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${TRACKING_REDIRECT_URL}/login`
+        redirectTo: `${TRACKING_REDIRECT_URL}/reset-password`
       });
       if (error) throw error;
       return { success: true, message: "Te enviamos un email para restablecer tu contraseña." };
