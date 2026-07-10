@@ -599,6 +599,7 @@ export default function MonthlyPanelPage() {
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
                   aria-label="Filas por página"
                 >
+                  <option value={5}>5</option>
                   <option value={10}>10</option>
                   <option value={30}>30</option>
                   <option value={50}>50</option>

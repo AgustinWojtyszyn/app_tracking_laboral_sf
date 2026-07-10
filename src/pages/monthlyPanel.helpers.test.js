@@ -103,7 +103,8 @@ describe('applyMonthlyPanelFilters', () => {
 describe('paginateMonthlyJobs', () => {
   const manyJobs = Array.from({ length: 64 }, (_, index) => ({ id: String(index + 1) }));
 
-  it('pagina 10, 30 y 50 registros', () => {
+  it('pagina 5, 10, 30 y 50 registros', () => {
+    expect(paginateMonthlyJobs(manyJobs, 1, 5).records).toHaveLength(5);
     expect(paginateMonthlyJobs(manyJobs, 1, 10).records).toHaveLength(10);
     expect(paginateMonthlyJobs(manyJobs, 1, 30).records).toHaveLength(30);
     expect(paginateMonthlyJobs(manyJobs, 1, 50).records).toHaveLength(50);
