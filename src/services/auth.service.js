@@ -193,6 +193,58 @@ export const authService = {
     }
   },
 
+  async recoverPasswordSession(url = window.location.href) {
+    let parsedUrl = null;
+    let shouldCleanUrl = false;
+
+    const cleanRecoveryUrl = () => {
+      if (shouldCleanUrl && typeof window !== 'undefined') {
+        window.history.replaceState({}, document.title, parsedUrl.pathname);
+      }
+    };
+
+    try {
+      parsedUrl = new URL(url);
+      const code = parsedUrl.searchParams.get('code');
+      const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      shouldCleanUrl = Boolean(code || accessToken || refreshToken);
+
+      let result = null;
+
+      if (code) {
+        result = await supabase.auth.exchangeCodeForSession(code);
+      } else if (accessToken && refreshToken) {
+        result = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+      } else {
+        result = await supabase.auth.getSession();
+      }
+
+      if (result?.error) throw result.error;
+
+      const session = result?.data?.session ?? null;
+      if (!session) {
+        cleanRecoveryUrl();
+        return { success: false, message: 'El enlace de recuperación no es válido o ya venció.' };
+      }
+
+      cleanRecoveryUrl();
+
+      return { success: true, session };
+    } catch (error) {
+      cleanRecoveryUrl();
+      return {
+        success: false,
+        message: 'El enlace de recuperación no es válido o ya venció.',
+        error: error.message,
+      };
+    }
+  },
+
   async resetPassword(email) {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -202,7 +254,7 @@ export const authService = {
       return { success: true, message: "Te enviamos un email para restablecer tu contraseña." };
     } catch (error) {
       console.error("ResetPassword Error:", error);
-      return { success: false, message: error.message };
+      return { success: false, message: "No se pudo enviar el email de recuperación. Verificá el correo e intentá nuevamente." };
     }
   },
 

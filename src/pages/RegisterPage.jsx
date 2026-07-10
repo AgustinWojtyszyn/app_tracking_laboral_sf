@@ -48,6 +48,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setAuthError(null);
     if (!validate()) return;
 
@@ -188,6 +189,7 @@ export default function RegisterPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 error={errors.password}
+                showPasswordToggle
                 />
             </motion.div>
 
@@ -201,6 +203,7 @@ export default function RegisterPage() {
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                 error={errors.confirmPassword}
+                showPasswordToggle
                 />
             </motion.div>
 

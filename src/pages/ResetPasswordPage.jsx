@@ -1,127 +1,172 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { KeyRound, Loader2 } from 'lucide-react';
 import { authService } from '@/services/auth.service';
+import AuthLayout from '@/components/auth/AuthLayout';
+import Input from '@/components/Input';
+import Alert from '@/components/Alert';
+import { Button } from '@/components/ui/button';
+import {
+  RECOVERY_MESSAGES,
+  RECOVERY_STATUS,
+  canSubmitResetPassword,
+  translateAuthError,
+  validateResetPasswordForm,
+} from '@/utils/auth/resetPassword.helpers';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const initialized = useRef(false);
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [status, setStatus] = useState(RECOVERY_STATUS.VERIFYING);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
-  const canSubmit = useMemo(() => (
-    password.length >= 6 &&
-    confirmPassword.length >= 6 &&
-    password === confirmPassword
-  ), [password, confirmPassword]);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    let mounted = true;
+
+    const initializeRecovery = async () => {
+      setStatus(RECOVERY_STATUS.VERIFYING);
+      setMessage(RECOVERY_MESSAGES.verifying);
+
+      const result = await authService.recoverPasswordSession(window.location.href);
+
+      if (!mounted) return;
+
+      if (!result.success) {
+        setStatus(RECOVERY_STATUS.INVALID);
+        setMessage(result.message || RECOVERY_MESSAGES.invalid);
+        return;
+      }
+
+      setStatus(RECOVERY_STATUS.READY);
+      setMessage('');
+    };
+
+    initializeRecovery();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const canSubmit = canSubmitResetPassword(status, submitting);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
+
+    if (submitting || status !== RECOVERY_STATUS.READY) return;
+
+    const nextErrors = validateResetPasswordForm(password, confirmPassword);
+    setFieldErrors(nextErrors);
     setMessage('');
 
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
+    if (Object.keys(nextErrors).length > 0) return;
 
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.');
-      return;
-    }
-
-    setLoading(true);
+    setSubmitting(true);
     const result = await authService.changePassword(password);
-    setLoading(false);
+    setSubmitting(false);
 
     if (!result.success) {
-      setError(result.message || result.error || 'No se pudo actualizar la contraseña. Volvé a solicitar un nuevo enlace.');
+      setMessage(translateAuthError(result.message || result.error));
       return;
     }
 
-    setMessage('Contraseña actualizada correctamente. Ya podés iniciar sesión.');
+    setStatus(RECOVERY_STATUS.SUCCESS);
+    setMessage(RECOVERY_MESSAGES.success);
+    await authService.signOut();
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       navigate('/login', { replace: true });
     }, 1600);
   };
 
+  const showInvalid = status === RECOVERY_STATUS.INVALID;
+  const showVerifying = status === RECOVERY_STATUS.VERIFYING;
+  const shouldShowForm = status === RECOVERY_STATUS.READY || status === RECOVERY_STATUS.SUCCESS;
+  const visibleErrors = Object.keys(fieldErrors).length > 0 ? fieldErrors : {};
+
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="bg-[#0f5b99] px-8 py-7 text-center">
-          <h1 className="text-3xl font-extrabold tracking-wide text-white">ServiFood</h1>
-          <p className="mt-1 text-sm text-blue-100">Sistema de mantenimiento</p>
+    <AuthLayout
+      icon={KeyRound}
+      title="Crear nueva contraseña"
+      subtitle="Ingresá una contraseña nueva para recuperar el acceso a tu cuenta."
+      backTo="/login"
+      backLabel="Volver al inicio de sesión"
+    >
+      {showVerifying ? (
+        <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-100">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+          <span>{RECOVERY_MESSAGES.verifying}</span>
         </div>
+      ) : null}
 
-        <div className="px-8 py-8">
-          <h2 className="text-center text-2xl font-bold text-slate-900">
-            Crear nueva contraseña
-          </h2>
+      {showInvalid ? (
+        <div className="space-y-5">
+          <Alert variant="error">
+            <p>{message || RECOVERY_MESSAGES.invalid}</p>
+            <p className="mt-1">{RECOVERY_MESSAGES.requestNew}</p>
+          </Alert>
 
-          <p className="mt-3 text-center text-sm leading-6 text-slate-600">
-            Ingresá una nueva contraseña para recuperar el acceso a tu cuenta.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-7 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700">
-                Nueva contraseña
-              </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-[#0f5b99] focus:ring-2 focus:ring-blue-100"
-                placeholder="Mínimo 6 caracteres"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700">
-                Confirmar contraseña
-              </label>
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none focus:border-[#0f5b99] focus:ring-2 focus:ring-blue-100"
-                placeholder="Repetí la contraseña"
-              />
-            </div>
-
-            {error ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
-            ) : null}
-
-            {message ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {message}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={loading || !canSubmit}
-              className="w-full rounded-xl bg-[#0f5b99] px-4 py-3 font-bold text-white shadow-lg transition hover:bg-[#0b4778] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? 'Actualizando...' : 'Guardar contraseña'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm font-semibold text-[#0f5b99] hover:underline">
-              Volver al inicio de sesión
-            </Link>
-          </div>
+          <Link to="/forgot-password" className="block">
+            <Button className="w-full">Solicitar nuevo enlace</Button>
+          </Link>
         </div>
-      </div>
-    </div>
+      ) : null}
+
+      {shouldShowForm ? (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Input
+            id="newPassword"
+            label="Nueva contraseña"
+            type="password"
+            autoComplete="new-password"
+            placeholder="Mínimo 8 caracteres"
+            hint="Mínimo 8 caracteres"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setFieldErrors((current) => ({ ...current, password: undefined }));
+            }}
+            error={visibleErrors.password}
+            disabled={submitting || status === RECOVERY_STATUS.SUCCESS}
+            showPasswordToggle
+          />
+
+          <Input
+            id="confirmPassword"
+            label="Confirmar contraseña"
+            type="password"
+            autoComplete="new-password"
+            placeholder="Repetí la contraseña"
+            value={confirmPassword}
+            onChange={(event) => {
+              setConfirmPassword(event.target.value);
+              setFieldErrors((current) => ({ ...current, confirmPassword: undefined }));
+            }}
+            error={visibleErrors.confirmPassword}
+            disabled={submitting || status === RECOVERY_STATUS.SUCCESS}
+            showPasswordToggle
+          />
+
+          {message ? (
+            <Alert variant={status === RECOVERY_STATUS.SUCCESS ? 'success' : 'error'}>
+              {message}
+            </Alert>
+          ) : null}
+
+          <Button type="submit" disabled={!canSubmit} className="w-full shadow-lg shadow-blue-900/10">
+            {submitting ? 'Actualizando...' : 'Guardar contraseña'}
+          </Button>
+        </form>
+      ) : null}
+
+    </AuthLayout>
   );
 }

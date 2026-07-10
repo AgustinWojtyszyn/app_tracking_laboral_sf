@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import LandingPage from '@/pages/LandingPage';
 import LoginPage from '@/pages/LoginPage';
 import ResetPasswordPage from '@/pages/ResetPasswordPage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import RegisterPage from '@/pages/RegisterPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import DataDeletionPage from '@/pages/DataDeletionPage';
@@ -44,6 +45,7 @@ function App() {
     <Router>
       <Routes>
         {/* Public Routes */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route 
           path="/" 
