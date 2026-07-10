@@ -6,17 +6,18 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import QuickFilterChips from '@/components/jobs/QuickFilterChips';
+import LocationCombobox from '@/components/jobs/LocationCombobox';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 import { normalizeJobStatus } from '@/utils/jobStatus';
+import { MONTHLY_LOCATION_CATALOG } from '@/pages/monthlyPanel.helpers';
 
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
@@ -28,41 +29,21 @@ export default function DailyJobsPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [editingJob, setEditingJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [groupFilter, setGroupFilter] = useState('all');
-  const [workerFilter, setWorkerFilter] = useState('all');
+  const [selectedLocation, setSelectedLocation] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
   const reqIdRef = useRef(0);
-  const groupOptions = useMemo(() => (
-    jobs.reduce((acc, job) => {
-      if (!job?.group_id) return acc;
-      if (!acc.some((g) => g.id === job.group_id)) {
-        acc.push({ id: job.group_id, name: job.groups?.name || job.group_id });
-      }
-      return acc;
-    }, [])
-  ), [jobs]);
-  const workerOptions = useMemo(() => (
-    jobs.reduce((acc, job) => {
-      if (!job?.worker_id) return acc;
-      if (!acc.some((w) => w.id === job.worker_id)) {
-        const label = job.workers?.display_name || job.workers?.alias || job.worker_id;
-        acc.push({ id: job.worker_id, name: label });
-      }
-      return acc;
-    }, [])
-  ), [jobs]);
-  const filteredJobs = useMemo(() => (
-    jobs.filter((job) => {
-      const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
-      if (statusFilter !== 'all' && normalizedStatus !== statusFilter) return false;
-      if (groupFilter !== 'all' && (job.group_id || '') !== groupFilter) return false;
-      if (workerFilter !== 'all' && (job.worker_id || '') !== workerFilter) return false;
-      return true;
-    })
-  ), [jobs, statusFilter, groupFilter, workerFilter]);
+  const filteredJobs = jobs;
   const hasJobs = filteredJobs.length > 0;
   const clearDisabled = clearing || loading;
   const clearPendingDisabled = clearingPending || loading;
@@ -70,10 +51,38 @@ export default function DailyJobsPage() {
   const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
     : (isAdmin ? 'admin' : 'solicitante');
+  const showingFrom = totalCount === 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+  const showingTo = totalCount === 0 ? 0 : Math.min(currentPage * pageSize, totalCount);
+  const locationOptions = useMemo(() => (
+    [...MONTHLY_LOCATION_CATALOG].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+  ), []);
+
+  const handleLocationChange = (value) => {
+    setSelectedLocation(value);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (event) => {
+    setPageSize(Number(event.target.value));
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (user) fetchJobs();
-  }, [date, user]);
+  }, [user, selectedLocation, debouncedSearchTerm, currentPage, pageSize]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const withTimeout = (promise, ms = 12000) =>
     Promise.race([
@@ -84,26 +93,48 @@ export default function DailyJobsPage() {
   const fetchJobs = async () => {
     const reqId = ++reqIdRef.current;
     setLoading(true);
+    setError('');
     try {
-      const result = await withTimeout(jobsService.getJobsByDay(date), 12000);
+      const result = await withTimeout(jobsService.listJobsPaginated({
+        location: selectedLocation,
+        search: debouncedSearchTerm,
+        page: currentPage,
+        pageSize,
+      }), 12000);
       if (reqId !== reqIdRef.current) return;
       if (result?.success) {
-        const nextJobs = Array.isArray(result.data) ? result.data : [];
+        const payload = result.data || {};
+        const nextJobs = Array.isArray(payload.items) ? payload.items : [];
         setJobs(nextJobs);
+        setTotalCount(Number(payload.total_count || 0));
+        setTotalPages(Math.max(1, Number(payload.total_pages || 1)));
+        setCurrentPage(Math.max(1, Number(payload.page || currentPage || 1)));
+        setPageSize(Number(payload.page_size || pageSize || 10));
+        setHasPreviousPage(Boolean(payload.has_previous_page));
+        setHasNextPage(Boolean(payload.has_next_page));
       } else {
         setJobs([]);
-        addToast(result?.error || (isEn ? 'Failed to load jobs.' : 'No se pudieron cargar los trabajos.'), 'error');
+        setTotalCount(0);
+        setTotalPages(1);
+        setHasPreviousPage(false);
+        setHasNextPage(false);
+        const message = result?.error || (isEn ? 'Failed to load jobs.' : 'No se pudieron cargar los trabajos.');
+        setError(message);
+        addToast(message, 'error');
       }
     } catch (error) {
       if (reqId !== reqIdRef.current) return;
       console.error('[DailyJobsPage] fetchJobs failed:', error);
       setJobs([]);
-      addToast(
-        error?.message === 'timeout'
-          ? (isEn ? 'Request timed out.' : 'La carga tardó demasiado (timeout).')
-          : (isEn ? 'Failed to load jobs.' : 'No se pudieron cargar los trabajos.'),
-        'error'
-      );
+      setTotalCount(0);
+      setTotalPages(1);
+      setHasPreviousPage(false);
+      setHasNextPage(false);
+      const message = error?.message === 'timeout'
+        ? (isEn ? 'Request timed out.' : 'La carga tardó demasiado (timeout).')
+        : (isEn ? 'Failed to load jobs.' : 'No se pudieron cargar los trabajos.');
+      setError(message);
+      addToast(message, 'error');
     } finally {
       if (reqId === reqIdRef.current) {
         setLoading(false);
@@ -236,7 +267,10 @@ export default function DailyJobsPage() {
                 type="date" 
                 className="w-full md:w-48 py-2.5 px-3 border border-gray-300 dark:border-slate-700 rounded-lg focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 text-sm md:text-base"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setCurrentPage(1);
+                }}
             />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-3 w-full">
@@ -301,26 +335,65 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
-      <QuickFilterChips
-        filters={{ status: statusFilter, groupId: groupFilter, workerId: workerFilter }}
-        onChange={(key, value) => {
-          if (key === 'status') setStatusFilter(value);
-          if (key === 'groupId') setGroupFilter(value);
-          if (key === 'workerId') setWorkerFilter(value);
-        }}
-        groups={groupOptions}
-        workers={workerOptions}
-      />
+      <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem_12rem] gap-3 items-end">
+          <div>
+            <label htmlFor="jobs-search" className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
+              {isEn ? 'Search' : 'Búsqueda'}
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+              <input
+                id="jobs-search"
+                type="search"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder={isEn ? 'Search jobs...' : 'Buscar trabajos...'}
+                className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-10 pr-3 text-base text-gray-900 outline-none transition focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-slate-200">
+              {isEn ? 'Place' : 'Lugar'}
+            </p>
+            <LocationCombobox
+              value={selectedLocation}
+              options={locationOptions}
+              onChange={handleLocationChange}
+            />
+          </div>
+
+          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
+            <span className="mb-1 block">{isEn ? 'Rows per page' : 'Registros por página'}</span>
+            <select
+              value={pageSize}
+              onChange={handlePageSizeChange}
+              className="h-12 w-full rounded-lg border border-gray-200 bg-white px-3 text-base text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+              aria-label={isEn ? 'Rows per page' : 'Registros por página'}
+            >
+              <option value={10}>10</option>
+              <option value={30}>30</option>
+              <option value={50}>50</option>
+            </select>
+          </label>
+        </div>
+      </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="tabla-trabajos">
         <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
-          <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{filteredJobs.length} {isEn ? 'records' : 'registros'}</span>
+          <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{totalCount} {isEn ? 'jobs' : 'trabajos'}</span>
         </div>
         <div>
           {loading ? (
             <div className="py-10 flex justify-center">
               <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="px-4 py-6 text-center text-sm md:text-base text-red-600 dark:text-red-300">
+              {error}
             </div>
           ) : (
             <div className="table-x-scroll overflow-x-auto">
@@ -341,13 +414,13 @@ export default function DailyJobsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {filteredJobs.length === 0 ? (
+                  {jobs.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                         {t('monthlyPage.emptyDesc')}
                       </td>
                     </tr>
-                  ) : filteredJobs.map((job) => (
+                  ) : jobs.map((job) => (
                     (() => {
                       const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
                       const statusClass = normalizedStatus === 'completed'
@@ -408,6 +481,40 @@ export default function DailyJobsPage() {
               </table>
             </div>
           )}
+        </div>
+        <div className="border-t border-gray-100 px-4 py-4 dark:border-slate-800 md:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-gray-600 dark:text-slate-300">
+              {isEn
+                ? `Showing ${showingFrom}-${showingTo} of ${totalCount} jobs`
+                : `Mostrando ${showingFrom}-${showingTo} de ${totalCount} trabajos`}
+            </div>
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={!hasPreviousPage || loading}
+                className="w-auto"
+              >
+                {isEn ? 'Previous' : 'Anterior'}
+              </Button>
+              <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
+                {isEn ? `Page ${currentPage} of ${totalPages}` : `Página ${currentPage} de ${totalPages}`}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={!hasNextPage || loading}
+                className="w-auto"
+              >
+                {isEn ? 'Next' : 'Siguiente'}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
       {editingJob && (

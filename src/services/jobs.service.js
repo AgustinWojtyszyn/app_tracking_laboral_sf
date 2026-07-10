@@ -133,6 +133,55 @@ const getSchemaCompatibilityError = (error) => {
 };
 
 export const jobsService = {
+  async listJobsPaginated({
+    location = null,
+    search = '',
+    page = 1,
+    pageSize = 10,
+  } = {}) {
+    try {
+      const { data, error } = await supabase.rpc('list_jobs_paginated', {
+        p_location: location && location !== 'all' ? location : null,
+        p_search: search?.trim() || null,
+        p_page: page,
+        p_page_size: pageSize,
+      });
+
+      if (error) throw error;
+
+      const payload = Array.isArray(data) ? data[0] : data;
+      const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
+
+      return {
+        success: true,
+        data: {
+          items,
+          total_count: Number(payload?.total_count || 0),
+          page: Number(payload?.page || page || 1),
+          page_size: Number(payload?.page_size || pageSize || 10),
+          total_pages: Math.max(1, Number(payload?.total_pages || 1)),
+          has_previous_page: Boolean(payload?.has_previous_page),
+          has_next_page: Boolean(payload?.has_next_page),
+        },
+      };
+    } catch (error) {
+      console.error('ListJobsPaginated Error:', error);
+      return {
+        success: false,
+        data: {
+          items: [],
+          total_count: 0,
+          page,
+          page_size: pageSize,
+          total_pages: 1,
+          has_previous_page: false,
+          has_next_page: false,
+        },
+        error: 'No se pudieron cargar los trabajos.',
+      };
+    }
+  },
+
   async cleanupUploadedImages(paths = []) {
     const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
     if (uniquePaths.length === 0) {
