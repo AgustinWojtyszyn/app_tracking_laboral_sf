@@ -6,18 +6,19 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Search } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import LocationCombobox from '@/components/jobs/LocationCombobox';
+import JobsFilters from '@/components/jobs/JobsFilters';
+import JobsPagination from '@/components/jobs/JobsPagination';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 import { normalizeJobStatus } from '@/utils/jobStatus';
-import { MONTHLY_LOCATION_CATALOG } from '@/pages/monthlyPanel.helpers';
+import { JOB_LOCATIONS } from '@/constants/jobLocations';
 
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
@@ -55,10 +56,8 @@ export default function DailyJobsPage() {
   const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
     : (isAdmin ? 'admin' : 'solicitante');
-  const showingFrom = totalCount === 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-  const showingTo = totalCount === 0 ? 0 : Math.min(currentPage * pageSize, totalCount);
   const locationOptions = useMemo(() => (
-    [...MONTHLY_LOCATION_CATALOG].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+    [...JOB_LOCATIONS].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
   ), []);
 
   const handleLocationChange = (value) => {
@@ -145,6 +144,19 @@ export default function DailyJobsPage() {
         setLoading(false);
       }
     }
+  };
+
+  const handleDateChange = (event) => {
+    setDate(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage((page) => Math.max(1, page - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((page) => Math.min(totalPages, page + 1));
   };
 
   const loadJobsForExport = async () => {
@@ -311,16 +323,6 @@ export default function DailyJobsPage() {
             <h1 className="text-3xl md:text-3xl font-bold text-gray-900 dark:text-slate-50 hidden md:block">
               {isEn ? 'Daily Jobs' : 'Trabajos Diarios'}
             </h1>
-            <input 
-                data-tour="filtro-fecha"
-                type="date" 
-                className="w-full md:w-48 py-2.5 px-3 border border-gray-300 dark:border-slate-700 rounded-lg focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50 text-sm md:text-base"
-                value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-            />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-3 w-full">
 	          <Button
@@ -384,51 +386,18 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem_12rem] gap-3 items-end">
-          <div>
-            <label htmlFor="jobs-search" className="block text-sm font-semibold text-gray-700 dark:text-slate-200 mb-1">
-              {isEn ? 'Search' : 'Búsqueda'}
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-              <input
-                id="jobs-search"
-                type="search"
-                value={searchTerm}
-                onChange={handleSearchChange}
-                placeholder={isEn ? 'Search jobs...' : 'Buscar trabajos...'}
-                className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-10 pr-3 text-base text-gray-900 outline-none transition focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400"
-              />
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-slate-200">
-              {isEn ? 'Place' : 'Lugar'}
-            </p>
-            <LocationCombobox
-              value={selectedLocation}
-              options={locationOptions}
-              onChange={handleLocationChange}
-            />
-          </div>
-
-          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
-            <span className="mb-1 block">{isEn ? 'Rows per page' : 'Registros por página'}</span>
-            <select
-              value={pageSize}
-              onChange={handlePageSizeChange}
-              className="h-12 w-full rounded-lg border border-gray-200 bg-white px-3 text-base text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-              aria-label={isEn ? 'Rows per page' : 'Registros por página'}
-            >
-              <option value={10}>10</option>
-              <option value={30}>30</option>
-              <option value={50}>50</option>
-            </select>
-          </label>
-        </div>
-      </div>
+      <JobsFilters
+        isEn={isEn}
+        date={date}
+        searchTerm={searchTerm}
+        selectedLocation={selectedLocation}
+        locationOptions={locationOptions}
+        pageSize={pageSize}
+        onDateChange={handleDateChange}
+        onSearchChange={handleSearchChange}
+        onLocationChange={handleLocationChange}
+        onPageSizeChange={handlePageSizeChange}
+      />
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="tabla-trabajos">
         <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
@@ -531,40 +500,18 @@ export default function DailyJobsPage() {
             </div>
           )}
         </div>
-        <div className="border-t border-gray-100 px-4 py-4 dark:border-slate-800 md:px-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-gray-600 dark:text-slate-300">
-              {isEn
-                ? `Showing ${showingFrom}-${showingTo} of ${totalCount} jobs`
-                : `Mostrando ${showingFrom}-${showingTo} de ${totalCount} trabajos`}
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                disabled={!hasPreviousPage || loading}
-                className="w-auto"
-              >
-                {isEn ? 'Previous' : 'Anterior'}
-              </Button>
-              <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">
-                {isEn ? `Page ${currentPage} of ${totalPages}` : `Página ${currentPage} de ${totalPages}`}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                disabled={!hasNextPage || loading}
-                className="w-auto"
-              >
-                {isEn ? 'Next' : 'Siguiente'}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <JobsPagination
+          isEn={isEn}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          hasPreviousPage={hasPreviousPage}
+          hasNextPage={hasNextPage}
+          loading={loading}
+          onPreviousPage={handlePreviousPage}
+          onNextPage={handleNextPage}
+        />
       </div>
       {editingJob && (
         <JobForm

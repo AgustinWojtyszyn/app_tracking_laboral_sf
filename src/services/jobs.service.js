@@ -132,13 +132,13 @@ const getSchemaCompatibilityError = (error) => {
   return null;
 };
 
-export const jobsService = {
-  normalizeRpcFilterValue(value) {
-    const normalized = String(value || '').trim();
-    if (!normalized || normalized === 'all') return null;
-    return normalized;
-  },
+const normalizeRpcFilterValue = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized || normalized === 'all') return null;
+  return normalized;
+};
 
+export const jobsService = {
   normalizePaginatedJobsPayload(payload, { page = 1, pageSize = 10 } = {}) {
     const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
 
@@ -162,9 +162,9 @@ export const jobsService = {
   } = {}) {
     try {
       const { data, error } = await supabase.rpc('list_jobs_paginated', {
-        p_date: this.normalizeRpcFilterValue(date),
-        p_location: this.normalizeRpcFilterValue(location),
-        p_search: this.normalizeRpcFilterValue(search),
+        p_date: normalizeRpcFilterValue(date),
+        p_location: normalizeRpcFilterValue(location),
+        p_search: normalizeRpcFilterValue(search),
         p_page: page,
         p_page_size: pageSize,
       });
@@ -202,9 +202,9 @@ export const jobsService = {
   } = {}) {
     try {
       const { data, error } = await supabase.rpc('list_jobs_for_export', {
-        p_date: this.normalizeRpcFilterValue(date),
-        p_location: this.normalizeRpcFilterValue(location),
-        p_search: this.normalizeRpcFilterValue(search),
+        p_date: normalizeRpcFilterValue(date),
+        p_location: normalizeRpcFilterValue(location),
+        p_search: normalizeRpcFilterValue(search),
       });
 
       if (error) throw error;
