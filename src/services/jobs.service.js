@@ -133,7 +133,28 @@ const getSchemaCompatibilityError = (error) => {
 };
 
 export const jobsService = {
+  normalizeRpcFilterValue(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized || normalized === 'all') return null;
+    return normalized;
+  },
+
+  normalizePaginatedJobsPayload(payload, { page = 1, pageSize = 10 } = {}) {
+    const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
+
+    return {
+      items,
+      total_count: Number(payload?.total_count || 0),
+      page: Number(payload?.page || page || 1),
+      page_size: Number(payload?.page_size || pageSize || 10),
+      total_pages: Math.max(1, Number(payload?.total_pages || 1)),
+      has_previous_page: Boolean(payload?.has_previous_page),
+      has_next_page: Boolean(payload?.has_next_page),
+    };
+  },
+
   async listJobsPaginated({
+    date = null,
     location = null,
     search = '',
     page = 1,
@@ -141,8 +162,9 @@ export const jobsService = {
   } = {}) {
     try {
       const { data, error } = await supabase.rpc('list_jobs_paginated', {
-        p_location: location && location !== 'all' ? location : null,
-        p_search: search?.trim() || null,
+        p_date: this.normalizeRpcFilterValue(date),
+        p_location: this.normalizeRpcFilterValue(location),
+        p_search: this.normalizeRpcFilterValue(search),
         p_page: page,
         p_page_size: pageSize,
       });
@@ -150,19 +172,10 @@ export const jobsService = {
       if (error) throw error;
 
       const payload = Array.isArray(data) ? data[0] : data;
-      const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
 
       return {
         success: true,
-        data: {
-          items,
-          total_count: Number(payload?.total_count || 0),
-          page: Number(payload?.page || page || 1),
-          page_size: Number(payload?.page_size || pageSize || 10),
-          total_pages: Math.max(1, Number(payload?.total_pages || 1)),
-          has_previous_page: Boolean(payload?.has_previous_page),
-          has_next_page: Boolean(payload?.has_next_page),
-        },
+        data: this.normalizePaginatedJobsPayload(payload, { page, pageSize }),
       };
     } catch (error) {
       console.error('ListJobsPaginated Error:', error);
@@ -178,6 +191,39 @@ export const jobsService = {
           has_next_page: false,
         },
         error: 'No se pudieron cargar los trabajos.',
+      };
+    }
+  },
+
+  async listJobsForExport({
+    date = null,
+    location = null,
+    search = '',
+  } = {}) {
+    try {
+      const { data, error } = await supabase.rpc('list_jobs_for_export', {
+        p_date: this.normalizeRpcFilterValue(date),
+        p_location: this.normalizeRpcFilterValue(location),
+        p_search: this.normalizeRpcFilterValue(search),
+      });
+
+      if (error) throw error;
+
+      const payload = Array.isArray(data) ? data[0] : data;
+      const rawItems = Array.isArray(payload?.items) ? payload.items : Array.isArray(data) ? data : [];
+
+      return {
+        success: true,
+        data: {
+          items: rawItems.map(hydrateJobRecord),
+        },
+      };
+    } catch (error) {
+      console.error('ListJobsForExport Error:', error);
+      return {
+        success: false,
+        data: { items: [] },
+        error: 'No se pudieron preparar los trabajos para exportar.',
       };
     }
   },

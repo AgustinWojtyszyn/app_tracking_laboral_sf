@@ -33,6 +33,8 @@ export default function DailyJobsPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [clearing, setClearing] = useState(false);
   const [clearingPending, setClearingPending] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -43,10 +45,12 @@ export default function DailyJobsPage() {
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
   const reqIdRef = useRef(0);
+  const exportLockRef = useRef(false);
+  const shareLockRef = useRef(false);
   const filteredJobs = jobs;
   const hasJobs = filteredJobs.length > 0;
-  const clearDisabled = clearing || loading;
-  const clearPendingDisabled = clearingPending || loading;
+  const clearDisabled = clearing || loading || exporting || sharing;
+  const clearPendingDisabled = clearingPending || loading || exporting || sharing;
   const autoTourStartedRef = useRef(false);
   const role = ['admin', 'solicitante', 'trabajador', 'chofer'].includes(userRole)
     ? userRole
@@ -64,7 +68,6 @@ export default function DailyJobsPage() {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
-    setCurrentPage(1);
   };
 
   const handlePageSizeChange = (event) => {
@@ -74,11 +77,12 @@ export default function DailyJobsPage() {
 
   useEffect(() => {
     if (user) fetchJobs();
-  }, [user, selectedLocation, debouncedSearchTerm, currentPage, pageSize]);
+  }, [user, date, selectedLocation, debouncedSearchTerm, currentPage, pageSize]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
     }, 300);
 
     return () => window.clearTimeout(timeoutId);
@@ -96,6 +100,7 @@ export default function DailyJobsPage() {
     setError('');
     try {
       const result = await withTimeout(jobsService.listJobsPaginated({
+        date,
         location: selectedLocation,
         search: debouncedSearchTerm,
         page: currentPage,
@@ -142,15 +147,59 @@ export default function DailyJobsPage() {
     }
   };
 
-  const handleShare = () => {
-    if (!filteredJobs || filteredJobs.length === 0) {
-      addToast(isEn ? 'No jobs to share.' : 'No hay trabajos para compartir.', 'error');
-      return;
+  const loadJobsForExport = async () => {
+    const result = await jobsService.listJobsForExport({
+      date,
+      location: selectedLocation,
+      search: debouncedSearchTerm,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'No se pudieron preparar los trabajos.');
     }
-    const title = isEn
-      ? `Daily jobs - ${date}`
-      : `Trabajos diarios - ${date}`;
-    exportService.shareJobsViaWhatsApp(filteredJobs, title);
+
+    return Array.isArray(result.data?.items) ? result.data.items : [];
+  };
+
+  const handleExportExcel = async () => {
+    if (exportLockRef.current || shareLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const exportJobs = await loadJobsForExport();
+      if (exportJobs.length === 0) {
+        addToast(isEn ? 'No jobs to export.' : 'No hay trabajos para exportar.', 'error');
+        return;
+      }
+      exportService.exportDayToExcel(date, exportJobs);
+    } catch (error) {
+      addToast(error.message || (isEn ? 'Export failed.' : 'No se pudo preparar la exportación.'), 'error');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (shareLockRef.current || exportLockRef.current) return;
+    shareLockRef.current = true;
+    setSharing(true);
+    try {
+      const exportJobs = await loadJobsForExport();
+      if (exportJobs.length === 0) {
+        addToast(isEn ? 'No jobs to share.' : 'No hay trabajos para compartir.', 'error');
+        return;
+      }
+      const title = isEn
+        ? `Daily jobs - ${date}`
+        : `Trabajos diarios - ${date}`;
+      exportService.shareJobsViaWhatsApp(exportJobs, title);
+    } catch (error) {
+      addToast(error.message || (isEn ? 'Share failed.' : 'No se pudo preparar el envío.'), 'error');
+    } finally {
+      shareLockRef.current = false;
+      setSharing(false);
+    }
   };
 
   const handleClearCompleted = async () => {
@@ -274,22 +323,22 @@ export default function DailyJobsPage() {
             />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-3 w-full">
-          <Button
-            variant="default"
-            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
-            onClick={() => exportService.exportDayToExcel(date, filteredJobs)}
-            disabled={!hasJobs || loading}
-          >
-            <FileSpreadsheet className="w-5 h-5" /> {isEn ? 'Export to Excel' : 'Exportar a Excel'}
-          </Button>
-          <Button
-            variant="default"
-            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2"
-            onClick={handleShare}
-            disabled={!hasJobs || loading}
-          >
-            <MessageCircle className="w-5 h-5" /> {isEn ? 'Share WhatsApp' : 'Compartir WhatsApp'}
-          </Button>
+	          <Button
+	            variant="default"
+	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
+	            onClick={handleExportExcel}
+	            disabled={loading || exporting || sharing}
+	          >
+	            <FileSpreadsheet className="w-5 h-5" /> {exporting ? (isEn ? 'Preparing...' : 'Preparando...') : (isEn ? 'Export to Excel' : 'Exportar a Excel')}
+	          </Button>
+	          <Button
+	            variant="default"
+	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2"
+	            onClick={handleShare}
+	            disabled={loading || sharing || exporting}
+	          >
+	            <MessageCircle className="w-5 h-5" /> {sharing ? (isEn ? 'Preparing...' : 'Preparando...') : (isEn ? 'Share WhatsApp' : 'Compartir WhatsApp')}
+	          </Button>
           <ConfirmationModal
             title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
             description={isEn ? 'Delete all completed jobs for this day.' : 'Eliminar todos los trabajos con estado completado de esta fecha.'}
