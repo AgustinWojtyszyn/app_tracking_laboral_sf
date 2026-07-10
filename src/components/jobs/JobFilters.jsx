@@ -26,6 +26,8 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
       handleChange('endDate', '');
       handleChange('status', 'all');
       handleChange('groupId', 'all');
+      handleChange('workerId', 'all');
+      handleChange('location', 'all');
       handleChange('search', '');
   };
 

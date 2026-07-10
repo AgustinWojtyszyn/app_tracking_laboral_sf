@@ -14,6 +14,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ExcelExportButton from '@/components/common/ExcelExportButton';
 import JobFilters from '@/components/jobs/JobFilters';
 import QuickFilterChips from '@/components/jobs/QuickFilterChips';
+import LocationCombobox from '@/components/jobs/LocationCombobox';
 import { useFilters } from '@/hooks/useFilters';
 import { Button } from '@/components/ui/button';
 import { exportService } from '@/services/export.service';
@@ -22,8 +23,12 @@ import { onboardingService } from '@/services/onboarding.service';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import JobForm from '@/components/jobs/JobForm';
 import {
+  applyMonthlyPanelFilters,
+  buildMonthlyLocationOptions,
   createLatestRequestGuard,
-  filterMonthlyJobsBySearch,
+  getMonthlyUnknownLocations,
+  normalizeDateOnly,
+  paginateMonthlyJobs,
   shouldApplyMonthlyJobsResult
 } from '@/pages/monthlyPanel.helpers';
 
@@ -45,6 +50,8 @@ export default function MonthlyPanelPage() {
   const [clearingPending, setClearingPending] = useState(false);
   const [exportingCompleted, setExportingCompleted] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const mountedRef = useRef(false);
   const requestGuardRef = useRef(createLatestRequestGuard());
   
@@ -54,8 +61,15 @@ export default function MonthlyPanelPage() {
       endDate: getMonthEnd(),
       status: 'all',
       groupId: 'all',
+      workerId: 'all',
+      location: 'all',
       search: ''
   });
+
+  const handleFilterChange = useCallback((key, value) => {
+    setCurrentPage(1);
+    setFilter(key, value);
+  }, [setFilter]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -69,9 +83,7 @@ export default function MonthlyPanelPage() {
     const queryFilters = {
       startDate: filters.startDate,
       endDate: filters.endDate,
-      status: filters.status,
-      groupId: filters.groupId,
-      workerId: filters.workerId,
+      currentUserId: user?.id,
     };
     const result = await getJobsByDateRange(filters.startDate, filters.endDate, queryFilters);
     if (!shouldApplyMonthlyJobsResult({
@@ -82,9 +94,7 @@ export default function MonthlyPanelPage() {
   }, [
     filters.startDate,
     filters.endDate,
-    filters.status,
-    filters.groupId,
-    filters.workerId,
+    user?.id,
     getJobsByDateRange
   ]);
 
@@ -92,7 +102,7 @@ export default function MonthlyPanelPage() {
     if (user && filters.startDate && filters.endDate) {
         fetchJobs();
     }
-  }, [user, filters.startDate, filters.endDate, filters.status, filters.groupId, filters.workerId, fetchJobs]);
+  }, [user, filters.startDate, filters.endDate, fetchJobs]);
 
   useEffect(() => {
     if (!user) return;
@@ -102,13 +112,6 @@ export default function MonthlyPanelPage() {
     });
   }, [user, role, resumeTourIfNeeded]);
 
-  const filteredJobs = useMemo(
-    () => filterMonthlyJobsBySearch(jobs, filters.search),
-    [jobs, filters.search]
-  );
-  const hasJobs = filteredJobs.length > 0;
-  const clearDisabled = clearing || loading;
-  const clearPendingDisabled = clearingPending || loading;
   const groupOptions = useMemo(() => (
     jobs.reduce((acc, job) => {
       if (!job?.group_id) return acc;
@@ -131,18 +134,6 @@ export default function MonthlyPanelPage() {
 
   const normalizeStatusValue = (record) => normalizeJobStatus(record?.estado || record?.status);
   const getRawStatusValue = (record) => String(record?.estado ?? record?.status ?? '');
-  const normalizeDateOnly = (value) => {
-    if (!value) return '';
-    const raw = String(value).trim();
-    const isoMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (isoMatch) return isoMatch[1];
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return '';
-    const y = parsed.getFullYear();
-    const m = String(parsed.getMonth() + 1).padStart(2, '0');
-    const d = String(parsed.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
   const isWithinSelectedRange = (record) => {
     const recordDate = normalizeDateOnly(record?.date || record?.fecha);
     const start = normalizeDateOnly(filters.startDate);
@@ -150,6 +141,43 @@ export default function MonthlyPanelPage() {
     if (!recordDate || !start || !end) return false;
     return recordDate >= start && recordDate <= end;
   };
+  const filteredJobs = useMemo(
+    () => applyMonthlyPanelFilters(jobs, filters, normalizeStatusValue),
+    [jobs, filters]
+  );
+  const locationOptions = useMemo(() => buildMonthlyLocationOptions(jobs), [jobs]);
+  const unknownLocationOptions = useMemo(() => getMonthlyUnknownLocations(jobs), [jobs]);
+  const pagination = useMemo(
+    () => paginateMonthlyJobs(filteredJobs, currentPage, rowsPerPage),
+    [filteredJobs, currentPage, rowsPerPage]
+  );
+  const paginatedJobs = pagination.records;
+  const hasJobs = filteredJobs.length > 0;
+  const clearDisabled = clearing || loading;
+  const clearPendingDisabled = clearingPending || loading;
+
+  useEffect(() => {
+    if (currentPage !== pagination.currentPage) {
+      setCurrentPage(pagination.currentPage);
+    }
+  }, [currentPage, pagination.currentPage]);
+
+  const handleRowsPerPageChange = (event) => {
+    setRowsPerPage(Number(event.target.value));
+    setCurrentPage(1);
+  };
+
+  const visiblePageNumbers = useMemo(() => {
+    const total = pagination.totalPages;
+    const current = pagination.currentPage;
+    if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+
+    const pages = new Set([1, total, current - 1, current, current + 1]);
+    return Array.from(pages)
+      .filter((page) => page >= 1 && page <= total)
+      .sort((a, b) => a - b);
+  }, [pagination.currentPage, pagination.totalPages]);
+
   const isCompletedRecord = (record) => {
     const normalized = normalizeStatusValue(record);
     return normalized === 'completed';
@@ -203,6 +231,7 @@ export default function MonthlyPanelPage() {
         status: filters.status,
         groupId: filters.groupId,
         workerId: filters.workerId,
+        location: filters.location,
         search: filters.search
       });
       console.log('Total registros cargados', jobs.length);
@@ -389,11 +418,29 @@ export default function MonthlyPanelPage() {
       </div>
 
       <div data-tour="panel-mensual-filtros">
-        <JobFilters filters={filters} onChange={setFilter} />
+        <JobFilters filters={filters} onChange={handleFilterChange} />
+        <div className="mt-4 flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-700 dark:text-slate-200">Lugar</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Filtrá por empresa o ubicación registrada.</p>
+            </div>
+            <LocationCombobox
+              value={filters.location}
+              options={locationOptions}
+              onChange={(value) => handleFilterChange('location', value)}
+            />
+          </div>
+          {unknownLocationOptions.length > 0 ? (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Lugares adicionales detectados: {unknownLocationOptions.join(', ')}
+            </p>
+          ) : null}
+        </div>
       </div>
       <QuickFilterChips
         filters={filters}
-        onChange={setFilter}
+        onChange={handleFilterChange}
         groups={groupOptions}
         workers={workerOptions}
       />
@@ -411,7 +458,7 @@ export default function MonthlyPanelPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-slate-800">
-              {filteredJobs.map((job) => (
+              {paginatedJobs.map((job) => (
                 <div key={job.id} className="p-4 flex flex-col gap-2">
                   {(() => {
                     const statusMeta = getStatusMeta(job);
@@ -489,7 +536,7 @@ export default function MonthlyPanelPage() {
                     {t('monthlyPage.emptyDesc')}
                   </td>
                 </tr>
-              ) : filteredJobs.map((job) => (
+              ) : paginatedJobs.map((job) => (
                 <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                   {(() => {
                     const statusMeta = getStatusMeta(job);
@@ -540,6 +587,78 @@ export default function MonthlyPanelPage() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="border-t border-gray-100 px-4 py-4 dark:border-slate-800 md:px-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2 text-sm text-gray-600 dark:text-slate-300 sm:flex-row sm:items-center sm:gap-4">
+              <label className="flex items-center gap-2 font-medium">
+                <span>Filas por página:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={handleRowsPerPageChange}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+                  aria-label="Filas por página"
+                >
+                  <option value={10}>10</option>
+                  <option value={30}>30</option>
+                  <option value={50}>50</option>
+                </select>
+              </label>
+              <span>
+                {filteredJobs.length === 0
+                  ? 'Mostrando 0 de 0 registros'
+                  : `Mostrando ${pagination.startIndex + 1}-${pagination.endIndex} de ${filteredJobs.length} registros`}
+              </span>
+              <span>
+                Página {pagination.currentPage} de {pagination.totalPages}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={pagination.currentPage === 1}
+                className="w-auto"
+              >
+                Anterior
+              </Button>
+              {visiblePageNumbers.map((page, index) => {
+                const previous = visiblePageNumbers[index - 1];
+                const showGap = previous && page - previous > 1;
+                return (
+                  <React.Fragment key={page}>
+                    {showGap ? (
+                      <span className="px-1 text-sm text-gray-400" aria-hidden="true">...</span>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant={page === pagination.currentPage ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className="h-9 w-9 px-0"
+                      aria-label={`Ir a página ${page}`}
+                      aria-current={page === pagination.currentPage ? 'page' : undefined}
+                    >
+                      {page}
+                    </Button>
+                  </React.Fragment>
+                );
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((page) => Math.min(pagination.totalPages, page + 1))}
+                disabled={pagination.currentPage === pagination.totalPages}
+                className="w-auto"
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 

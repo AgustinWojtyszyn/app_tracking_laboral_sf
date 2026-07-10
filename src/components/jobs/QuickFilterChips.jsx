@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function QuickFilterChips({ filters, onChange, groups = [], workers = [] }) {
@@ -97,6 +98,23 @@ export default function QuickFilterChips({ filters, onChange, groups = [], worke
                 {option.name}
               </button>
             ))}
+          </div>
+        )}
+
+        {filters.location && filters.location !== 'all' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs md:text-sm font-semibold text-gray-500 dark:text-slate-300">
+              {isEn ? 'Place' : 'Lugar'}:
+            </span>
+            <button
+              type="button"
+              className={`${chipClass(true)} inline-flex items-center gap-2`}
+              onClick={() => onChange('location', 'all')}
+              aria-label={isEn ? 'Clear place filter' : 'Limpiar filtro de lugar'}
+            >
+              {filters.location}
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
           </div>
         )}
       </div>
