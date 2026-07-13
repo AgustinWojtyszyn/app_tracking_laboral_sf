@@ -14,7 +14,12 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { exportService } from '@/services/export.service';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
-import { buildEquipmentHistory, normalizeEquipmentItems } from '@/pages/equipmentLog.helpers';
+import {
+  buildEquipmentHistory,
+  buildEquipmentTargetFromSelection,
+  getEquipmentDisplayName,
+  normalizeEquipmentItems,
+} from '@/pages/equipmentLog.helpers';
 import {
   equipmentLogService,
   EQUIPMENT_INSPECTION_TYPES,
@@ -816,16 +821,65 @@ function DriverFormDialog({ driver, trigger, onSaved }) {
   );
 }
 
-function EquipmentTargetFields({ form, setValue }) {
+function EquipmentTargetFields({ form, vehicles, plantAssets, onSelectEquipment, setValue }) {
+  const selectedValue = form.target_id ? `${form.target_type}:${form.target_id}` : (form.equipment_name ? 'legacy' : '');
+  const hasLegacyEquipmentName = !form.target_id && Boolean(form.equipment_name?.trim());
+  const hasSelectedTargetInOptions = form.target_type === 'vehicle'
+    ? vehicles.some((vehicle) => vehicle.id === form.target_id)
+    : plantAssets.some((asset) => asset.id === form.target_id);
+  const hasArchivedSnapshot = Boolean(form.target_id && form.equipment_name?.trim() && !hasSelectedTargetInOptions);
+
   return (
-    <Field label="Equipo">
-      <input
-        className={inputClass}
-        value={form.equipment_name || ''}
-        onChange={(e) => setValue('equipment_name', e.target.value)}
-        placeholder="Ej: Vehículo 12, cámara 1, amasadora, sector frío"
-      />
-    </Field>
+    <div className="grid gap-3">
+      <Field label="Equipo">
+        <select
+          className={inputClass}
+          value={selectedValue}
+          onChange={(event) => onSelectEquipment(event.target.value)}
+        >
+          <option value="">Seleccionar equipo</option>
+          {hasLegacyEquipmentName && (
+            <option value="legacy">Registro anterior: {form.equipment_name}</option>
+          )}
+          {hasArchivedSnapshot && (
+            <option value={selectedValue}>Equipo archivado/no listado: {form.equipment_name}</option>
+          )}
+          {vehicles.map((vehicle) => {
+            const equipment = {
+              type: 'vehicle',
+              identifier: vehicle.license_plate,
+              name: vehicle.name || vehicle.brand || vehicle.model || 'Vehículo',
+            };
+            return (
+              <option key={vehicle.id} value={`vehicle:${vehicle.id}`}>
+                {getEquipmentDisplayName(equipment)}
+              </option>
+            );
+          })}
+          {plantAssets.map((asset) => {
+            const equipment = {
+              type: 'plant_asset',
+              identifier: asset.location_description || asset.category,
+              name: asset.name || 'Equipo de planta',
+            };
+            return (
+              <option key={asset.id} value={`plant_asset:${asset.id}`}>
+                {getEquipmentDisplayName(equipment)}
+              </option>
+            );
+          })}
+        </select>
+      </Field>
+      {hasLegacyEquipmentName && (
+        <Field label="Equipo anterior">
+          <input
+            className={inputClass}
+            value={form.equipment_name || ''}
+            onChange={(event) => setValue('equipment_name', event.target.value)}
+          />
+        </Field>
+      )}
+    </div>
   );
 }
 
@@ -865,6 +919,15 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
       return next;
     });
   }, []);
+
+  const setEquipmentTarget = useCallback((selection) => {
+    if (selection === 'legacy') return;
+    setFormError('');
+    setForm((prev) => ({
+      ...prev,
+      ...buildEquipmentTargetFromSelection(selection, { vehicles, plantAssets }),
+    }));
+  }, [plantAssets, vehicles]);
 
   useEffect(() => {
     if (!open) return;
@@ -911,7 +974,13 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
               <span>{formError}</span>
             </div>
           )}
-          <EquipmentTargetFields form={form} setValue={setValue} />
+          <EquipmentTargetFields
+            form={form}
+            vehicles={vehicles}
+            plantAssets={plantAssets}
+            onSelectEquipment={setEquipmentTarget}
+            setValue={setValue}
+          />
 
           {type === 'operation' && (
             <>
@@ -1202,15 +1271,34 @@ export default function EquipmentLogPage() {
 
   const handleExportEquipmentLog = async () => {
     setExporting(true);
-    const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult] = await Promise.all([
+    const [
+      vehiclesResult,
+      fuelLoadsResult,
+      maintenanceLogsResult,
+      plantAssetsResult,
+      dailyOperationsResult,
+      incidentsResult,
+      maintenanceChecksResult,
+    ] = await Promise.all([
       equipmentLogService.getVehicles(),
       equipmentLogService.getFuelLoads(),
       equipmentLogService.getMaintenanceLogs(),
       equipmentLogService.getPlantAssets(),
+      equipmentLogService.getDailyOperations(),
+      equipmentLogService.getIncidents(),
+      equipmentLogService.getMaintenanceChecks(),
     ]);
     setExporting(false);
 
-    const results = [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult];
+    const results = [
+      vehiclesResult,
+      fuelLoadsResult,
+      maintenanceLogsResult,
+      plantAssetsResult,
+      dailyOperationsResult,
+      incidentsResult,
+      maintenanceChecksResult,
+    ];
     const failed = results.find((result) => !result.success);
     if (failed) {
       addToast(failed.error, 'error');
@@ -1222,6 +1310,9 @@ export default function EquipmentLogPage() {
       fuelLoads: fuelLoadsResult.data || [],
       maintenanceLogs: maintenanceLogsResult.data || [],
       plantAssets: plantAssetsResult.data || [],
+      dailyOperations: dailyOperationsResult.data || [],
+      incidents: incidentsResult.data || [],
+      maintenanceChecks: maintenanceChecksResult.data || [],
     }, 'libro_registro_equipo.xlsx', 'todo');
     addToast('Excel exportado correctamente.', 'success');
   };

@@ -2,6 +2,14 @@ const compactPersonLabel = (person) => person?.name || person?.full_name || pers
 
 const equipmentKey = (type, id) => `${type}:${id}`;
 
+export const getEquipmentDisplayName = (equipment) => {
+  if (!equipment) return '';
+  if (equipment.type === 'vehicle') {
+    return [equipment.identifier, equipment.name].filter(Boolean).join(' - ');
+  }
+  return [equipment.name, equipment.identifier].filter(Boolean).join(' - ');
+};
+
 export const normalizeEquipmentItems = ({ vehicles = [], plantAssets = [] } = {}) => [
   ...(Array.isArray(vehicles) ? vehicles : []).map((vehicle) => ({
     id: vehicle.id,
@@ -23,11 +31,37 @@ export const normalizeEquipmentItems = ({ vehicles = [], plantAssets = [] } = {}
   })),
 ];
 
+export const buildEquipmentTargetFromSelection = (selection, { vehicles = [], plantAssets = [] } = {}) => {
+  const [type, id] = String(selection || '').split(':');
+  const equipment = normalizeEquipmentItems({ vehicles, plantAssets })
+    .find((item) => item.type === type && item.id === id);
+
+  if (!equipment) {
+    return {
+      target_type: 'vehicle',
+      target_id: '',
+      vehicle_id: null,
+      plant_asset_id: null,
+      equipment_name: '',
+    };
+  }
+
+  return {
+    target_type: equipment.type,
+    target_id: equipment.id,
+    vehicle_id: equipment.type === 'vehicle' ? equipment.id : null,
+    plant_asset_id: equipment.type === 'plant_asset' ? equipment.id : null,
+    equipment_name: getEquipmentDisplayName(equipment),
+  };
+};
+
 const eventTimestamp = (date, time = '') => {
   if (!date) return 0;
   const parsed = new Date(`${date}T${time || '00:00:00'}`);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 };
+
+const normalizeLegacyValue = (value) => String(value || '').trim().toLowerCase();
 
 const isForEquipment = (record, equipment) => {
   if (!record || !equipment) return false;
@@ -35,6 +69,18 @@ const isForEquipment = (record, equipment) => {
   if (equipment.type === 'plant_asset') return record.plant_asset_id === equipment.id;
   return false;
 };
+
+const isLegacyMatch = (record, equipment) => {
+  if (record?.vehicle_id || record?.plant_asset_id || !record?.equipment_name) return false;
+  const recordName = normalizeLegacyValue(record.equipment_name);
+  return recordName && [
+    equipment.name,
+    equipment.identifier,
+    getEquipmentDisplayName(equipment),
+  ].some((value) => normalizeLegacyValue(value) === recordName);
+};
+
+const belongsToEquipment = (record, equipment) => isForEquipment(record, equipment) || isLegacyMatch(record, equipment);
 
 export const buildEquipmentHistory = ({
   equipment,
@@ -79,7 +125,7 @@ export const buildEquipmentHistory = ({
   }
 
   (Array.isArray(dailyOperations) ? dailyOperations : [])
-    .filter((record) => isForEquipment(record, equipment))
+    .filter((record) => belongsToEquipment(record, equipment))
     .forEach((record) => {
       events.push({
         id: `operation:${record.id}`,
@@ -93,7 +139,7 @@ export const buildEquipmentHistory = ({
     });
 
   (Array.isArray(incidents) ? incidents : [])
-    .filter((record) => isForEquipment(record, equipment))
+    .filter((record) => belongsToEquipment(record, equipment))
     .forEach((record) => {
       events.push({
         id: `incident:${record.id}`,
@@ -107,7 +153,7 @@ export const buildEquipmentHistory = ({
     });
 
   (Array.isArray(maintenanceChecks) ? maintenanceChecks : [])
-    .filter((record) => isForEquipment(record, equipment))
+    .filter((record) => belongsToEquipment(record, equipment))
     .forEach((record) => {
       events.push({
         id: `check:${record.id}`,

@@ -12,6 +12,27 @@ const resolveSectorLabel = (job) => {
   return sectorType || '';
 };
 
+const equipmentName = (record) => {
+  if (record?.equipment_name) return record.equipment_name;
+  if (record?.vehicle) {
+    return [record.vehicle.license_plate, record.vehicle.name || record.vehicle.brand, record.vehicle.model]
+      .filter(Boolean)
+      .join(' - ');
+  }
+  if (record?.plant_asset) {
+    return [record.plant_asset.name, record.plant_asset.category, record.plant_asset.location_description]
+      .filter(Boolean)
+      .join(' - ');
+  }
+  return '';
+};
+
+const equipmentType = (record) => {
+  if (record?.vehicle_id || record?.vehicle) return 'Vehículo';
+  if (record?.plant_asset_id || record?.plant_asset) return 'Planta';
+  return 'Sin vínculo';
+};
+
 export const exportService = {
   // Helper to get formatted job object
   _mapJobToRow(job) {
@@ -158,6 +179,9 @@ export const exportService = {
     fuelLoads = [],
     maintenanceLogs = [],
     plantAssets = [],
+    dailyOperations = [],
+    incidents = [],
+    maintenanceChecks = [],
   } = {}, filename = 'libro_registro_equipo.xlsx', section = 'todo') {
     const workbook = XLSX.utils.book_new();
     const shouldExport = (name) => section === 'todo' || section === name;
@@ -182,6 +206,19 @@ export const exportService = {
       || textCompare(a.status, b.status)
       || textCompare(a.name, b.name)
     ));
+    const sortedDailyOperations = [...dailyOperations].sort((a, b) => (
+      textCompare(b.operation_date, a.operation_date)
+      || textCompare(equipmentName(a), equipmentName(b))
+    ));
+    const sortedIncidents = [...incidents].sort((a, b) => (
+      textCompare(b.incident_date, a.incident_date)
+      || textCompare(b.incident_time, a.incident_time)
+      || textCompare(equipmentName(a), equipmentName(b))
+    ));
+    const sortedMaintenanceChecks = [...maintenanceChecks].sort((a, b) => (
+      textCompare(b.review_date, a.review_date)
+      || textCompare(equipmentName(a), equipmentName(b))
+    ));
 
     const vehiclesByType = sortedVehicles.reduce((acc, vehicle) => {
       const key = vehicle.vehicle_type || 'sin_tipo';
@@ -200,6 +237,9 @@ export const exportService = {
       { Clasificación: 'Cargas de combustible', Total: sortedFuelLoads.length },
       { Clasificación: 'Mantenimientos', Total: sortedMaintenanceLogs.length },
       { Clasificación: 'Elementos de planta', Total: sortedPlantAssets.length },
+      { Clasificación: 'Operaciones diarias', Total: sortedDailyOperations.length },
+      { Clasificación: 'Incidencias', Total: sortedIncidents.length },
+      { Clasificación: 'Revisiones / calibraciones', Total: sortedMaintenanceChecks.length },
       {},
       ...Object.entries(vehiclesByType).map(([type, total]) => ({ Clasificación: `Vehículos - ${type}`, Total: total })),
       {},
@@ -270,6 +310,48 @@ export const exportService = {
     })), 'Planta', [
       { wch: 14 }, { wch: 26 }, { wch: 18 }, { wch: 28 }, { wch: 34 }, { wch: 28 },
       { wch: 40 },
+    ]);
+
+    if (shouldExport('operaciones')) this._appendJsonSheet(workbook, sortedDailyOperations.map((record) => ({
+      Clasificación: 'Operación diaria',
+      Fecha: record.operation_date ? formatDate(record.operation_date) : '',
+      Equipo: equipmentName(record),
+      'Tipo de equipo': equipmentType(record),
+      Operador: record.operator_name || '',
+      Turno: record.shift || '',
+      'Tiempo de uso': record.usage_time || '',
+      Observaciones: record.observations || '',
+    })), 'Operaciones', [
+      { wch: 20 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 24 }, { wch: 16 }, { wch: 18 }, { wch: 42 },
+    ]);
+
+    if (shouldExport('incidencias')) this._appendJsonSheet(workbook, sortedIncidents.map((record) => ({
+      Clasificación: 'Incidencia',
+      Fecha: record.incident_date ? formatDate(record.incident_date) : '',
+      Hora: record.incident_time?.slice(0, 5) || '',
+      Equipo: equipmentName(record),
+      'Tipo de equipo': equipmentType(record),
+      'Realizado por': record.maintenance_done_by || '',
+      Anomalía: record.anomaly_description || '',
+      'Acción correctiva': record.corrective_action || '',
+      'Tiempo fuera de línea': record.downtime || '',
+      Observaciones: record.observations || '',
+    })), 'Incidencias', [
+      { wch: 18 }, { wch: 14 }, { wch: 10 }, { wch: 34 }, { wch: 16 }, { wch: 24 }, { wch: 44 }, { wch: 44 }, { wch: 22 }, { wch: 42 },
+    ]);
+
+    if (shouldExport('revisiones')) this._appendJsonSheet(workbook, sortedMaintenanceChecks.map((record) => ({
+      Clasificación: 'Revisión / calibración',
+      Fecha: record.review_date ? formatDate(record.review_date) : '',
+      Equipo: equipmentName(record),
+      'Tipo de equipo': equipmentType(record),
+      Responsable: '',
+      Tipo: record.inspection_type || '',
+      'Componente revisado': record.reviewed_component || '',
+      'Estado general': record.general_status_observations || '',
+      'Próxima revisión': record.next_review_date ? formatDate(record.next_review_date) : '',
+    })), 'Revisiones', [
+      { wch: 24 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 44 }, { wch: 18 },
     ]);
 
     XLSX.writeFile(workbook, filename);

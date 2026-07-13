@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildEquipmentHistory, normalizeEquipmentItems } from './equipmentLog.helpers';
+import {
+  buildEquipmentHistory,
+  buildEquipmentTargetFromSelection,
+  normalizeEquipmentItems,
+} from './equipmentLog.helpers';
 
 describe('normalizeEquipmentItems', () => {
   it('normaliza vehiculos y equipos de planta al formato comun', () => {
@@ -89,5 +93,50 @@ describe('buildEquipmentHistory', () => {
       'check:chk-plant',
       'operation:op-plant',
     ]);
+  });
+
+  it('mantiene compatibilidad con registros antiguos vinculados solo por equipment_name', () => {
+    const history = buildEquipmentHistory({
+      equipment: { id: 'p1', type: 'plant_asset', name: 'Camara 1', identifier: 'Area fria' },
+      dailyOperations: [
+        { id: 'legacy-op', equipment_name: 'Camara 1', operation_date: '2026-07-08', shift: 'Manana', usage_time: '1 h', operator_name: 'Fabio' },
+        { id: 'other-legacy', equipment_name: 'Otro equipo', operation_date: '2026-07-09', shift: 'Tarde', usage_time: '2 h', operator_name: 'Diego' },
+      ],
+    });
+
+    expect(history.map((event) => event.id)).toEqual(['operation:legacy-op']);
+  });
+});
+
+describe('buildEquipmentTargetFromSelection', () => {
+  const vehicles = [{ id: 'v1', license_plate: 'AA123BB', name: 'Utilitario 1' }];
+  const plantAssets = [{ id: 'p1', name: 'Camara 1', location_description: 'Area fria' }];
+
+  it('genera vehicle_id y snapshot para vehiculos', () => {
+    expect(buildEquipmentTargetFromSelection('vehicle:v1', { vehicles, plantAssets })).toEqual({
+      target_type: 'vehicle',
+      target_id: 'v1',
+      vehicle_id: 'v1',
+      plant_asset_id: null,
+      equipment_name: 'AA123BB - Utilitario 1',
+    });
+  });
+
+  it('genera plant_asset_id y snapshot para equipos de planta', () => {
+    expect(buildEquipmentTargetFromSelection('plant_asset:p1', { vehicles, plantAssets })).toEqual({
+      target_type: 'plant_asset',
+      target_id: 'p1',
+      vehicle_id: null,
+      plant_asset_id: 'p1',
+      equipment_name: 'Camara 1 - Area fria',
+    });
+  });
+
+  it('nunca envia ambos FK al mismo tiempo', () => {
+    const vehicleTarget = buildEquipmentTargetFromSelection('vehicle:v1', { vehicles, plantAssets });
+    const plantTarget = buildEquipmentTargetFromSelection('plant_asset:p1', { vehicles, plantAssets });
+
+    expect(Boolean(vehicleTarget.vehicle_id && vehicleTarget.plant_asset_id)).toBe(false);
+    expect(Boolean(plantTarget.vehicle_id && plantTarget.plant_asset_id)).toBe(false);
   });
 });
