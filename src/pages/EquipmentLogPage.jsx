@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { exportService } from '@/services/export.service';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
+import { buildEquipmentHistory, normalizeEquipmentItems } from '@/pages/equipmentLog.helpers';
 import {
   equipmentLogService,
   EQUIPMENT_INSPECTION_TYPES,
@@ -1013,6 +1014,7 @@ export default function EquipmentLogPage() {
   const [incidents, setIncidents] = useState([]);
   const [maintenanceChecks, setMaintenanceChecks] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [selectedEquipmentKey, setSelectedEquipmentKey] = useState('');
   const [plantAssets, setPlantAssets] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -1022,6 +1024,17 @@ export default function EquipmentLogPage() {
 
   const canEdit = isAdmin;
   const canCreateCurrentTab = canEdit || ['operation', 'incidents', 'checks'].includes(activeTab);
+  const fullDataTabs = ['vehicles', 'plant', 'operation', 'incidents', 'checks'];
+  const equipmentItems = useMemo(() => normalizeEquipmentItems({ vehicles, plantAssets }), [vehicles, plantAssets]);
+  const selectedEquipment = equipmentItems.find((equipment) => equipment.key === selectedEquipmentKey) || null;
+  const selectedEquipmentHistory = useMemo(() => buildEquipmentHistory({
+    equipment: selectedEquipment,
+    fuelLoads,
+    maintenanceLogs,
+    dailyOperations,
+    incidents,
+    maintenanceChecks,
+  }), [dailyOperations, fuelLoads, incidents, maintenanceChecks, maintenanceLogs, selectedEquipment]);
 
   const loadUsers = async () => {
     if (!canEdit) return;
@@ -1037,12 +1050,12 @@ export default function EquipmentLogPage() {
 
   const loadCurrentTab = async () => {
     setLoading(true);
-    const result = ['vehicles', 'operation', 'incidents', 'checks'].includes(activeTab)
+    const result = fullDataTabs.includes(activeTab)
       ? await Promise.all([
         equipmentLogService.getVehicles({ search }),
         equipmentLogService.getFuelLoads(),
         equipmentLogService.getMaintenanceLogs(),
-        equipmentLogService.getPlantAssets(),
+        equipmentLogService.getPlantAssets({ search: activeTab === 'plant' ? search : '' }),
         equipmentLogService.getDrivers(),
         equipmentLogService.getDailyOperations(),
         equipmentLogService.getIncidents(),
@@ -1053,7 +1066,7 @@ export default function EquipmentLogPage() {
       : await equipmentLogService.getPlantAssets({ search });
     setLoading(false);
 
-    if (['vehicles', 'operation', 'incidents', 'checks'].includes(activeTab)) {
+    if (fullDataTabs.includes(activeTab)) {
       const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult, driversResult, dailyOperationsResult, incidentsResult, maintenanceChecksResult] = result;
       if (vehiclesResult.success) setVehicles(vehiclesResult.data || []);
       else addToast(vehiclesResult.error, 'error');
@@ -1106,6 +1119,24 @@ export default function EquipmentLogPage() {
       setSelectedVehicleId('');
     }
   }, [activeTab, selectedVehicleId, vehicles]);
+
+  useEffect(() => {
+    if (!selectedEquipmentKey) return;
+    if (!equipmentItems.some((equipment) => equipment.key === selectedEquipmentKey)) {
+      setSelectedEquipmentKey('');
+    }
+  }, [equipmentItems, selectedEquipmentKey]);
+
+  const handleEquipmentHistorySelect = (key) => {
+    setSelectedEquipmentKey(key);
+    const equipment = equipmentItems.find((item) => item.key === key);
+    setSelectedVehicleId(equipment?.type === 'vehicle' ? equipment.id : '');
+  };
+
+  const handleVehicleSelect = (id) => {
+    setSelectedVehicleId(id);
+    setSelectedEquipmentKey(id ? `vehicle:${id}` : '');
+  };
 
   const tabs = useMemo(() => ([
     { key: 'vehicles', label: 'Vehículos', icon: Car },
@@ -1265,6 +1296,14 @@ export default function EquipmentLogPage() {
         <EquipmentSummaryCards vehicles={vehicles} maintenanceLogs={maintenanceLogs} plantAssets={plantAssets} />
       )}
 
+      <EquipmentHistoryPanel
+        equipmentItems={equipmentItems}
+        selectedEquipmentKey={selectedEquipmentKey}
+        selectedEquipment={selectedEquipment}
+        history={selectedEquipmentHistory}
+        onSelect={handleEquipmentHistorySelect}
+      />
+
       <div className="grid gap-4 lg:grid-cols-[230px,1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
@@ -1333,7 +1372,7 @@ export default function EquipmentLogPage() {
               fuelLoads={fuelLoads}
               maintenanceLogs={maintenanceLogs}
               selectedVehicleId={selectedVehicleId}
-              onSelectVehicle={setSelectedVehicleId}
+              onSelectVehicle={handleVehicleSelect}
               users={users}
               drivers={drivers}
               canEdit={canEdit}
@@ -1431,6 +1470,64 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function EquipmentHistoryPanel({ equipmentItems, selectedEquipmentKey, selectedEquipment, history, onSelect }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">Historial cronológico por equipo</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-300">Combustible, mantenimiento, operación, incidencias y revisiones del equipo seleccionado.</p>
+        </div>
+        <select
+          className={`${inputClass} md:w-96`}
+          value={selectedEquipmentKey}
+          onChange={(event) => onSelect(event.target.value)}
+        >
+          <option value="">Seleccionar equipo</option>
+          {equipmentItems.map((equipment) => (
+            <option key={equipment.key} value={equipment.key}>
+              {[equipment.identifier, equipment.name, equipment.type === 'vehicle' ? 'Vehículo' : 'Planta'].filter(Boolean).join(' - ')}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {!selectedEquipment ? (
+        <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          Seleccioná un vehículo o equipo de planta para ver su historial.
+        </div>
+      ) : history.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          No hay registros históricos para este equipo.
+        </div>
+      ) : (
+        <div className="mt-4 overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+              <tr>
+                <th className="px-5 py-3">Tipo</th>
+                <th className="px-5 py-3">Fecha</th>
+                <th className="px-5 py-3">Descripción</th>
+                <th className="px-5 py-3">Responsable</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {history.map((event) => (
+                <tr key={event.id} className="align-top">
+                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{event.label}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.date ? formatDate(event.date) : '-'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.description || '-'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.responsible || selectedEquipment.responsible || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -2032,8 +2129,8 @@ function PlantAssetRows({ assets, users, canEdit, onSaved, onDelete }) {
                       trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
                     />
                     <ConfirmationModal
-                      title="¿Eliminar elemento de planta?"
-                      description="El elemento se eliminará definitivamente."
+                      title="¿Eliminar elemento de planta del listado activo?"
+                      description="El elemento se archivará y conservará su historial en la base de datos."
                       confirmLabel="Sí, eliminar"
                       onConfirm={() => onDelete(asset.id)}
                       trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}

@@ -482,17 +482,24 @@ export const equipmentLogService = {
     }
   },
 
-  async deletePlantAsset(id) {
+  async archivePlantAsset(id) {
     try {
       const { error } = await supabase
         .from('plant_assets')
-        .delete()
+        .update({
+          status: 'inactivo',
+          archived_at: new Date().toISOString(),
+        })
         .eq('id', id);
       if (error) throw error;
-      return { success: true, message: 'Elemento de planta eliminado.' };
+      return { success: true, message: 'Elemento de planta eliminado del listado activo.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el elemento de planta.') };
     }
+  },
+
+  async deletePlantAsset(id) {
+    return this.archivePlantAsset(id);
   },
 
   async getAssignableUsers() {
