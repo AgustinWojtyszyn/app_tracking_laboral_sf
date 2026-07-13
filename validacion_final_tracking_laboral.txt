@@ -1,0 +1,7 @@
+estado final: OK. Sin errores de compilacion; botones dinamicos, historial, archivado y exportacion sin P0/P1 evidentes.
+
+tests/build: npm test -- src/pages/equipmentLog.helpers.test.js src/services/equipmentLog.service.test.js src/services/export.service.test.js OK, 3 suites / 13 tests. npm run build OK.
+
+P0/P1 encontrados: ninguno.
+
+archivos todavia sin commit: ninguno, git status --short limpio.
