@@ -1092,7 +1092,6 @@ export default function EquipmentLogPage() {
   const [exporting, setExporting] = useState(false);
 
   const canEdit = isAdmin;
-  const canCreateCurrentTab = canEdit || ['operation', 'incidents', 'checks'].includes(activeTab);
   const fullDataTabs = ['vehicles', 'plant', 'operation', 'incidents', 'checks'];
   const equipmentItems = useMemo(() => normalizeEquipmentItems({ vehicles, plantAssets }), [vehicles, plantAssets]);
   const selectedEquipment = equipmentItems.find((equipment) => equipment.key === selectedEquipmentKey) || null;
@@ -1323,42 +1322,13 @@ export default function EquipmentLogPage() {
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vehículo</Button>}
       />
-    ) : activeTab === 'drivers' ? (
-      <DriverFormDialog
-        onSaved={loadCurrentTab}
-        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo chofer</Button>}
-      />
     ) : activeTab === 'plant' ? (
       <PlantFormDialog
         users={users}
         onSaved={loadCurrentTab}
-        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo registro</Button>}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo equipo de planta</Button>}
       />
-    ) : activeTab === 'operation' ? (
-      <EquipmentRecordFormDialog
-        type="operation"
-        vehicles={vehicles}
-        plantAssets={plantAssets}
-        onSaved={loadCurrentTab}
-        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva operación</Button>}
-      />
-    ) : activeTab === 'incidents' ? (
-      <EquipmentRecordFormDialog
-        type="incident"
-        vehicles={vehicles}
-        plantAssets={plantAssets}
-        onSaved={loadCurrentTab}
-        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva incidencia</Button>}
-      />
-    ) : (
-      <EquipmentRecordFormDialog
-        type="check"
-        vehicles={vehicles}
-        plantAssets={plantAssets}
-        onSaved={loadCurrentTab}
-        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva revisión</Button>}
-      />
-    );
+    ) : null;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -1378,7 +1348,7 @@ export default function EquipmentLogPage() {
               <FileSpreadsheet className="h-4 w-4" />
               {exporting ? 'Exportando...' : 'Exportar Excel'}
             </Button>
-            {canCreateCurrentTab && createButton}
+            {createButton}
           </div>
         </div>
       </div>
