@@ -14,6 +14,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import JobsFilters from '@/components/jobs/JobsFilters';
 import JobsPagination from '@/components/jobs/JobsPagination';
+import MaintenanceHeroBanner from '@/components/layout/MaintenanceHeroBanner';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
@@ -317,17 +318,19 @@ export default function DailyJobsPage() {
   }, [user, loading, jobs.length, role, startTour, resumeTourIfNeeded]);
 
   return (
-    <div className="space-y-8">
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 p-5 md:p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
-        <div className="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
-            <h1 className="text-3xl md:text-3xl font-bold text-gray-900 dark:text-slate-50 hidden md:block">
+    <div className="space-y-6 md:space-y-8">
+      <MaintenanceHeroBanner />
+
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-900 p-4 md:p-5 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
+        <div className="flex flex-col md:flex-row md:items-center gap-3 w-full xl:w-auto">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-50">
               {isEn ? 'Daily Jobs' : 'Trabajos Diarios'}
-            </h1>
+            </h2>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-3 w-full">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-3 w-full xl:flex-1">
 	          <Button
 	            variant="default"
-	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2"
+	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-base shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2 whitespace-nowrap"
 	            onClick={handleExportExcel}
 	            disabled={loading || exporting || sharing}
 	          >
@@ -335,7 +338,7 @@ export default function DailyJobsPage() {
 	          </Button>
 	          <Button
 	            variant="default"
-	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-14 text-sm sm:text-base md:text-lg shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2"
+	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-base shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2 whitespace-nowrap"
 	            onClick={handleShare}
 	            disabled={loading || sharing || exporting}
 	          >
@@ -350,7 +353,7 @@ export default function DailyJobsPage() {
               <Button
                 type="button"
                 variant="destructive"
-                className="w-full sm:w-auto md:min-w-[140px] h-10 sm:h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                className="w-full sm:w-auto md:min-w-[150px] h-10 sm:h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 whitespace-nowrap"
                 disabled={clearDisabled}
               >
                 <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
@@ -366,18 +369,18 @@ export default function DailyJobsPage() {
               <Button
                 type="button"
                 variant="secondary"
-                className="w-full sm:w-auto md:min-w-[140px] h-10 sm:h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                className="w-full sm:w-auto md:min-w-[150px] h-10 sm:h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 whitespace-nowrap"
                 disabled={clearPendingDisabled}
               >
                 <Trash2 className="w-5 h-5 mr-2" /> {clearingPending ? (isEn ? 'Cleaning pending...' : 'Limpiando pendientes...') : (isEn ? 'Clear pending' : 'Limpiar pendientes')}
               </Button>
             }
           />
-          <div className="col-span-2 sm:col-span-1 w-full sm:w-auto md:min-w-[140px]">
+          <div className="sm:ml-auto w-full sm:w-auto md:min-w-[150px]">
             <Button
               type="button"
               onClick={() => navigate('/app/trabajos-diarios/nuevo')}
-              className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white"
+              className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white whitespace-nowrap"
               data-tour="nuevo-trabajo"
             >
               Nuevo Trabajo
