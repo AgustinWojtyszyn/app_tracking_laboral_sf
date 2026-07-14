@@ -261,7 +261,7 @@
 .maintenance-hero__title {
   max-width: 100%;
   color: #fff8e7;
-  font-size: clamp(2rem, 3.6vw, 3rem);
+  font-size: clamp(1.8rem, 3vw, 2.7rem);
   font-style: italic;
   font-weight: 950;
   line-height: 1;
@@ -292,8 +292,8 @@
 
 .maintenance-hero__logo {
   width: auto;
-  height: clamp(55px, 5vw, 70px);
-  max-width: min(300px, 70vw);
+  height: clamp(68px, 6.4vw, 88px);
+  max-width: min(360px, 76vw);
   object-fit: contain;
   filter: drop-shadow(0 14px 26px rgb(0 0 0 / 0.36));
 }
@@ -333,14 +333,42 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: clamp(24px, 3.3vw, 34px);
-  height: clamp(24px, 3.3vw, 34px);
+  width: clamp(26px, 3.2vw, 36px);
+  height: clamp(26px, 3.2vw, 36px);
   border-radius: 50%;
-  background:
-    radial-gradient(circle, #ffd76a 0 37%, #f6b734 38% 58%, transparent 59%),
-    repeating-conic-gradient(from 0deg, #f3ad2d 0 6deg, transparent 6deg 12deg);
-  box-shadow: 0 0 10px rgb(246 183 52 / 0.36);
+  background: repeating-conic-gradient(
+    from -6deg,
+    #d89220 0 5deg,
+    transparent 5deg 10deg,
+    #f4bd3f 10deg 15deg,
+    transparent 15deg 20deg
+  );
+  box-shadow: 0 0 11px rgb(246 183 52 / 0.38);
   transform: translate(-50%, -50%);
+}
+
+.maintenance-hero__sun::before,
+.maintenance-hero__sun::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+
+.maintenance-hero__sun::before {
+  inset: 21%;
+  background:
+    radial-gradient(circle at 36% 39%, #8f5a18 0 3%, transparent 4%),
+    radial-gradient(circle at 64% 39%, #8f5a18 0 3%, transparent 4%),
+    radial-gradient(ellipse at 50% 62%, transparent 0 28%, #8f5a18 29% 33%, transparent 34%),
+    radial-gradient(circle, #ffe08a 0 36%, #f7bf3d 58%, #d89220 100%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.55),
+    inset 0 -2px 3px rgb(107 72 18 / 0.22);
+}
+
+.maintenance-hero__sun::after {
+  inset: 7%;
+  border: 1px solid rgb(143 90 24 / 0.28);
 }
 
 @media (max-width: 640px) {
