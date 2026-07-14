@@ -14,7 +14,6 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import JobsFilters from '@/components/jobs/JobsFilters';
 import JobsPagination from '@/components/jobs/JobsPagination';
-import MaintenanceHeroBanner from '@/components/layout/MaintenanceHeroBanner';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
@@ -319,8 +318,6 @@ export default function DailyJobsPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <MaintenanceHeroBanner />
-
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-900 p-4 md:p-5 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
         <div className="flex flex-col md:flex-row md:items-center gap-3 w-full xl:w-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-50">
