@@ -1,0 +1,24 @@
+Cambios realizados para versionar las RPC de Tracking Laboral
+
+Ruta anterior:
+supabase/20260716_01_version_list_jobs_rpcs.sql
+
+Ruta nueva:
+supabase/migrations/20260716084700_version_list_jobs_rpcs.sql
+
+Contenido versionado:
+- public.list_jobs_for_export(p_date date default null, p_location text default null, p_search text default null) returns jsonb
+- public.list_jobs_paginated(p_date date default null, p_location text default null, p_search text default null, p_page integer default 1, p_page_size integer default 10) returns jsonb
+
+Seguridad y permisos:
+- SECURITY INVOKER
+- STABLE
+- search_path fijado a pg_catalog, public
+- REVOKE ALL para public y anon
+- GRANT EXECUTE para authenticated y service_role
+
+Estado:
+- El contenido SQL fue conservado al mover la migracion.
+- No quedaron dos copias del archivo SQL.
+- La migracion no fue ejecutada en Supabase.
+- No se ejecutaron tests, build ni Playwright.

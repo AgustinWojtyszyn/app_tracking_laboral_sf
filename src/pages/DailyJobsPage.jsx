@@ -147,7 +147,9 @@ export default function DailyJobsPage() {
   };
 
   const handleDateChange = (event) => {
-    setDate(event.target.value);
+    const nextDate = event.target.value;
+    if (!nextDate) return;
+    setDate(nextDate);
     setCurrentPage(1);
   };
 
@@ -163,7 +165,7 @@ export default function DailyJobsPage() {
     const result = await jobsService.listJobsForExport({
       date,
       location: selectedLocation,
-      search: debouncedSearchTerm,
+      search: searchTerm.trim(),
     });
 
     if (!result.success) {
