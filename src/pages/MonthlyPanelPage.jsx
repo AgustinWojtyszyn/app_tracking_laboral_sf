@@ -50,6 +50,7 @@ export default function MonthlyPanelPage() {
   const [clearingPending, setClearingPending] = useState(false);
   const [exportingCompleted, setExportingCompleted] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const [deletingJobId, setDeletingJobId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const mountedRef = useRef(false);
@@ -344,6 +345,26 @@ export default function MonthlyPanelPage() {
     setClearingPending(false);
   };
 
+  const handleDeleteJob = async (jobId) => {
+    if (!jobId || deletingJobId) return;
+    if (!mountedRef.current) return;
+    setDeletingJobId(jobId);
+    const result = await jobsService.deleteJob(jobId, { actorId: user?.id || null });
+    if (!mountedRef.current) return;
+    addToast(
+      result.success
+        ? (isEn ? 'Job deleted.' : 'Solicitud eliminada.')
+        : (result.error || (isEn ? 'Could not delete job.' : 'No se pudo eliminar la solicitud.')),
+      result.success ? 'success' : 'error'
+    );
+    if (result.success) {
+      await fetchJobs();
+    }
+    if (mountedRef.current) {
+      setDeletingJobId(null);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-lg md:text-xl px-4 md:px-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -501,16 +522,33 @@ export default function MonthlyPanelPage() {
                     >
                       <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingJob(job)}
-                      className="h-8 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs font-semibold shadow-sm"
-                    >
-                      <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                    </Button>
-                  </div>
-                </>
+	                    <Button
+	                      variant="outline"
+	                      size="sm"
+	                      onClick={() => setEditingJob(job)}
+	                      className="h-8 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs font-semibold shadow-sm"
+	                    >
+	                      <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+	                    </Button>
+	                    <ConfirmationModal
+	                      title={isEn ? 'Delete request?' : '¿Eliminar solicitud?'}
+	                      description={isEn ? 'This will delete the selected request.' : 'Se eliminará la solicitud seleccionada.'}
+	                      confirmLabel={isEn ? 'Delete' : 'Eliminar'}
+	                      onConfirm={() => handleDeleteJob(job.id)}
+	                      trigger={
+	                        <Button
+	                          type="button"
+	                          variant="outline"
+	                          size="sm"
+	                          disabled={deletingJobId === job.id}
+	                          className="h-8 px-3 rounded-full border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold shadow-sm"
+	                        >
+	                          <Trash2 className="w-4 h-4 mr-1" /> {deletingJobId === job.id ? (isEn ? 'Deleting...' : 'Eliminando...') : (isEn ? 'Delete' : 'Eliminar')}
+	                        </Button>
+	                      }
+	                    />
+	                  </div>
+	                </>
                     );
                   })()}
                 </div>
@@ -570,16 +608,33 @@ export default function MonthlyPanelPage() {
                       >
                         <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingJob(job)}
-                        className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
-                      >
-                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
-                      </Button>
-                    </div>
-                  </td>
+	                      <Button
+	                        variant="outline"
+	                        size="sm"
+	                        onClick={() => setEditingJob(job)}
+	                        className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
+	                      >
+	                        <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+	                      </Button>
+	                      <ConfirmationModal
+	                        title={isEn ? 'Delete request?' : '¿Eliminar solicitud?'}
+	                        description={isEn ? 'This will delete the selected request.' : 'Se eliminará la solicitud seleccionada.'}
+	                        confirmLabel={isEn ? 'Delete' : 'Eliminar'}
+	                        onConfirm={() => handleDeleteJob(job.id)}
+	                        trigger={
+	                          <Button
+	                            type="button"
+	                            variant="outline"
+	                            size="sm"
+	                            disabled={deletingJobId === job.id}
+	                            className="h-9 px-3 rounded-full border-red-200 text-red-700 hover:bg-red-50 text-xs md:text-sm font-semibold shadow-sm"
+	                          >
+	                            <Trash2 className="w-4 h-4 mr-1" /> {deletingJobId === job.id ? (isEn ? 'Deleting...' : 'Eliminando...') : (isEn ? 'Delete' : 'Eliminar')}
+	                          </Button>
+	                        }
+	                      />
+	                    </div>
+	                  </td>
                 </>
                     );
                   })()}
