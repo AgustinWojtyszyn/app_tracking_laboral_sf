@@ -6,7 +6,7 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2 } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -19,6 +19,26 @@ import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 import { normalizeJobStatus } from '@/utils/jobStatus';
 import { JOB_LOCATIONS } from '@/constants/jobLocations';
+
+const getArgentinaToday = () => (
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
+);
+
+const buildDuplicateJobDraft = (job, selectedDate) => ({
+  date: selectedDate || getArgentinaToday(),
+  title: job?.title || '',
+  location: job?.location || '',
+  requested_by: job?.requested_by || '',
+  description: job?.description || '',
+  group_id: job?.group_id || '',
+  editable_by_group: Boolean(job?.editable_by_group),
+  action_type: job?.action_type || '',
+  sector_type: job?.sector_type || '',
+  sector_custom: job?.sector_custom || '',
+  cost_spent: job?.cost_spent ?? '',
+  amount_to_charge: job?.amount_to_charge ?? '',
+  worker_id: job?.worker_id || '',
+});
 
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
@@ -159,6 +179,14 @@ export default function DailyJobsPage() {
 
   const handleNextPage = () => {
     setCurrentPage((page) => Math.min(totalPages, page + 1));
+  };
+
+  const handleDuplicateJob = (job) => {
+    navigate('/app/trabajos-diarios/nuevo', {
+      state: {
+        duplicateJobDraft: buildDuplicateJobDraft(job, date || getArgentinaToday()),
+      },
+    });
   };
 
   const loadJobsForExport = async () => {
@@ -490,6 +518,14 @@ export default function DailyJobsPage() {
                             className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
                           >
                             <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicateJob(job)}
+                            className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
+                          >
+                            <Copy className="w-4 h-4 mr-1" /> Duplicar
                           </Button>
                         </div>
                       </td>

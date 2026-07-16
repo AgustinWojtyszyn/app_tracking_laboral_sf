@@ -17,7 +17,7 @@ import JobDetailsSection from '@/components/jobs/form/JobDetailsSection';
 import JobImagesSection from '@/components/jobs/form/JobImagesSection';
 import JobAssignmentSection from '@/components/jobs/form/JobAssignmentSection';
 import JobFormActions from '@/components/jobs/form/JobFormActions';
-export default function JobForm({ jobToEdit = null, onSuccess, mode = 'modal', onCancel }) {
+export default function JobForm({ jobToEdit = null, initialJobData = null, onSuccess, mode = 'modal', onCancel }) {
   const isPage = mode === 'page';
   const isModal = !isPage;
   const { user } = useAuth();
@@ -39,7 +39,7 @@ export default function JobForm({ jobToEdit = null, onSuccess, mode = 'modal', o
     initialImageAttachments,
     getRequestId,
     resetRequestId
-  } = useJobFormData({ jobToEdit, isActive });
+  } = useJobFormData({ jobToEdit, isActive, initialJobData });
 
   const {
     formData,

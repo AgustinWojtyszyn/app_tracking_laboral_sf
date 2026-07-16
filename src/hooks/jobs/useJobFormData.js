@@ -30,11 +30,25 @@ const hydrateFormForEdit = (jobToEdit, initialForm) => ({
   amount_to_charge: jobToEdit.amount_to_charge ?? ''
 });
 
+const hydrateFormForCreate = (initialJobData, initialForm) => ({
+  ...initialForm,
+  ...(initialJobData || {}),
+  status: initialForm.status,
+  group_id: initialJobData?.group_id || '',
+  editable_by_group: Boolean(initialJobData?.editable_by_group),
+  requested_by: initialJobData?.requested_by || '',
+  action_type: initialJobData?.action_type || '',
+  sector_type: initialJobData?.sector_type || '',
+  sector_custom: initialJobData?.sector_custom || '',
+  cost_spent: initialJobData?.cost_spent ?? '',
+  amount_to_charge: initialJobData?.amount_to_charge ?? ''
+});
+
 export const shouldApplyJobFormLoadResult = ({ isMounted, loadId, currentLoadId }) => (
   Boolean(isMounted && loadId === currentLoadId)
 );
 
-export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
+export const useJobFormData = ({ jobToEdit, isActive, initialJobData = null } = {}) => {
   const [groups, setGroups] = useState([]);
   const [workers, setWorkers] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -49,12 +63,13 @@ export const useJobFormData = ({ jobToEdit, isActive } = {}) => {
   const initialForm = useMemo(() => buildInitialForm(), []);
 
   const formDefaults = useMemo(() => {
-    if (!jobToEdit) return initialForm;
-    return hydrateFormForEdit(jobToEdit, initialForm);
-  }, [jobToEdit, initialForm]);
+    if (jobToEdit) return hydrateFormForEdit(jobToEdit, initialForm);
+    if (initialJobData) return hydrateFormForCreate(initialJobData, initialForm);
+    return initialForm;
+  }, [jobToEdit, initialForm, initialJobData]);
 
-  const initialWorkerId = jobToEdit?.worker_id || '';
-  const initialLocationSearch = '';
+  const initialWorkerId = jobToEdit?.worker_id || initialJobData?.worker_id || '';
+  const initialLocationSearch = jobToEdit ? '' : (initialJobData?.location || '');
   const initialImageAttachments = jobToEdit?.image_attachments || null;
 
   const generateRequestId = useCallback(() => {
