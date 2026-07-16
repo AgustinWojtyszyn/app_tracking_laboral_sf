@@ -413,7 +413,7 @@ function VehicleFormDialog({ vehicle, drivers, trigger, onSaved }) {
   );
 }
 
-function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigger, onSaved }) {
+function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigger, onSaved, canEditMileage = true }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -514,6 +514,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
                 onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
                 onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
                 onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
+                disabled={!canEditMileage}
                 required
               />
             </Field>
@@ -533,7 +534,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
   );
 }
 
-function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId = '', trigger, onSaved }) {
+function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId = '', trigger, onSaved, canEditMileage = true }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -634,6 +635,7 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
                 onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
                 onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
                 onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
+                disabled={!canEditMileage}
                 required
               />
             </Field>
@@ -1074,7 +1076,7 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
 
 export default function EquipmentLogPage() {
   const { addToast } = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, userRole } = useAuth();
   const [activeTab, setActiveTab] = useState('vehicles');
   const [vehicles, setVehicles] = useState([]);
   const [fuelLoads, setFuelLoads] = useState([]);
@@ -1091,7 +1093,17 @@ export default function EquipmentLogPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
-  const canEdit = isAdmin;
+  const isDriver = userRole === 'chofer';
+  const canManageMasterData = isAdmin;
+  const canEditFuelLoads = isAdmin || isDriver;
+  const canCreateFuelLoads = isAdmin || isDriver;
+  const canDeleteFuelLoads = isAdmin;
+  const canEditMaintenanceLogs = isAdmin || isDriver;
+  const canCreateMaintenanceLogs = isAdmin || isDriver;
+  const canDeleteMaintenanceLogs = isAdmin;
+  const canEditIncidents = isAdmin || isDriver;
+  const canDeleteIncidents = isAdmin;
+  const canEditOperationalRecords = isAdmin;
   const fullDataTabs = ['vehicles', 'plant', 'operation', 'incidents', 'checks'];
   const equipmentItems = useMemo(() => normalizeEquipmentItems({ vehicles, plantAssets }), [vehicles, plantAssets]);
   const selectedEquipment = equipmentItems.find((equipment) => equipment.key === selectedEquipmentKey) || null;
@@ -1105,7 +1117,7 @@ export default function EquipmentLogPage() {
   }), [dailyOperations, fuelLoads, incidents, maintenanceChecks, maintenanceLogs, selectedEquipment]);
 
   const loadUsers = async () => {
-    if (!canEdit) return;
+    if (!canManageMasterData) return;
     const result = await equipmentLogService.getAssignableUsers();
     if (result.success) setUsers(result.data || []);
   };
@@ -1170,7 +1182,7 @@ export default function EquipmentLogPage() {
 
   useEffect(() => {
     loadUsers();
-  }, [canEdit]);
+  }, [canManageMasterData]);
 
   useEffect(() => {
     loadDrivers();
@@ -1316,17 +1328,46 @@ export default function EquipmentLogPage() {
     addToast('Excel exportado correctamente.', 'success');
   };
 
-  const createButton = activeTab === 'vehicles' ? (
+  const createButton = canManageMasterData && activeTab === 'vehicles' ? (
       <VehicleFormDialog
         drivers={drivers}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vehículo</Button>}
       />
-    ) : activeTab === 'plant' ? (
+    ) : canManageMasterData && activeTab === 'drivers' ? (
+      <DriverFormDialog
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo chofer</Button>}
+      />
+    ) : canManageMasterData && activeTab === 'plant' ? (
       <PlantFormDialog
         users={users}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo equipo de planta</Button>}
+      />
+    ) : canEditOperationalRecords && activeTab === 'operation' ? (
+      <EquipmentRecordFormDialog
+        type="operation"
+        vehicles={vehicles}
+        plantAssets={plantAssets}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva operación</Button>}
+      />
+    ) : canEditIncidents && activeTab === 'incidents' ? (
+      <EquipmentRecordFormDialog
+        type="incident"
+        vehicles={vehicles}
+        plantAssets={plantAssets}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva incidencia</Button>}
+      />
+    ) : canEditOperationalRecords && activeTab === 'checks' ? (
+      <EquipmentRecordFormDialog
+        type="check"
+        vehicles={vehicles}
+        plantAssets={plantAssets}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva revisión</Button>}
       />
     ) : null;
 
@@ -1436,23 +1477,31 @@ export default function EquipmentLogPage() {
               onSelectVehicle={handleVehicleSelect}
               users={users}
               drivers={drivers}
-              canEdit={canEdit}
+              canEdit={canManageMasterData}
+              canCreateFuelLoads={canCreateFuelLoads}
+              canEditFuelLoads={canEditFuelLoads}
+              canDeleteFuelLoads={canDeleteFuelLoads}
+              canCreateMaintenanceLogs={canCreateMaintenanceLogs}
+              canEditMaintenanceLogs={canEditMaintenanceLogs}
+              canDeleteMaintenanceLogs={canDeleteMaintenanceLogs}
+              canEditMileage={isAdmin}
               onSaved={loadCurrentTab}
               onDeactivate={handleArchiveVehicle}
               onDeleteFuelLoad={handleDeleteFuelLoad}
               onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
             />
           ) : activeTab === 'drivers' ? (
-            <DriversList drivers={drivers} search={search} canEdit={canEdit} onSaved={loadCurrentTab} onArchive={handleArchiveDriver} />
+            <DriversList drivers={drivers} search={search} canEdit={canManageMasterData} onSaved={loadCurrentTab} onArchive={handleArchiveDriver} />
           ) : activeTab === 'plant' ? (
-            <PlantAssetsList assets={plantAssets} users={users} canEdit={canEdit} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
+            <PlantAssetsList assets={plantAssets} users={users} canEdit={canManageMasterData} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
           ) : activeTab === 'operation' ? (
             <EquipmentDailyOperationsList
               records={dailyOperations}
               vehicles={vehicles}
               plantAssets={plantAssets}
               search={search}
-              canEdit={canEdit}
+              canEdit={canEditOperationalRecords}
+              canDelete={canEditOperationalRecords}
               onSaved={loadCurrentTab}
               onDelete={handleDeleteDailyOperation}
             />
@@ -1462,7 +1511,8 @@ export default function EquipmentLogPage() {
               vehicles={vehicles}
               plantAssets={plantAssets}
               search={search}
-              canEdit={canEdit}
+              canEdit={canEditIncidents}
+              canDelete={canDeleteIncidents}
               onSaved={loadCurrentTab}
               onDelete={handleDeleteIncident}
             />
@@ -1472,7 +1522,8 @@ export default function EquipmentLogPage() {
               vehicles={vehicles}
               plantAssets={plantAssets}
               search={search}
-              canEdit={canEdit}
+              canEdit={canEditOperationalRecords}
+              canDelete={canEditOperationalRecords}
               onSaved={loadCurrentTab}
               onDelete={handleDeleteMaintenanceCheck}
             />
@@ -1593,7 +1644,27 @@ function EquipmentHistoryPanel({ equipmentItems, selectedEquipmentKey, selectedE
   );
 }
 
-function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId, onSelectVehicle, users, drivers, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
+function VehiclesList({
+  vehicles,
+  fuelLoads,
+  maintenanceLogs,
+  selectedVehicleId,
+  onSelectVehicle,
+  users,
+  drivers,
+  canEdit,
+  canCreateFuelLoads,
+  canEditFuelLoads,
+  canDeleteFuelLoads,
+  canCreateMaintenanceLogs,
+  canEditMaintenanceLogs,
+  canDeleteMaintenanceLogs,
+  canEditMileage,
+  onSaved,
+  onDeactivate,
+  onDeleteFuelLoad,
+  onDeleteMaintenanceLog,
+}) {
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === selectedVehicleId) || null;
   const selectedFuelLoads = selectedVehicleId ? fuelLoads.filter((load) => load.vehicle_id === selectedVehicleId) : [];
   const selectedMaintenanceLogs = selectedVehicleId ? maintenanceLogs.filter((log) => log.vehicle_id === selectedVehicleId) : [];
@@ -1657,6 +1728,13 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId,
           users={users}
           drivers={drivers}
           canEdit={canEdit}
+          canCreateFuelLoads={canCreateFuelLoads}
+          canEditFuelLoads={canEditFuelLoads}
+          canDeleteFuelLoads={canDeleteFuelLoads}
+          canCreateMaintenanceLogs={canCreateMaintenanceLogs}
+          canEditMaintenanceLogs={canEditMaintenanceLogs}
+          canDeleteMaintenanceLogs={canDeleteMaintenanceLogs}
+          canEditMileage={canEditMileage}
           onSaved={onSaved}
           onDeactivate={onDeactivate}
           onDeleteFuelLoad={onDeleteFuelLoad}
@@ -1667,7 +1745,26 @@ function VehiclesList({ vehicles, fuelLoads, maintenanceLogs, selectedVehicleId,
   );
 }
 
-function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, drivers, canEdit, onSaved, onDeactivate, onDeleteFuelLoad, onDeleteMaintenanceLog }) {
+function VehicleDetail({
+  vehicle,
+  vehicles,
+  fuelLoads,
+  maintenanceLogs,
+  users,
+  drivers,
+  canEdit,
+  canCreateFuelLoads,
+  canEditFuelLoads,
+  canDeleteFuelLoads,
+  canCreateMaintenanceLogs,
+  canEditMaintenanceLogs,
+  canDeleteMaintenanceLogs,
+  canEditMileage,
+  onSaved,
+  onDeactivate,
+  onDeleteFuelLoad,
+  onDeleteMaintenanceLog,
+}) {
   return (
     <div className="space-y-5 p-4">
       <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
@@ -1704,13 +1801,33 @@ function VehicleDetail({ vehicle, vehicles, fuelLoads, maintenanceLogs, users, d
           )}
         </div>
       </div>
-      <FuelLoadsSection vehicles={vehicles} selectedVehicle={vehicle} fuelLoads={fuelLoads} canEdit={canEdit} onSaved={onSaved} onDelete={onDeleteFuelLoad} />
-      <MaintenanceLogsSection vehicles={vehicles} selectedVehicle={vehicle} maintenanceLogs={maintenanceLogs} canEdit={canEdit} onSaved={onSaved} onDelete={onDeleteMaintenanceLog} />
+      <FuelLoadsSection
+        vehicles={vehicles}
+        selectedVehicle={vehicle}
+        fuelLoads={fuelLoads}
+        canCreate={canCreateFuelLoads}
+        canEdit={canEditFuelLoads}
+        canDelete={canDeleteFuelLoads}
+        canEditMileage={canEditMileage}
+        onSaved={onSaved}
+        onDelete={onDeleteFuelLoad}
+      />
+      <MaintenanceLogsSection
+        vehicles={vehicles}
+        selectedVehicle={vehicle}
+        maintenanceLogs={maintenanceLogs}
+        canCreate={canCreateMaintenanceLogs}
+        canEdit={canEditMaintenanceLogs}
+        canDelete={canDeleteMaintenanceLogs}
+        canEditMileage={canEditMileage}
+        onSaved={onSaved}
+        onDelete={onDeleteMaintenanceLog}
+      />
     </div>
   );
 }
 
-function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canEdit, onSaved, onDelete }) {
+function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canCreate, canEdit, canDelete, canEditMileage, onSaved, onDelete }) {
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1723,11 +1840,12 @@ function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canEdit, onSav
             <p className="text-sm text-gray-500 dark:text-slate-300">Historial de {selectedVehicle.license_plate}.</p>
           </div>
         </div>
-        {canEdit && (
+        {canCreate && (
           <FuelLoadFormDialog
             vehicles={vehicles}
             selectedVehicleId={selectedVehicle?.id || ''}
             onSaved={onSaved}
+            canEditMileage
             trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva carga</Button>}
           />
         )}
@@ -1748,7 +1866,7 @@ function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canEdit, onSav
                 <th className="px-5 py-3">Litros</th>
                 <th className="px-5 py-3">Kilometraje</th>
                 <th className="px-5 py-3">Observaciones</th>
-                {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+                {(canEdit || canDelete) && <th className="px-5 py-3 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -1766,22 +1884,27 @@ function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canEdit, onSav
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{formatNumber(load.liters, 2)} L</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.mileage}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.notes || '-'}</td>
-                  {canEdit && (
+                  {(canEdit || canDelete) && (
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
-                        <FuelLoadFormDialog
-                          fuelLoad={load}
-                          vehicles={vehicles}
-                          onSaved={onSaved}
-                          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
-                        />
-                        <ConfirmationModal
-                          title="¿Eliminar carga de combustible?"
-                          description="La carga se eliminará definitivamente."
-                          confirmLabel="Sí, eliminar"
-                          onConfirm={() => onDelete(load.id)}
-                          trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
-                        />
+                        {canEdit && (
+                          <FuelLoadFormDialog
+                            fuelLoad={load}
+                            vehicles={vehicles}
+                            onSaved={onSaved}
+                            canEditMileage={canEditMileage}
+                            trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                          />
+                        )}
+                        {canDelete && (
+                          <ConfirmationModal
+                            title="¿Eliminar carga de combustible?"
+                            description="La carga se eliminará definitivamente."
+                            confirmLabel="Sí, eliminar"
+                            onConfirm={() => onDelete(load.id)}
+                            trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                          />
+                        )}
                       </div>
                     </td>
                   )}
@@ -1795,7 +1918,7 @@ function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canEdit, onSav
   );
 }
 
-function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, canEdit, onSaved, onDelete }) {
+function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, canCreate, canEdit, canDelete, canEditMileage, onSaved, onDelete }) {
   return (
     <div className="space-y-4 p-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1808,11 +1931,12 @@ function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, ca
             <p className="text-sm text-gray-500 dark:text-slate-300">Historial técnico de {selectedVehicle.license_plate}.</p>
           </div>
         </div>
-        {canEdit && (
+        {canCreate && (
           <MaintenanceLogFormDialog
             vehicles={vehicles}
             selectedVehicleId={selectedVehicle?.id || ''}
             onSaved={onSaved}
+            canEditMileage
             trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo mantenimiento</Button>}
           />
         )}
@@ -1834,7 +1958,7 @@ function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, ca
                 <th className="px-5 py-3">Kilometraje</th>
                 <th className="px-5 py-3">Valor</th>
                 <th className="px-5 py-3">Próximo control</th>
-                {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+                {(canEdit || canDelete) && <th className="px-5 py-3 text-right">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -1857,22 +1981,27 @@ function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, ca
                     <p>{log.next_control_date ? formatDate(log.next_control_date) : '-'}</p>
                     {log.notes && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{log.notes}</p>}
                   </td>
-                  {canEdit && (
+                  {(canEdit || canDelete) && (
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
-                        <MaintenanceLogFormDialog
-                          maintenanceLog={log}
-                          vehicles={vehicles}
-                          onSaved={onSaved}
-                          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
-                        />
-                        <ConfirmationModal
-                          title="¿Eliminar mantenimiento?"
-                          description="El mantenimiento se eliminará definitivamente."
-                          confirmLabel="Sí, eliminar"
-                          onConfirm={() => onDelete(log.id)}
-                          trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
-                        />
+                        {canEdit && (
+                          <MaintenanceLogFormDialog
+                            maintenanceLog={log}
+                            vehicles={vehicles}
+                            onSaved={onSaved}
+                            canEditMileage={canEditMileage}
+                            trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                          />
+                        )}
+                        {canDelete && (
+                          <ConfirmationModal
+                            title="¿Eliminar mantenimiento?"
+                            description="El mantenimiento se eliminará definitivamente."
+                            confirmLabel="Sí, eliminar"
+                            onConfirm={() => onDelete(log.id)}
+                            trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                          />
+                        )}
                       </div>
                     </td>
                   )}
@@ -1895,7 +2024,7 @@ const filterEquipmentRecords = (records, search) => {
   }).toLowerCase().includes(term));
 };
 
-function EquipmentDailyOperationsList({ records, vehicles, plantAssets, search, canEdit, onSaved, onDelete }) {
+function EquipmentDailyOperationsList({ records, vehicles, plantAssets, search, canEdit, canDelete, onSaved, onDelete }) {
   const filteredRecords = filterEquipmentRecords(records, search);
   return (
     <EquipmentRecordTable
@@ -1924,11 +2053,12 @@ function EquipmentDailyOperationsList({ records, vehicles, plantAssets, search, 
       )}
       onDelete={onDelete}
       deleteTitle="¿Eliminar operación diaria?"
+      canDelete={canDelete}
     />
   );
 }
 
-function EquipmentIncidentsList({ records, vehicles, plantAssets, search, canEdit, onSaved, onDelete }) {
+function EquipmentIncidentsList({ records, vehicles, plantAssets, search, canEdit, canDelete, onSaved, onDelete }) {
   const filteredRecords = filterEquipmentRecords(records, search);
   return (
     <EquipmentRecordTable
@@ -1957,11 +2087,12 @@ function EquipmentIncidentsList({ records, vehicles, plantAssets, search, canEdi
       )}
       onDelete={onDelete}
       deleteTitle="¿Eliminar incidencia?"
+      canDelete={canDelete}
     />
   );
 }
 
-function EquipmentMaintenanceChecksList({ records, vehicles, plantAssets, search, canEdit, onSaved, onDelete }) {
+function EquipmentMaintenanceChecksList({ records, vehicles, plantAssets, search, canEdit, canDelete, onSaved, onDelete }) {
   const filteredRecords = filterEquipmentRecords(records, search);
   return (
     <div className="space-y-4">
@@ -1992,6 +2123,7 @@ function EquipmentMaintenanceChecksList({ records, vehicles, plantAssets, search
         )}
         onDelete={onDelete}
         deleteTitle="¿Eliminar revisión?"
+        canDelete={canDelete}
       />
     </div>
   );
@@ -2018,7 +2150,7 @@ function UpcomingChecks({ records }) {
   );
 }
 
-function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, renderCells, canEdit, editDialog, onDelete, deleteTitle }) {
+function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, renderCells, canEdit, canDelete, editDialog, onDelete, deleteTitle }) {
   if (records.length === 0) {
     return (
       <div className="p-10 text-center">
@@ -2034,7 +2166,7 @@ function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, rende
         <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
           <tr>
             {headers.map((header) => <th key={header} className="px-5 py-3">{header}</th>)}
-            {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
+            {(canEdit || canDelete) && <th className="px-5 py-3 text-right">Acciones</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -2045,17 +2177,19 @@ function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, rende
                   <span className={index === 0 ? 'font-semibold text-gray-900 dark:text-slate-50' : ''}>{cell || '-'}</span>
                 </td>
               ))}
-              {canEdit && (
+              {(canEdit || canDelete) && (
                 <td className="px-5 py-4">
                   <div className="flex justify-end gap-2">
-                    {editDialog(record)}
-                    <ConfirmationModal
-                      title={deleteTitle}
-                      description="El registro se eliminará definitivamente."
-                      confirmLabel="Sí, eliminar"
-                      onConfirm={() => onDelete(record.id)}
-                      trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
-                    />
+                    {canEdit && editDialog(record)}
+                    {canDelete && (
+                      <ConfirmationModal
+                        title={deleteTitle}
+                        description="El registro se eliminará definitivamente."
+                        confirmLabel="Sí, eliminar"
+                        onConfirm={() => onDelete(record.id)}
+                        trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
+                      />
+                    )}
                   </div>
                 </td>
               )}

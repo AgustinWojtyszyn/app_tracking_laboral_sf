@@ -303,43 +303,70 @@ export const equipmentLogService = {
   },
 
   async saveFuelLoad(fuelLoad) {
-    if (!fuelLoad.vehicle_id) return { success: false, error: 'Seleccioná un vehículo.' };
-    if (!fuelLoad.load_date) return { success: false, error: 'La fecha de carga es obligatoria.' };
-    if (!fuelLoad.estimated_time) return { success: false, error: 'La hora estimada es obligatoria.' };
+    const vehicleId = fuelLoad.vehicle_id || '';
+    const priceArs = fuelLoad.price_ars;
+    const litersValue = fuelLoad.liters;
+    const mileage = fuelLoad.mileage;
+    const loadDate = fuelLoad.load_date || '';
+    const estimatedTime = fuelLoad.estimated_time || '';
+    const notes = fuelLoad.notes;
+    const normalizedMileage =
+      mileage === '' || mileage === null || mileage === undefined
+        ? null
+        : Number(mileage);
 
-    const priceArs = normalizeDecimal(fuelLoad.price_ars);
-    if (Number.isNaN(priceArs) || priceArs <= 0 || priceArs > FUEL_AMOUNT_MAX_VALUE) {
+    const payload = {
+      vehicle_id: vehicleId,
+      price_ars: Number(priceArs),
+      load_date: loadDate,
+      estimated_time: estimatedTime || null,
+      liters: Number(litersValue),
+      mileage: normalizedMileage,
+      notes: notes?.trim() || null,
+    };
+
+    if (!vehicleId) return { success: false, error: 'Seleccioná un vehículo.' };
+    if (!loadDate) return { success: false, error: 'La fecha de carga es obligatoria.' };
+    if (!Number.isFinite(payload.price_ars) || payload.price_ars <= 0 || payload.price_ars > FUEL_AMOUNT_MAX_VALUE) {
       return { success: false, error: 'El precio debe ser un importe válido en pesos.' };
     }
-
-    const liters = normalizeDecimal(fuelLoad.liters);
-    if (Number.isNaN(liters) || liters <= 0 || liters > FUEL_AMOUNT_MAX_VALUE) {
+    if (!Number.isFinite(payload.liters) || payload.liters <= 0 || payload.liters > FUEL_AMOUNT_MAX_VALUE) {
       return { success: false, error: 'Los litros deben ser un número válido.' };
     }
-
-    const mileage = normalizeMileage(fuelLoad.mileage);
-    if (Number.isNaN(mileage) || mileage === null) {
+    if (
+      payload.mileage !== null
+      && (!Number.isInteger(payload.mileage) || payload.mileage < 0 || payload.mileage > 999999999)
+    ) {
       return { success: false, error: `El kilometraje debe ser numérico y de hasta ${VEHICLE_MILEAGE_MAX_DIGITS} dígitos.` };
     }
 
-    const payload = {
-      vehicle_id: fuelLoad.vehicle_id,
-      price_ars: priceArs,
-      load_date: fuelLoad.load_date,
-      estimated_time: fuelLoad.estimated_time,
-      liters,
-      mileage,
-      notes: fuelLoad.notes?.trim() || null,
-    };
-
     try {
+      const selectQuery = `
+        *,
+        vehicle:vehicles!vehicle_fuel_loads_vehicle_id_fkey (
+          id,
+          license_plate,
+          name,
+          brand,
+          model
+        )
+      `;
       const request = fuelLoad.id
         ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
-        : supabase.from('vehicle_fuel_loads').insert([payload]);
+        : supabase.from('vehicle_fuel_loads').insert(payload);
 
-      const { data, error } = await request.select('*, vehicle:vehicle_id(id, license_plate, name, brand, model)').single();
+      const { data, error } = await request.select(selectQuery).single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error al crear carga de combustible', {
+          code: error?.code,
+          message: error?.message,
+          details: error?.details,
+          hint: error?.hint,
+          payload,
+        });
+        throw error;
+      }
       return { success: true, data, message: fuelLoad.id ? 'Carga de combustible actualizada.' : 'Carga de combustible registrada.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo guardar la carga de combustible.') };
