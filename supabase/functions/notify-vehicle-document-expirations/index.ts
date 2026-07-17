@@ -15,6 +15,108 @@ const escapeHtml = (value: unknown) => String(value ?? '')
   .replace(/'/g, '&#39;');
 
 const levelLabel = (level: string) => level === 'vencido' ? 'vencido' : `${level} dias`;
+const logoUrl = 'https://tracking.servifoodapp.site/servifood_logo_white_text_HQ.png';
+const headerColor = '#1e3a8a';
+
+const buildAlertEmail = (alert: Record<string, any>) => {
+  const documentName = alert.custom_document_name || alert.document_type || 'Documento';
+  const owner = alert.vehicle_label || alert.driver_label || 'Sin asociado';
+  const daysRemaining = Number(alert.days_remaining);
+  const isExpired = alert.alert_level === 'vencido' || daysRemaining < 0;
+  const statusLabel = isExpired
+    ? 'Documento vencido'
+    : `Faltan ${daysRemaining} dia${Math.abs(daysRemaining) === 1 ? '' : 's'}`;
+  const urgencyColor = isExpired ? '#b91c1c' : daysRemaining <= 7 ? '#b45309' : '#1e3a8a';
+  const subject = `${isExpired ? 'Documento vencido' : 'Vencimiento proximo'}: ${documentName}`;
+
+  const text = [
+    'Alerta de vencimiento - ServiFood',
+    '',
+    `Tipo de documento: ${documentName}`,
+    `Asociado: ${owner}`,
+    `Fecha de vencimiento: ${alert.expires_at}`,
+    `Dias restantes: ${alert.days_remaining}`,
+    `Nivel de alerta: ${alert.alert_level}`,
+    alert.observations ? `Observaciones: ${alert.observations}` : null,
+    '',
+    'Revisar el modulo Registro de equipo y planta para actualizar la documentacion o cargar observaciones.',
+  ].filter(Boolean).join('\n');
+
+  const html = `
+    <div style="margin:0;padding:0;background:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f6fb;padding:24px 12px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+              <tr>
+                <td style="background:${headerColor};padding:20px 24px;text-align:center;">
+                  <img src="${logoUrl}" alt="ServiFood" style="height:52px;max-width:220px;display:inline-block;border:0;" />
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:26px 28px 8px;">
+                  <div style="display:inline-block;background:${urgencyColor};color:#ffffff;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">
+                    ${escapeHtml(statusLabel)}
+                  </div>
+                  <h1 style="margin:16px 0 8px;font-size:24px;line-height:1.25;color:#111827;">Alerta de vencimiento documental</h1>
+                  <p style="margin:0;color:#4b5563;font-size:15px;line-height:1.5;">
+                    Hay documentacion del modulo <strong>Registro de equipo y planta</strong> que requiere revision.
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:18px 28px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-spacing:0 10px;">
+                    <tr>
+                      <td style="width:38%;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px 0 0 10px;padding:12px 14px;font-size:13px;color:#64748b;font-weight:700;">Documento</td>
+                      <td style="background:#ffffff;border:1px solid #e5e7eb;border-left:0;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;color:#111827;font-weight:700;">${escapeHtml(documentName)}</td>
+                    </tr>
+                    <tr>
+                      <td style="width:38%;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px 0 0 10px;padding:12px 14px;font-size:13px;color:#64748b;font-weight:700;">Asociado</td>
+                      <td style="background:#ffffff;border:1px solid #e5e7eb;border-left:0;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;color:#111827;">${escapeHtml(owner)}</td>
+                    </tr>
+                    <tr>
+                      <td style="width:38%;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px 0 0 10px;padding:12px 14px;font-size:13px;color:#64748b;font-weight:700;">Fecha de vencimiento</td>
+                      <td style="background:#ffffff;border:1px solid #e5e7eb;border-left:0;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;color:#111827;">${escapeHtml(alert.expires_at)}</td>
+                    </tr>
+                    <tr>
+                      <td style="width:38%;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px 0 0 10px;padding:12px 14px;font-size:13px;color:#64748b;font-weight:700;">Nivel de alerta</td>
+                      <td style="background:#ffffff;border:1px solid #e5e7eb;border-left:0;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;color:${urgencyColor};font-weight:700;">${escapeHtml(levelLabel(alert.alert_level))}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              ${alert.observations ? `
+              <tr>
+                <td style="padding:0 28px 18px;">
+                  <div style="border-left:4px solid ${headerColor};background:#f8fafc;border-radius:8px;padding:14px 16px;">
+                    <p style="margin:0 0 6px;color:#475569;font-size:13px;font-weight:700;">Observaciones</p>
+                    <p style="margin:0;color:#111827;font-size:14px;line-height:1.5;">${escapeHtml(alert.observations)}</p>
+                  </div>
+                </td>
+              </tr>
+              ` : ''}
+              <tr>
+                <td style="padding:0 28px 26px;">
+                  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;color:#1e3a8a;font-size:14px;line-height:1.5;">
+                    Revisar la documentacion asociada y actualizar el estado desde la App de Tracking Laboral.
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:16px 28px;text-align:center;color:#64748b;font-size:12px;">
+                  ServiFood - Alertas automaticas de vencimientos
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  return { subject, text, html };
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -52,25 +154,7 @@ serve(async (req) => {
 
   const sent: string[] = [];
   for (const alert of alerts || []) {
-    const subject = `Vencimiento ${levelLabel(alert.alert_level)}: ${alert.custom_document_name || alert.document_type}`;
-    const owner = alert.vehicle_label || alert.driver_label || 'Sin asociado';
-    const text = [
-      `Tipo de documento: ${alert.custom_document_name || alert.document_type}`,
-      `Asociado: ${owner}`,
-      `Fecha de vencimiento: ${alert.expires_at}`,
-      `Dias restantes: ${alert.days_remaining}`,
-      `Nivel de alerta: ${alert.alert_level}`,
-      alert.observations ? `Observaciones: ${alert.observations}` : null,
-    ].filter(Boolean).join('\n');
-    const html = `<div style="font-family:Arial,sans-serif;color:#111827">
-      <h2 style="margin:0 0 12px">Alerta de vencimiento</h2>
-      <p><strong>Tipo:</strong> ${escapeHtml(alert.custom_document_name || alert.document_type)}</p>
-      <p><strong>Asociado:</strong> ${escapeHtml(owner)}</p>
-      <p><strong>Vence:</strong> ${escapeHtml(alert.expires_at)}</p>
-      <p><strong>Dias restantes:</strong> ${escapeHtml(alert.days_remaining)}</p>
-      <p><strong>Nivel:</strong> ${escapeHtml(alert.alert_level)}</p>
-      ${alert.observations ? `<p><strong>Observaciones:</strong> ${escapeHtml(alert.observations)}</p>` : ''}
-    </div>`;
+    const { subject, text, html } = buildAlertEmail(alert);
 
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
