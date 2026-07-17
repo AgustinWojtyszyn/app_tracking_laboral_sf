@@ -7,6 +7,10 @@ export const VEHICLE_MILEAGE_MAX_DIGITS = 9;
 export const VEHICLE_MILEAGE_MAX_VALUE = 999999999;
 export const FUEL_AMOUNT_MAX_VALUE = 999999999.99;
 export const VEHICLE_MAINTENANCE_TYPES = ['preventivo', 'correctivo'];
+export const VEHICLE_MAINTENANCE_PRIORITIES = ['baja', 'media', 'alta'];
+export const VEHICLE_MAINTENANCE_REQUEST_STATUSES = ['pendiente', 'en_revision', 'programado', 'realizado', 'cancelado'];
+export const VEHICLE_DOCUMENT_TYPES = ['seguro', 'rto', 'licencia', 'otro'];
+export const VEHICLE_DOCUMENT_STATUSES = ['vigente', 'proximo_a_vencer', 'vencido'];
 export const EQUIPMENT_RECORD_TARGET_TYPES = ['vehicle', 'plant_asset'];
 export const EQUIPMENT_INSPECTION_TYPES = ['preventiva', 'predictiva', 'calibracion'];
 export const PLANT_STATUS = ['activo', 'inactivo', 'mantenimiento', 'requiere_revision'];
@@ -49,6 +53,80 @@ const normalizeDecimal = (value) => {
   const rawValue = String(value).trim().replace(',', '.');
   if (!/^\d+(\.\d{1,2})?$/.test(rawValue)) return NaN;
   return Number(rawValue);
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isValidUuid = (value) => UUID_PATTERN.test(String(value || ''));
+
+const isValidDateInput = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
+  const parsed = new Date(`${value}T00:00:00`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+const isValidTimeInput = (value) => {
+  if (value === null || value === undefined || value === '') return true;
+  return /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(String(value));
+};
+
+const vehicleFuelLoadSelect = `
+  *,
+  vehicle:vehicles!vehicle_fuel_loads_vehicle_id_fkey (
+    id,
+    license_plate,
+    name,
+    brand,
+    model,
+    assigned_driver_profile_id,
+    assigned_driver_profile:drivers!vehicles_assigned_driver_profile_id_fkey(id, name, user_id)
+  )
+`;
+
+const fuelEventTimestamp = (load) => {
+  const parsed = new Date(`${load.load_date || ''}T${load.estimated_time || '00:00:00'}`);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+};
+
+const withFuelMetrics = (loads = []) => {
+  const byVehicle = new Map();
+  [...loads]
+    .sort((a, b) => fuelEventTimestamp(a) - fuelEventTimestamp(b))
+    .forEach((load) => {
+      const vehicleLoads = byVehicle.get(load.vehicle_id) || [];
+      const previous = [...vehicleLoads].reverse().find((item) => (
+        item.mileage !== null
+        && item.mileage !== undefined
+        && Number(load.mileage) > Number(item.mileage)
+      ));
+      let metrics = {
+        previous_mileage: null,
+        kilometers_since_previous: null,
+        consumption_liters_per_100km: null,
+        cost_per_km: null,
+        has_consumption_metrics: false,
+      };
+
+      if (previous && load.mileage !== null && load.mileage !== undefined) {
+        const kilometers = Number(load.mileage) - Number(previous.mileage);
+        const liters = Number(load.liters);
+        const price = Number(load.price_ars);
+        if (Number.isFinite(kilometers) && kilometers > 0 && Number.isFinite(liters) && Number.isFinite(price)) {
+          metrics = {
+            previous_mileage: Number(previous.mileage),
+            kilometers_since_previous: kilometers,
+            consumption_liters_per_100km: (liters / kilometers) * 100,
+            cost_per_km: price / kilometers,
+            has_consumption_metrics: true,
+          };
+        }
+      }
+
+      Object.assign(load, metrics);
+      vehicleLoads.push(load);
+      byVehicle.set(load.vehicle_id, vehicleLoads);
+    });
+
+  return loads;
 };
 
 const mapSupabaseError = (error, fallback) => {
@@ -289,12 +367,12 @@ export const equipmentLogService = {
     try {
       const { data, error } = await supabase
         .from('vehicle_fuel_loads')
-        .select('*, vehicle:vehicle_id(id, license_plate, name, brand, model)')
+        .select(vehicleFuelLoadSelect)
         .order('load_date', { ascending: false })
         .order('estimated_time', { ascending: false });
 
       if (error) throw error;
-      return { success: true, data: data || [] };
+      return { success: true, data: withFuelMetrics(data || []) };
     } catch (error) {
       const emptyResult = emptyListIfUnavailable(error);
       if (emptyResult) return emptyResult;
@@ -325,8 +403,9 @@ export const equipmentLogService = {
       notes: notes?.trim() || null,
     };
 
-    if (!vehicleId) return { success: false, error: 'Seleccioná un vehículo.' };
-    if (!loadDate) return { success: false, error: 'La fecha de carga es obligatoria.' };
+    if (!isValidUuid(vehicleId)) return { success: false, error: 'Seleccioná un vehículo válido.' };
+    if (!loadDate || !isValidDateInput(loadDate)) return { success: false, error: 'La fecha de carga debe ser válida.' };
+    if (!isValidTimeInput(payload.estimated_time)) return { success: false, error: 'La hora estimada debe ser válida.' };
     if (!Number.isFinite(payload.price_ars) || payload.price_ars <= 0 || payload.price_ars > FUEL_AMOUNT_MAX_VALUE) {
       return { success: false, error: 'El precio debe ser un importe válido en pesos.' };
     }
@@ -341,21 +420,11 @@ export const equipmentLogService = {
     }
 
     try {
-      const selectQuery = `
-        *,
-        vehicle:vehicles!vehicle_fuel_loads_vehicle_id_fkey (
-          id,
-          license_plate,
-          name,
-          brand,
-          model
-        )
-      `;
       const request = fuelLoad.id
         ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
         : supabase.from('vehicle_fuel_loads').insert(payload);
 
-      const { data, error } = await request.select(selectQuery).single();
+      const { data, error } = await request.select(vehicleFuelLoadSelect).single();
 
       if (error) {
         console.error('Error al crear carga de combustible', {
@@ -714,6 +783,181 @@ export const equipmentLogService = {
       return { success: true, message: 'Revisión eliminada.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar la revisión.') };
+    }
+  },
+
+  async getVehicleRoutes() {
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_daily_routes')
+        .select('*, vehicle:vehicles!vehicle_daily_routes_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_daily_routes_driver_id_fkey(id, name, user_id)')
+        .order('route_date', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar recorridos.') };
+    }
+  },
+
+  async saveVehicleRoute(route) {
+    if (!isValidUuid(route.vehicle_id)) return { success: false, error: 'Seleccioná un vehículo válido.' };
+    if (!isValidUuid(route.driver_id)) return { success: false, error: 'Seleccioná un chofer válido.' };
+    if (!isValidDateInput(route.route_date)) return { success: false, error: 'La fecha del recorrido debe ser válida.' };
+
+    const mileageStart = normalizeMileage(route.mileage_start);
+    const mileageEnd = normalizeMileage(route.mileage_end);
+    if (Number.isNaN(mileageStart) || Number.isNaN(mileageEnd) || mileageStart === null || mileageEnd === null) {
+      return { success: false, error: `Los kilometrajes deben ser numéricos y de hasta ${VEHICLE_MILEAGE_MAX_DIGITS} dígitos.` };
+    }
+    if (mileageStart < 0 || mileageEnd < 0) return { success: false, error: 'Los kilometrajes no pueden ser negativos.' };
+    if (mileageEnd < mileageStart) return { success: false, error: 'El kilometraje final no puede ser menor que el inicial.' };
+
+    const visitedPlaces = Array.isArray(route.visited_places)
+      ? route.visited_places.map((place) => String(place || '').trim()).filter(Boolean)
+      : [];
+    if (visitedPlaces.length === 0) return { success: false, error: 'Seleccioná al menos una empresa o lugar visitado.' };
+
+    const payload = {
+      vehicle_id: route.vehicle_id,
+      driver_id: route.driver_id,
+      route_date: route.route_date,
+      mileage_start: mileageStart,
+      mileage_end: mileageEnd,
+      visited_places: visitedPlaces,
+      observations: route.observations?.trim() || null,
+    };
+
+    try {
+      const request = route.id
+        ? supabase.from('vehicle_daily_routes').update(payload).eq('id', route.id)
+        : supabase.from('vehicle_daily_routes').insert([payload]);
+      const { data, error } = await request
+        .select('*, vehicle:vehicles!vehicle_daily_routes_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_daily_routes_driver_id_fkey(id, name, user_id)')
+        .single();
+      if (error) throw error;
+      return { success: true, data, message: route.id ? 'Recorrido actualizado.' : 'Recorrido registrado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar el recorrido.') };
+    }
+  },
+
+  async deleteVehicleRoute(id) {
+    try {
+      const { error } = await supabase.from('vehicle_daily_routes').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Recorrido eliminado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el recorrido.') };
+    }
+  },
+
+  async getMaintenanceRequests() {
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_maintenance_requests')
+        .select('*, vehicle:vehicles!vehicle_maintenance_requests_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_maintenance_requests_driver_id_fkey(id, name, user_id)')
+        .order('request_date', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar avisos de mantenimiento.') };
+    }
+  },
+
+  async saveMaintenanceRequest(request) {
+    if (!isValidUuid(request.vehicle_id)) return { success: false, error: 'Seleccioná un vehículo válido.' };
+    if (!isValidUuid(request.driver_id)) return { success: false, error: 'Seleccioná un chofer válido.' };
+    if (!isValidDateInput(request.request_date)) return { success: false, error: 'La fecha debe ser válida.' };
+    if (!request.issue_type?.trim()) return { success: false, error: 'Indicá el tipo de mantenimiento o problema.' };
+    if (!request.description?.trim()) return { success: false, error: 'La descripción del problema es obligatoria.' };
+    if (!VEHICLE_MAINTENANCE_PRIORITIES.includes(request.priority)) return { success: false, error: 'Seleccioná una prioridad válida.' };
+    if (!VEHICLE_MAINTENANCE_REQUEST_STATUSES.includes(request.status)) return { success: false, error: 'Seleccioná un estado válido.' };
+
+    const mileage = normalizeMileage(request.current_mileage);
+    if (Number.isNaN(mileage) || (mileage !== null && mileage < 0)) {
+      return { success: false, error: `El kilometraje debe ser numérico y de hasta ${VEHICLE_MILEAGE_MAX_DIGITS} dígitos.` };
+    }
+    if (request.resolved_at && !isValidDateInput(request.resolved_at)) {
+      return { success: false, error: 'La fecha de resolución debe ser válida.' };
+    }
+
+    const payload = {
+      vehicle_id: request.vehicle_id,
+      driver_id: request.driver_id,
+      request_date: request.request_date,
+      issue_type: request.issue_type.trim(),
+      description: request.description.trim(),
+      current_mileage: mileage,
+      priority: request.priority,
+      status: request.status,
+      admin_notes: request.admin_notes?.trim() || null,
+      resolved_at: request.resolved_at || null,
+    };
+
+    try {
+      const dbRequest = request.id
+        ? supabase.from('vehicle_maintenance_requests').update(payload).eq('id', request.id)
+        : supabase.from('vehicle_maintenance_requests').insert([payload]);
+      const { data, error } = await dbRequest
+        .select('*, vehicle:vehicles!vehicle_maintenance_requests_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_maintenance_requests_driver_id_fkey(id, name, user_id)')
+        .single();
+      if (error) throw error;
+      return { success: true, data, message: request.id ? 'Aviso de mantenimiento actualizado.' : 'Aviso de mantenimiento registrado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar el aviso de mantenimiento.') };
+    }
+  },
+
+  async getDocumentExpirations() {
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_document_expirations')
+        .select('*, vehicle:vehicles!vehicle_document_expirations_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_document_expirations_driver_id_fkey(id, name, user_id)')
+        .order('expires_at', { ascending: true });
+      if (error) throw error;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      const emptyResult = emptyListIfUnavailable(error);
+      if (emptyResult) return emptyResult;
+      return { success: false, error: mapSupabaseError(error, 'Error al cargar vencimientos.') };
+    }
+  },
+
+  async saveDocumentExpiration(expiration) {
+    if (!VEHICLE_DOCUMENT_TYPES.includes(expiration.document_type)) return { success: false, error: 'Seleccioná un tipo de documento válido.' };
+    if (!expiration.vehicle_id && !expiration.driver_id) return { success: false, error: 'Asociá el vencimiento a un vehículo o chofer.' };
+    if (expiration.vehicle_id && !isValidUuid(expiration.vehicle_id)) return { success: false, error: 'Seleccioná un vehículo válido.' };
+    if (expiration.driver_id && !isValidUuid(expiration.driver_id)) return { success: false, error: 'Seleccioná un chofer válido.' };
+    if (!isValidDateInput(expiration.expires_at)) return { success: false, error: 'La fecha de vencimiento debe ser válida.' };
+    if (!VEHICLE_DOCUMENT_STATUSES.includes(expiration.status)) return { success: false, error: 'Seleccioná un estado válido.' };
+
+    const payload = {
+      document_type: expiration.document_type,
+      custom_document_name: expiration.custom_document_name?.trim() || null,
+      vehicle_id: expiration.vehicle_id || null,
+      driver_id: expiration.driver_id || null,
+      expires_at: expiration.expires_at,
+      observations: expiration.observations?.trim() || null,
+      status: expiration.status,
+    };
+
+    try {
+      const request = expiration.id
+        ? supabase.from('vehicle_document_expirations').update(payload).eq('id', expiration.id)
+        : supabase.from('vehicle_document_expirations').insert([payload]);
+      const { data, error } = await request
+        .select('*, vehicle:vehicles!vehicle_document_expirations_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_document_expirations_driver_id_fkey(id, name, user_id)')
+        .single();
+      if (error) throw error;
+      return { success: true, data, message: expiration.id ? 'Vencimiento actualizado.' : 'Vencimiento registrado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo guardar el vencimiento.') };
     }
   },
 };

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, Edit2, FileSpreadsheet, Fuel, Plus, Search, Trash2, UserCog, Wrench } from 'lucide-react';
+import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, ClipboardList, Edit2, FileSpreadsheet, Fuel, Plus, Search, ShieldCheck, Trash2, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { exportService } from '@/services/export.service';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
+import { JOB_LOCATIONS } from '@/constants/jobLocations';
 import {
   buildEquipmentHistory,
   buildEquipmentTargetFromSelection,
@@ -28,7 +29,11 @@ import {
   PLANT_STATUS,
   VEHICLE_LICENSE_PLATE_MAX_LENGTH,
   VEHICLE_MAINTENANCE_TYPES,
+  VEHICLE_MAINTENANCE_PRIORITIES,
+  VEHICLE_MAINTENANCE_REQUEST_STATUSES,
   VEHICLE_MILEAGE_MAX_DIGITS,
+  VEHICLE_DOCUMENT_STATUSES,
+  VEHICLE_DOCUMENT_TYPES,
   VEHICLE_STATUS,
   VEHICLE_TYPES,
 } from '@/services/equipmentLog.service';
@@ -59,12 +64,50 @@ const maintenanceTypeDescriptions = {
   correctivo: 'Intervenciones realizadas para reparar una falla o problema detectado.',
 };
 
+const maintenancePriorityLabels = {
+  baja: 'Baja',
+  media: 'Media',
+  alta: 'Alta',
+};
+
+const maintenanceRequestStatusLabels = {
+  pendiente: 'Pendiente',
+  en_revision: 'En revisión',
+  programado: 'Programado',
+  realizado: 'Realizado',
+  cancelado: 'Cancelado',
+};
+
+const documentTypeLabels = {
+  seguro: 'Seguro',
+  rto: 'RTO / revisión técnica',
+  licencia: 'Licencia de conducir',
+  otro: 'Otro documento',
+};
+
+const documentStatusLabels = {
+  vigente: 'Vigente',
+  proximo_a_vencer: 'Próximo a vencer',
+  vencido: 'Vencido',
+};
+
 const statusClass = {
   activo: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-100',
   inactivo: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-200',
   mantenimiento: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100',
   fuera_servicio: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-200',
   requiere_revision: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-100',
+  baja: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-100',
+  media: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100',
+  alta: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-100',
+  pendiente: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100',
+  en_revision: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-100',
+  programado: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-100',
+  realizado: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-100',
+  cancelado: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-200',
+  vigente: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-100',
+  proximo_a_vencer: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100',
+  vencido: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-100',
 };
 
 const emptyVehicle = {
@@ -129,6 +172,39 @@ const emptyDailyOperation = () => ({
   observations: '',
 });
 
+const emptyVehicleRoute = () => ({
+  route_date: todayInputDate(),
+  vehicle_id: '',
+  driver_id: '',
+  mileage_start: '',
+  mileage_end: '',
+  visited_places: [],
+  observations: '',
+});
+
+const emptyMaintenanceRequest = () => ({
+  vehicle_id: '',
+  driver_id: '',
+  request_date: todayInputDate(),
+  issue_type: '',
+  description: '',
+  current_mileage: '',
+  priority: 'media',
+  status: 'pendiente',
+  admin_notes: '',
+  resolved_at: '',
+});
+
+const emptyDocumentExpiration = () => ({
+  document_type: 'seguro',
+  custom_document_name: '',
+  vehicle_id: '',
+  driver_id: '',
+  expires_at: '',
+  observations: '',
+  status: 'vigente',
+});
+
 const emptyIncident = () => ({
   target_type: 'vehicle',
   target_id: '',
@@ -186,6 +262,9 @@ const equipmentLabel = (record) => {
   }
   return 'Equipo no encontrado';
 };
+
+const vehicleLabel = (vehicle) => [vehicle?.license_plate, vehicle?.name || vehicle?.brand, vehicle?.model].filter(Boolean).join(' - ') || 'Vehículo no encontrado';
+const currentDriverId = (drivers, userId) => drivers.find((driver) => driver.user_id === userId)?.id || '';
 
 function Badge({ value, children }) {
   return (
@@ -500,10 +579,10 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
             <Field label="Fecha exacta *">
               <input className={inputClass} type="date" value={form.load_date} onChange={(e) => setValue('load_date', e.target.value)} required />
             </Field>
-            <Field label="Hora estimada *">
-              <input className={inputClass} type="time" value={form.estimated_time} onChange={(e) => setValue('estimated_time', e.target.value)} required />
+            <Field label="Hora estimada">
+              <input className={inputClass} type="time" value={form.estimated_time} onChange={(e) => setValue('estimated_time', e.target.value)} />
             </Field>
-            <Field label="Kilometraje *">
+            <Field label="Kilometraje">
               <input
                 className={inputClass}
                 type="text"
@@ -515,7 +594,6 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
                 onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
                 onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
                 disabled={!canEditMileage}
-                required
               />
             </Field>
           </div>
@@ -1074,13 +1152,263 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
   );
 }
 
+function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, defaultDriverId = '' }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyVehicleRoute());
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    setForm(route ? {
+      ...emptyVehicleRoute(),
+      ...route,
+      visited_places: Array.isArray(route.visited_places) ? route.visited_places : [],
+      mileage_start: route.mileage_start ?? '',
+      mileage_end: route.mileage_end ?? '',
+      observations: route.observations || '',
+    } : {
+      ...emptyVehicleRoute(),
+      vehicle_id: vehicles[0]?.id || '',
+      driver_id: defaultDriverId || drivers[0]?.id || '',
+    });
+  }, [defaultDriverId, drivers, open, route, vehicles]);
+
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const togglePlace = (place) => {
+    setFormError('');
+    setForm((prev) => {
+      const current = prev.visited_places || [];
+      return {
+        ...prev,
+        visited_places: current.includes(place)
+          ? current.filter((item) => item !== place)
+          : [...current, place],
+      };
+    });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    const result = await equipmentLogService.saveVehicleRoute(form);
+    setSaving(false);
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader><DialogTitle>{route ? 'Editar recorrido' : 'Registrar recorrido diario'}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 dark:border-red-400 dark:bg-red-950 dark:text-red-50"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{formError}</span></div>}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Fecha *"><input className={inputClass} type="date" value={form.route_date || ''} onChange={(e) => setValue('route_date', e.target.value)} required /></Field>
+            <Field label="Vehículo *">
+              <select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required>
+                <option value="">Seleccionar vehículo</option>
+                {vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}
+              </select>
+            </Field>
+            <Field label="Chofer *">
+              <select className={inputClass} value={form.driver_id} onChange={(e) => setValue('driver_id', e.target.value)} required>
+                <option value="">Seleccionar chofer</option>
+                {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>)}
+              </select>
+            </Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Kilometraje inicial *"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.mileage_start} onChange={(e) => setValue('mileage_start', mileageDigits(e.target.value))} required /></Field>
+            <Field label="Kilometraje final *"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.mileage_end} onChange={(e) => setValue('mileage_end', mileageDigits(e.target.value))} required /></Field>
+          </div>
+          <Field label="Empresas o lugares visitados *">
+            <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-slate-700">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {JOB_LOCATIONS.map((place) => (
+                  <label key={place} className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-slate-800">
+                    <input type="checkbox" checked={(form.visited_places || []).includes(place)} onChange={() => togglePlace(place)} />
+                    <span>{place}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {(form.visited_places || []).length > 0 && (
+              <p className="text-xs text-gray-500 dark:text-slate-400">Orden: {(form.visited_places || []).join(' -> ')}</p>
+            )}
+          </Field>
+          <Field label="Observaciones"><textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} /></Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">{saving ? 'Guardando...' : 'Guardar'}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onSaved, defaultDriverId = '', isAdmin = false }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyMaintenanceRequest());
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    setForm(request ? {
+      ...emptyMaintenanceRequest(),
+      ...request,
+      current_mileage: request.current_mileage ?? '',
+      admin_notes: request.admin_notes || '',
+      resolved_at: request.resolved_at || '',
+    } : {
+      ...emptyMaintenanceRequest(),
+      vehicle_id: vehicles[0]?.id || '',
+      driver_id: defaultDriverId || drivers[0]?.id || '',
+    });
+  }, [defaultDriverId, drivers, open, request, vehicles]);
+
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    const result = await equipmentLogService.saveMaintenanceRequest(form);
+    setSaving(false);
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader><DialogTitle>{request ? 'Editar aviso de mantenimiento' : 'Informar mantenimiento'}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 dark:border-red-400 dark:bg-red-950 dark:text-red-50"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{formError}</span></div>}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Vehículo *"><select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required><option value="">Seleccionar</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
+            <Field label="Chofer *"><select className={inputClass} value={form.driver_id} onChange={(e) => setValue('driver_id', e.target.value)} required><option value="">Seleccionar</option>{drivers.map((driver) => <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>)}</select></Field>
+            <Field label="Fecha *"><input className={inputClass} type="date" value={form.request_date || ''} onChange={(e) => setValue('request_date', e.target.value)} required /></Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Tipo de problema *"><input className={inputClass} value={form.issue_type || ''} onChange={(e) => setValue('issue_type', e.target.value)} required /></Field>
+            <Field label="Prioridad"><select className={inputClass} value={form.priority} onChange={(e) => setValue('priority', e.target.value)}>{VEHICLE_MAINTENANCE_PRIORITIES.map((priority) => <option key={priority} value={priority}>{maintenancePriorityLabels[priority]}</option>)}</select></Field>
+            <Field label="Kilometraje actual"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.current_mileage ?? ''} onChange={(e) => setValue('current_mileage', mileageDigits(e.target.value))} /></Field>
+          </div>
+          <Field label="Descripción libre *"><textarea className={`${inputClass} min-h-24`} value={form.description || ''} onChange={(e) => setValue('description', e.target.value)} required /></Field>
+          {isAdmin && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Estado"><select className={inputClass} value={form.status} onChange={(e) => setValue('status', e.target.value)}>{VEHICLE_MAINTENANCE_REQUEST_STATUSES.map((status) => <option key={status} value={status}>{maintenanceRequestStatusLabels[status]}</option>)}</select></Field>
+                <Field label="Fecha de resolución"><input className={inputClass} type="date" value={form.resolved_at || ''} onChange={(e) => setValue('resolved_at', e.target.value)} /></Field>
+              </div>
+              <Field label="Observaciones del administrador"><textarea className={`${inputClass} min-h-20`} value={form.admin_notes || ''} onChange={(e) => setValue('admin_notes', e.target.value)} /></Field>
+            </>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">{saving ? 'Guardando...' : 'Guardar'}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, onSaved }) {
+  const { addToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyDocumentExpiration());
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setFormError('');
+    setForm(expiration ? { ...emptyDocumentExpiration(), ...expiration, custom_document_name: expiration.custom_document_name || '', observations: expiration.observations || '' } : emptyDocumentExpiration());
+  }, [expiration, open]);
+
+  const setValue = (key, value) => {
+    setFormError('');
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    const result = await equipmentLogService.saveDocumentExpiration(form);
+    setSaving(false);
+    if (result.success) {
+      addToast(result.message, 'success');
+      setOpen(false);
+      onSaved();
+    } else {
+      setFormError(result.error);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
+        <DialogHeader><DialogTitle>{expiration ? 'Editar vencimiento' : 'Registrar vencimiento'}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          {formError && <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 dark:border-red-400 dark:bg-red-950 dark:text-red-50"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{formError}</span></div>}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Tipo *"><select className={inputClass} value={form.document_type} onChange={(e) => setValue('document_type', e.target.value)}>{VEHICLE_DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{documentTypeLabels[type]}</option>)}</select></Field>
+            <Field label="Fecha de vencimiento *"><input className={inputClass} type="date" value={form.expires_at || ''} onChange={(e) => setValue('expires_at', e.target.value)} required /></Field>
+            <Field label="Estado"><select className={inputClass} value={form.status} onChange={(e) => setValue('status', e.target.value)}>{VEHICLE_DOCUMENT_STATUSES.map((status) => <option key={status} value={status}>{documentStatusLabels[status]}</option>)}</select></Field>
+          </div>
+          {form.document_type === 'otro' && <Field label="Nombre del documento"><input className={inputClass} value={form.custom_document_name || ''} onChange={(e) => setValue('custom_document_name', e.target.value)} /></Field>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Vehículo asociado"><select className={inputClass} value={form.vehicle_id || ''} onChange={(e) => setValue('vehicle_id', e.target.value)}><option value="">Sin vehículo</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
+            <Field label="Chofer asociado"><select className={inputClass} value={form.driver_id || ''} onChange={(e) => setValue('driver_id', e.target.value)}><option value="">Sin chofer</option>{drivers.map((driver) => <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>)}</select></Field>
+          </div>
+          <Field label="Observaciones"><textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} /></Field>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">{saving ? 'Guardando...' : 'Guardar'}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function EquipmentLogPage() {
   const { addToast } = useToast();
-  const { isAdmin, userRole } = useAuth();
-  const [activeTab, setActiveTab] = useState('vehicles');
+  const { isAdmin, userRole, user } = useAuth();
+  const [activeTab, setActiveTab] = useState('summary');
   const [vehicles, setVehicles] = useState([]);
   const [fuelLoads, setFuelLoads] = useState([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
+  const [vehicleRoutes, setVehicleRoutes] = useState([]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState([]);
+  const [documentExpirations, setDocumentExpirations] = useState([]);
   const [dailyOperations, setDailyOperations] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [maintenanceChecks, setMaintenanceChecks] = useState([]);
@@ -1095,8 +1423,8 @@ export default function EquipmentLogPage() {
 
   const isDriver = userRole === 'chofer';
   const canManageMasterData = isAdmin;
-  const canEditFuelLoads = isAdmin || isDriver;
-  const canCreateFuelLoads = isAdmin || isDriver;
+  const canEditFuelLoads = isAdmin;
+  const canCreateFuelLoads = isAdmin;
   const canDeleteFuelLoads = isAdmin;
   const canEditMaintenanceLogs = isAdmin || isDriver;
   const canCreateMaintenanceLogs = isAdmin || isDriver;
@@ -1104,17 +1432,24 @@ export default function EquipmentLogPage() {
   const canEditIncidents = isAdmin || isDriver;
   const canDeleteIncidents = isAdmin;
   const canEditOperationalRecords = isAdmin;
-  const fullDataTabs = ['vehicles', 'plant', 'operation', 'incidents', 'checks'];
+  const canEditRoutes = isAdmin || isDriver;
+  const canDeleteRoutes = isAdmin;
+  const canEditMaintenanceRequests = isAdmin || isDriver;
+  const canEditDocumentExpirations = isAdmin;
+  const activeDriverId = currentDriverId(drivers, user?.id);
+  const fullDataTabs = ['summary', 'vehicles', 'routes', 'fuel', 'maintenance', 'expirations', 'driverHistory', 'plant', 'operation', 'incidents', 'checks'];
   const equipmentItems = useMemo(() => normalizeEquipmentItems({ vehicles, plantAssets }), [vehicles, plantAssets]);
   const selectedEquipment = equipmentItems.find((equipment) => equipment.key === selectedEquipmentKey) || null;
   const selectedEquipmentHistory = useMemo(() => buildEquipmentHistory({
     equipment: selectedEquipment,
     fuelLoads,
     maintenanceLogs,
+    vehicleRoutes,
+    maintenanceRequests,
     dailyOperations,
     incidents,
     maintenanceChecks,
-  }), [dailyOperations, fuelLoads, incidents, maintenanceChecks, maintenanceLogs, selectedEquipment]);
+  }), [dailyOperations, fuelLoads, incidents, maintenanceChecks, maintenanceLogs, maintenanceRequests, selectedEquipment, vehicleRoutes]);
 
   const loadUsers = async () => {
     if (!canManageMasterData) return;
@@ -1135,6 +1470,9 @@ export default function EquipmentLogPage() {
         equipmentLogService.getVehicles({ search }),
         equipmentLogService.getFuelLoads(),
         equipmentLogService.getMaintenanceLogs(),
+        equipmentLogService.getVehicleRoutes(),
+        equipmentLogService.getMaintenanceRequests(),
+        equipmentLogService.getDocumentExpirations(),
         equipmentLogService.getPlantAssets({ search: activeTab === 'plant' ? search : '' }),
         equipmentLogService.getDrivers(),
         equipmentLogService.getDailyOperations(),
@@ -1147,7 +1485,7 @@ export default function EquipmentLogPage() {
     setLoading(false);
 
     if (fullDataTabs.includes(activeTab)) {
-      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, plantAssetsResult, driversResult, dailyOperationsResult, incidentsResult, maintenanceChecksResult] = result;
+      const [vehiclesResult, fuelLoadsResult, maintenanceLogsResult, vehicleRoutesResult, maintenanceRequestsResult, documentExpirationsResult, plantAssetsResult, driversResult, dailyOperationsResult, incidentsResult, maintenanceChecksResult] = result;
       if (vehiclesResult.success) setVehicles(vehiclesResult.data || []);
       else addToast(vehiclesResult.error, 'error');
 
@@ -1156,6 +1494,15 @@ export default function EquipmentLogPage() {
 
       if (maintenanceLogsResult.success) setMaintenanceLogs(maintenanceLogsResult.data || []);
       else addToast(maintenanceLogsResult.error, 'error');
+
+      if (vehicleRoutesResult.success) setVehicleRoutes(vehicleRoutesResult.data || []);
+      else addToast(vehicleRoutesResult.error, 'error');
+
+      if (maintenanceRequestsResult.success) setMaintenanceRequests(maintenanceRequestsResult.data || []);
+      else addToast(maintenanceRequestsResult.error, 'error');
+
+      if (documentExpirationsResult.success) setDocumentExpirations(documentExpirationsResult.data || []);
+      else addToast(documentExpirationsResult.error, 'error');
 
       if (plantAssetsResult.success) setPlantAssets(plantAssetsResult.data || []);
       else addToast(plantAssetsResult.error, 'error');
@@ -1219,7 +1566,13 @@ export default function EquipmentLogPage() {
   };
 
   const tabs = useMemo(() => ([
+    { key: 'summary', label: 'Resumen', icon: ClipboardList },
     { key: 'vehicles', label: 'Vehículos', icon: Car },
+    { key: 'routes', label: 'Recorridos', icon: CalendarClock },
+    { key: 'fuel', label: 'Combustible', icon: Fuel },
+    { key: 'maintenance', label: 'Mantenimientos', icon: Wrench },
+    { key: 'expirations', label: 'Vencimientos', icon: ShieldCheck },
+    { key: 'driverHistory', label: 'Historial choferes', icon: UserCog },
     { key: 'drivers', label: 'Choferes', icon: UserCog },
     { key: 'plant', label: 'Planta', icon: Building2 },
     { key: 'operation', label: 'Operación diaria', icon: CalendarClock },
@@ -1268,6 +1621,12 @@ export default function EquipmentLogPage() {
     if (result.success) loadCurrentTab();
   };
 
+  const handleDeleteVehicleRoute = async (id) => {
+    const result = await equipmentLogService.deleteVehicleRoute(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
   const handleDeleteIncident = async (id) => {
     const result = await equipmentLogService.deleteIncident(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
@@ -1290,6 +1649,9 @@ export default function EquipmentLogPage() {
       dailyOperationsResult,
       incidentsResult,
       maintenanceChecksResult,
+      vehicleRoutesResult,
+      maintenanceRequestsResult,
+      documentExpirationsResult,
     ] = await Promise.all([
       equipmentLogService.getVehicles(),
       equipmentLogService.getFuelLoads(),
@@ -1298,6 +1660,9 @@ export default function EquipmentLogPage() {
       equipmentLogService.getDailyOperations(),
       equipmentLogService.getIncidents(),
       equipmentLogService.getMaintenanceChecks(),
+      equipmentLogService.getVehicleRoutes(),
+      equipmentLogService.getMaintenanceRequests(),
+      equipmentLogService.getDocumentExpirations(),
     ]);
     setExporting(false);
 
@@ -1309,6 +1674,9 @@ export default function EquipmentLogPage() {
       dailyOperationsResult,
       incidentsResult,
       maintenanceChecksResult,
+      vehicleRoutesResult,
+      maintenanceRequestsResult,
+      documentExpirationsResult,
     ];
     const failed = results.find((result) => !result.success);
     if (failed) {
@@ -1324,6 +1692,9 @@ export default function EquipmentLogPage() {
       dailyOperations: dailyOperationsResult.data || [],
       incidents: incidentsResult.data || [],
       maintenanceChecks: maintenanceChecksResult.data || [],
+      vehicleRoutes: vehicleRoutesResult.data || [],
+      maintenanceRequests: maintenanceRequestsResult.data || [],
+      documentExpirations: documentExpirationsResult.data || [],
     }, 'libro_registro_equipo.xlsx', 'todo');
     addToast('Excel exportado correctamente.', 'success');
   };
@@ -1333,6 +1704,37 @@ export default function EquipmentLogPage() {
         drivers={drivers}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vehículo</Button>}
+      />
+    ) : canEditRoutes && activeTab === 'routes' ? (
+      <VehicleRouteFormDialog
+        vehicles={vehicles}
+        drivers={drivers}
+        defaultDriverId={activeDriverId}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo recorrido</Button>}
+      />
+    ) : canCreateFuelLoads && activeTab === 'fuel' ? (
+      <FuelLoadFormDialog
+        vehicles={vehicles}
+        onSaved={loadCurrentTab}
+        canEditMileage
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nueva carga</Button>}
+      />
+    ) : canEditMaintenanceRequests && activeTab === 'maintenance' ? (
+      <MaintenanceRequestFormDialog
+        vehicles={vehicles}
+        drivers={drivers}
+        defaultDriverId={activeDriverId}
+        isAdmin={isAdmin}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Informar mantenimiento</Button>}
+      />
+    ) : canEditDocumentExpirations && activeTab === 'expirations' ? (
+      <DocumentExpirationFormDialog
+        vehicles={vehicles}
+        drivers={drivers}
+        onSaved={loadCurrentTab}
+        trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vencimiento</Button>}
       />
     ) : canManageMasterData && activeTab === 'drivers' ? (
       <DriverFormDialog
@@ -1395,7 +1797,7 @@ export default function EquipmentLogPage() {
       </div>
 
       {(vehicles.length > 0 || maintenanceLogs.length > 0 || plantAssets.length > 0) && (
-        <EquipmentSummaryCards vehicles={vehicles} maintenanceLogs={maintenanceLogs} plantAssets={plantAssets} />
+        <EquipmentSummaryCards vehicles={vehicles} maintenanceLogs={maintenanceLogs} plantAssets={plantAssets} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} />
       )}
 
       <EquipmentHistoryPanel
@@ -1437,6 +1839,12 @@ export default function EquipmentLogPage() {
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">
                 {{
                   vehicles: 'Vehículos',
+                  summary: 'Resumen',
+                  routes: 'Recorridos',
+                  fuel: 'Combustible',
+                  maintenance: 'Mantenimientos',
+                  expirations: 'Vencimientos',
+                  driverHistory: 'Historial de choferes',
                   drivers: 'Choferes',
                   plant: 'Planta',
                   operation: 'Operación diaria',
@@ -1447,6 +1855,12 @@ export default function EquipmentLogPage() {
               <p className="text-sm text-gray-500 dark:text-slate-300">
                 {{
                   vehicles: 'Fichas, historial de combustible, mantenimiento y vencimientos.',
+                  summary: 'Indicadores operativos del módulo de vehículos.',
+                  routes: 'Recorridos diarios con kilometraje, chofer y empresas visitadas.',
+                  fuel: 'Cargas de combustible, consumo estimado y costo por kilómetro.',
+                  maintenance: 'Avisos de mantenimiento informados por choferes y seguimiento administrativo.',
+                  expirations: 'Seguros, RTO, licencias y otros documentos con alertas.',
+                  driverHistory: 'Actividad histórica por chofer aunque sea desactivado.',
                   drivers: 'Padrón operativo de choferes asignables a vehículos.',
                   plant: 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.',
                   operation: 'Uso diario por equipo, fecha, turno y operador.',
@@ -1468,6 +1882,14 @@ export default function EquipmentLogPage() {
 
           {loading ? (
             <div className="p-10"><LoadingSpinner /></div>
+          ) : activeTab === 'summary' ? (
+            <VehicleModuleSummary
+              vehicles={vehicles}
+              vehicleRoutes={vehicleRoutes}
+              fuelLoads={fuelLoads}
+              maintenanceRequests={maintenanceRequests}
+              documentExpirations={documentExpirations}
+            />
           ) : activeTab === 'vehicles' ? (
             <VehiclesList
               vehicles={vehicles}
@@ -1489,6 +1911,60 @@ export default function EquipmentLogPage() {
               onDeactivate={handleArchiveVehicle}
               onDeleteFuelLoad={handleDeleteFuelLoad}
               onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
+            />
+          ) : activeTab === 'routes' ? (
+            <VehicleRoutesList
+              routes={vehicleRoutes}
+              vehicles={vehicles}
+              drivers={drivers}
+              search={search}
+              canEdit={canEditRoutes}
+              canDelete={canDeleteRoutes}
+              defaultDriverId={activeDriverId}
+              onSaved={loadCurrentTab}
+              onDelete={handleDeleteVehicleRoute}
+            />
+          ) : activeTab === 'fuel' ? (
+            <FuelLoadsSection
+              vehicles={vehicles}
+              selectedVehicle={{ license_plate: 'todos los vehículos' }}
+              fuelLoads={fuelLoads}
+              canCreate={canCreateFuelLoads}
+              canEdit={canEditFuelLoads}
+              canDelete={canDeleteFuelLoads}
+              canEditMileage={isAdmin}
+              onSaved={loadCurrentTab}
+              onDelete={handleDeleteFuelLoad}
+            />
+          ) : activeTab === 'maintenance' ? (
+            <MaintenanceRequestsList
+              requests={maintenanceRequests}
+              vehicles={vehicles}
+              drivers={drivers}
+              search={search}
+              canEdit={canEditMaintenanceRequests}
+              isAdmin={isAdmin}
+              defaultDriverId={activeDriverId}
+              onSaved={loadCurrentTab}
+            />
+          ) : activeTab === 'expirations' ? (
+            <DocumentExpirationsList
+              expirations={documentExpirations}
+              vehicles={vehicles}
+              drivers={drivers}
+              search={search}
+              canEdit={canEditDocumentExpirations}
+              onSaved={loadCurrentTab}
+            />
+          ) : activeTab === 'driverHistory' ? (
+            <DriverHistoryList
+              drivers={drivers}
+              routes={vehicleRoutes}
+              maintenanceRequests={maintenanceRequests}
+              fuelLoads={fuelLoads}
+              expirations={documentExpirations}
+              vehicles={vehicles}
+              search={search}
             />
           ) : activeTab === 'drivers' ? (
             <DriversList drivers={drivers} search={search} canEdit={canManageMasterData} onSaved={loadCurrentTab} onArchive={handleArchiveDriver} />
@@ -1544,27 +2020,47 @@ const isDateWithinDays = (value, days) => {
   return target >= today && target <= limit;
 };
 
-function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets }) {
+const daysUntil = (value) => {
+  if (!value) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
+};
+
+const documentVisualStatus = (expiration) => {
+  const remaining = daysUntil(expiration.expires_at);
+  if (remaining === null) return expiration.status || 'vigente';
+  if (remaining < 0) return 'vencido';
+  if (remaining <= 30) return 'proximo_a_vencer';
+  return expiration.status || 'vigente';
+};
+
+function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicleRoutes = [], fuelLoads = [], maintenanceRequests = [], documentExpirations = [] }) {
   const activeVehicles = vehicles.filter((vehicle) => vehicle.status === 'activo').length;
-  const upcomingExpirations = vehicles.reduce((count, vehicle) => (
-    count
-    + ['registration_expires_at', 'insurance_expires_at', 'inspection_expires_at']
-      .filter((key) => isDateWithinDays(vehicle[key], 30)).length
-  ), 0);
-  const pendingMaintenance = maintenanceLogs.filter((log) => isDateWithinDays(log.next_control_date, 30)).length;
+  const today = todayInputDate();
+  const todayRoutes = vehicleRoutes.filter((route) => route.route_date === today);
+  const todayKm = todayRoutes.reduce((total, route) => total + Number(route.kilometers_traveled || 0), 0);
+  const upcomingExpirations = documentExpirations.filter((expiration) => documentVisualStatus(expiration) === 'proximo_a_vencer').length;
+  const expiredDocuments = documentExpirations.filter((expiration) => documentVisualStatus(expiration) === 'vencido').length;
+  const pendingMaintenance = maintenanceRequests.filter((request) => !['realizado', 'cancelado'].includes(request.status)).length + maintenanceLogs.filter((log) => isDateWithinDays(log.next_control_date, 30)).length;
+  const highPriorityMaintenance = maintenanceRequests.filter((request) => request.priority === 'alta' && !['realizado', 'cancelado'].includes(request.status)).length;
   const plantNews = plantAssets.filter((asset) => (
     ['mantenimiento', 'requiere_revision'].includes(asset.status) || Boolean(asset.notes?.trim())
   )).length;
 
   const cards = [
     { label: 'Vehículos activos', value: activeVehicles, detail: vehicles.length ? `${vehicles.length} en registro` : 'Sin vehículos cargados', icon: Car },
-    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: 'Próximos 30 días', icon: AlertCircle },
-    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: 'Con próximo control cercano', icon: Wrench },
+    { label: 'Recorridos del día', value: todayRoutes.length, detail: `${formatNumber(todayKm, 0)} km recorridos`, icon: CalendarClock },
+    { label: 'Cargas recientes', value: fuelLoads.slice(0, 5).length, detail: 'Últimos registros de combustible', icon: Fuel },
+    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: `${highPriorityMaintenance} de prioridad alta`, icon: Wrench },
+    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: `${expiredDocuments} vencidos`, icon: AlertCircle },
     { label: 'Novedades de planta', value: plantNews, detail: 'Revisión, mantenimiento u observaciones', icon: Building2 },
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -1582,6 +2078,34 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceRequests, documentExpirations }) {
+  return (
+    <div className="space-y-4 p-4">
+      <EquipmentSummaryCards vehicles={vehicles} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} maintenanceLogs={[]} plantAssets={[]} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <SummaryMiniList title="Cargas recientes" items={fuelLoads.slice(0, 5)} renderItem={(load) => `${formatDate(load.load_date)} - ${vehicleLabel(load.vehicle)} - ${formatNumber(load.liters, 2)} L`} />
+        <SummaryMiniList title="Mantenimientos pendientes" items={maintenanceRequests.filter((request) => !['realizado', 'cancelado'].includes(request.status)).slice(0, 5)} renderItem={(request) => `${maintenancePriorityLabels[request.priority]} - ${vehicleLabel(request.vehicle)} - ${request.issue_type}`} />
+        <SummaryMiniList title="Vencimientos" items={documentExpirations.filter((expiration) => ['proximo_a_vencer', 'vencido'].includes(documentVisualStatus(expiration))).slice(0, 5)} renderItem={(expiration) => `${documentTypeLabels[expiration.document_type]} - ${formatDate(expiration.expires_at)} - ${documentStatusLabels[documentVisualStatus(expiration)]}`} />
+      </div>
+    </div>
+  );
+}
+
+function SummaryMiniList({ title, items, renderItem }) {
+  return (
+    <div className="rounded-lg border border-gray-100 p-4 dark:border-slate-800">
+      <h3 className="font-bold text-gray-900 dark:text-slate-50">{title}</h3>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-gray-500 dark:text-slate-300">Sin registros.</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm text-gray-700 dark:text-slate-200">
+          {items.map((item) => <li key={item.id} className="rounded-md bg-gray-50 px-3 py-2 dark:bg-slate-800">{renderItem(item)}</li>)}
+        </ul>
+      )}
     </div>
   );
 }
@@ -1861,10 +2385,14 @@ function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canCreate, can
             <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
               <tr>
                 <th className="px-5 py-3">Vehículo</th>
+                <th className="px-5 py-3">Chofer relacionado</th>
                 <th className="px-5 py-3">Fecha y hora</th>
                 <th className="px-5 py-3">Precio</th>
                 <th className="px-5 py-3">Litros</th>
                 <th className="px-5 py-3">Kilometraje</th>
+                <th className="px-5 py-3">Km desde anterior</th>
+                <th className="px-5 py-3">Consumo / 100 km</th>
+                <th className="px-5 py-3">Costo / km</th>
                 <th className="px-5 py-3">Observaciones</th>
                 {(canEdit || canDelete) && <th className="px-5 py-3 text-right">Acciones</th>}
               </tr>
@@ -1876,13 +2404,17 @@ function FuelLoadsSection({ vehicles, selectedVehicle, fuelLoads, canCreate, can
                     <p className="font-semibold text-gray-900 dark:text-slate-50">{load.vehicle?.license_plate || '-'}</p>
                     <p>{[load.vehicle?.name || load.vehicle?.brand, load.vehicle?.model].filter(Boolean).join(' ') || '-'}</p>
                   </td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.vehicle?.assigned_driver_profile?.name || '-'}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">
                     <p>{formatDate(load.load_date)}</p>
                     <p>{load.estimated_time?.slice(0, 5) || '-'}</p>
                   </td>
                   <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{formatCurrency(load.price_ars)}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{formatNumber(load.liters, 2)} L</td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.mileage}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.mileage ?? '-'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.has_consumption_metrics ? formatNumber(load.kilometers_since_previous, 0) : 'Sin datos suficientes'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.has_consumption_metrics ? `${formatNumber(load.consumption_liters_per_100km, 2)} L` : 'Sin datos suficientes'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.has_consumption_metrics ? formatCurrency(load.cost_per_km) : 'Sin datos suficientes'}</td>
                   <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{load.notes || '-'}</td>
                   {(canEdit || canDelete) && (
                     <td className="px-5 py-4">
@@ -2011,6 +2543,173 @@ function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, ca
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function VehicleRoutesList({ routes, vehicles, drivers, search, canEdit, canDelete, defaultDriverId, onSaved, onDelete }) {
+  const filtered = filterEquipmentRecords(routes, search);
+  return (
+    <EquipmentRecordTable
+      emptyTitle="No hay recorridos registrados."
+      emptyDetail="Cargá recorridos diarios con vehículo, chofer, kilometraje y lugares visitados."
+      headers={['Fecha', 'Vehículo', 'Chofer', 'Km inicial', 'Km final', 'Km recorridos', 'Lugares', 'Observaciones']}
+      records={filtered}
+      renderCells={(route) => [
+        formatDate(route.route_date),
+        vehicleLabel(route.vehicle),
+        driverLabel(route.driver),
+        route.mileage_start,
+        route.mileage_end,
+        route.kilometers_traveled,
+        (route.visited_places || []).join(' -> '),
+        route.observations || '-',
+      ]}
+      canEdit={canEdit}
+      canDelete={canDelete}
+      editDialog={(route) => (
+        <VehicleRouteFormDialog
+          route={route}
+          vehicles={vehicles}
+          drivers={drivers}
+          defaultDriverId={defaultDriverId}
+          onSaved={onSaved}
+          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+        />
+      )}
+      onDelete={onDelete}
+      deleteTitle="¿Eliminar recorrido?"
+    />
+  );
+}
+
+function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit, isAdmin, defaultDriverId, onSaved }) {
+  const filtered = filterEquipmentRecords(requests, search);
+  const unresolved = requests.filter((request) => !['realizado', 'cancelado'].includes(request.status));
+  const highPriority = unresolved.filter((request) => request.priority === 'alta').length;
+  const vehiclesWithOpen = new Set(unresolved.map((request) => request.vehicle_id).filter(Boolean)).size;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 p-4 sm:grid-cols-3">
+        <SummaryMiniList title="Pendientes" items={[{ id: 'pending', text: String(unresolved.length) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Prioridad alta" items={[{ id: 'high', text: String(highPriority) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Vehículos sin resolver" items={[{ id: 'vehicles', text: String(vehiclesWithOpen) }]} renderItem={(item) => item.text} />
+      </div>
+      <EquipmentRecordTable
+        emptyTitle="No hay avisos de mantenimiento."
+        emptyDetail="Los choferes pueden informar problemas o solicitudes con descripción libre."
+        headers={['Fecha', 'Vehículo', 'Chofer', 'Problema', 'Prioridad', 'Estado', 'Km', 'Descripción', 'Observaciones admin']}
+        records={filtered}
+        renderCells={(request) => [
+          formatDate(request.request_date),
+          vehicleLabel(request.vehicle),
+          driverLabel(request.driver),
+          request.issue_type,
+          <Badge value={request.priority}>{maintenancePriorityLabels[request.priority]}</Badge>,
+          <Badge value={request.status}>{maintenanceRequestStatusLabels[request.status]}</Badge>,
+          request.current_mileage ?? '-',
+          request.description,
+          request.admin_notes || '-',
+        ]}
+        canEdit={canEdit}
+        canDelete={false}
+        editDialog={(request) => (
+          <MaintenanceRequestFormDialog
+            request={request}
+            vehicles={vehicles}
+            drivers={drivers}
+            defaultDriverId={defaultDriverId}
+            isAdmin={isAdmin}
+            onSaved={onSaved}
+            trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+          />
+        )}
+        onDelete={() => {}}
+        deleteTitle=""
+      />
+    </div>
+  );
+}
+
+function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEdit, onSaved }) {
+  const filtered = filterEquipmentRecords(expirations, search);
+  return (
+    <EquipmentRecordTable
+      emptyTitle="No hay vencimientos registrados."
+      emptyDetail="Registrá seguros, RTO, licencias u otros documentos."
+      headers={['Documento', 'Asociado', 'Vence', 'Días', 'Estado', 'Última notificación', 'Observaciones']}
+      records={filtered}
+      renderCells={(expiration) => {
+        const status = documentVisualStatus(expiration);
+        const remaining = daysUntil(expiration.expires_at);
+        return [
+          expiration.custom_document_name || documentTypeLabels[expiration.document_type] || expiration.document_type,
+          expiration.vehicle ? vehicleLabel(expiration.vehicle) : driverLabel(expiration.driver),
+          formatDate(expiration.expires_at),
+          remaining === null ? '-' : remaining,
+          <Badge value={status}>{documentStatusLabels[status]}</Badge>,
+          expiration.last_notified_at ? formatDate(expiration.last_notified_at) : '-',
+          expiration.observations || '-',
+        ];
+      }}
+      canEdit={canEdit}
+      canDelete={false}
+      editDialog={(expiration) => (
+        <DocumentExpirationFormDialog
+          expiration={expiration}
+          vehicles={vehicles}
+          drivers={drivers}
+          onSaved={onSaved}
+          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+        />
+      )}
+      onDelete={() => {}}
+      deleteTitle=""
+    />
+  );
+}
+
+function DriverHistoryList({ drivers, routes, maintenanceRequests, fuelLoads, expirations, search }) {
+  const term = search.trim().toLowerCase();
+  const filteredDrivers = term
+    ? drivers.filter((driver) => [driver.name, driver.phone, driver.notes].some((value) => String(value || '').toLowerCase().includes(term)))
+    : drivers;
+
+  if (filteredDrivers.length === 0) {
+    return <div className="p-10 text-center text-sm text-gray-600 dark:text-slate-300">No hay choferes para mostrar.</div>;
+  }
+
+  return (
+    <div className="space-y-4 p-4">
+      {filteredDrivers.map((driver) => {
+        const driverRoutes = routes.filter((route) => route.driver_id === driver.id);
+        const driverRequests = maintenanceRequests.filter((request) => request.driver_id === driver.id);
+        const driverFuelLoads = fuelLoads.filter((load) => load.vehicle?.assigned_driver_profile_id === driver.id);
+        const driverExpirations = expirations.filter((expiration) => expiration.driver_id === driver.id);
+        const totalKm = driverRoutes.reduce((total, route) => total + Number(route.kilometers_traveled || 0), 0);
+        return (
+          <div key={driver.id} className="rounded-lg border border-gray-100 p-4 dark:border-slate-800">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">{driverLabel(driver)}</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-300">{driver.is_active ? 'Activo' : 'Inactivo'} - {formatNumber(totalKm, 0)} km recorridos</p>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center text-xs text-gray-600 dark:text-slate-300">
+                <span>{driverRoutes.length} recorridos</span>
+                <span>{driverRequests.length} avisos</span>
+                <span>{driverFuelLoads.length} cargas</span>
+                <span>{driverExpirations.length} vencimientos</span>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <SummaryMiniList title="Recorridos" items={driverRoutes.slice(0, 4)} renderItem={(route) => `${formatDate(route.route_date)} - ${vehicleLabel(route.vehicle)} - ${route.kilometers_traveled} km - ${(route.visited_places || []).join(' -> ')}`} />
+              <SummaryMiniList title="Mantenimientos" items={driverRequests.slice(0, 4)} renderItem={(request) => `${formatDate(request.request_date)} - ${maintenanceRequestStatusLabels[request.status]} - ${request.issue_type}`} />
+              <SummaryMiniList title="Combustible relacionado" items={driverFuelLoads.slice(0, 4)} renderItem={(load) => `${formatDate(load.load_date)} - ${vehicleLabel(load.vehicle)} - ${formatNumber(load.liters, 2)} L`} />
+              <SummaryMiniList title="Licencias y vencimientos" items={driverExpirations.slice(0, 4)} renderItem={(expiration) => `${expiration.custom_document_name || documentTypeLabels[expiration.document_type]} - ${formatDate(expiration.expires_at)} - ${documentStatusLabels[documentVisualStatus(expiration)]}`} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -86,6 +86,8 @@ export const buildEquipmentHistory = ({
   equipment,
   fuelLoads = [],
   maintenanceLogs = [],
+  vehicleRoutes = [],
+  maintenanceRequests = [],
   dailyOperations = [],
   incidents = [],
   maintenanceChecks = [],
@@ -120,6 +122,34 @@ export const buildEquipmentHistory = ({
           timestamp: eventTimestamp(log.maintenance_date),
           description: log.detail || log.maintenance_type || 'Mantenimiento',
           responsible: '',
+        });
+      });
+
+    (Array.isArray(vehicleRoutes) ? vehicleRoutes : [])
+      .filter((route) => isForEquipment(route, equipment))
+      .forEach((route) => {
+        events.push({
+          id: `route:${route.id}`,
+          type: 'route',
+          label: 'Recorrido',
+          date: route.route_date,
+          timestamp: eventTimestamp(route.route_date),
+          description: `${route.kilometers_traveled ?? 0} km - ${(route.visited_places || []).join(' -> ')}`,
+          responsible: route.driver?.name || '',
+        });
+      });
+
+    (Array.isArray(maintenanceRequests) ? maintenanceRequests : [])
+      .filter((request) => isForEquipment(request, equipment))
+      .forEach((request) => {
+        events.push({
+          id: `maintenance-request:${request.id}`,
+          type: 'maintenance-request',
+          label: 'Aviso de mantenimiento',
+          date: request.request_date,
+          timestamp: eventTimestamp(request.request_date),
+          description: [request.issue_type, request.status, request.description].filter(Boolean).join(' - '),
+          responsible: request.driver?.name || '',
         });
       });
   }
