@@ -50,7 +50,7 @@ const buildAlertEmail = (alert: Record<string, any>) => {
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
               <tr>
                 <td style="background:${headerColor};padding:20px 24px;text-align:center;">
-                  <img src="${logoUrl}" alt="ServiFood" style="height:52px;max-width:220px;display:inline-block;border:0;" />
+                  <img src="${logoUrl}" alt="ServiFood" style="height:78px;max-width:320px;display:inline-block;border:0;" />
                 </td>
               </tr>
               <tr>
