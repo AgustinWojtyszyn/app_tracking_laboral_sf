@@ -1,0 +1,80 @@
+Fix error 400 al crear carga de combustible en vehicle_fuel_loads
+
+Archivo modificado:
+- src/services/equipmentLog.service.js
+
+Funcion modificada:
+- equipmentLogService.saveFuelLoad
+
+Objetivo:
+- Normalizar el payload antes de insertar en vehicle_fuel_loads.
+- Evitar strings vacios en campos numeric, integer, date o time.
+- Validar los valores requeridos antes del insert.
+- Usar la relacion explicita por foreign key en el select posterior.
+
+Payload anterior:
+{
+  vehicle_id: fuelLoad.vehicle_id,
+  price_ars: priceArs,
+  load_date: fuelLoad.load_date,
+  estimated_time: fuelLoad.estimated_time,
+  liters,
+  mileage,
+  notes: fuelLoad.notes?.trim() || null
+}
+
+Payload normalizado:
+const normalizedMileage =
+  mileage === "" || mileage === null || mileage === undefined
+    ? null
+    : Number(mileage);
+
+const payload = {
+  vehicle_id: vehicleId,
+  price_ars: Number(priceArs),
+  load_date: loadDate,
+  estimated_time: estimatedTime || null,
+  liters: Number(litersValue),
+  mileage: normalizedMileage,
+  notes: notes?.trim() || null,
+};
+
+Validaciones agregadas antes del insert:
+- vehicleId obligatorio.
+- loadDate obligatorio.
+- payload.liters debe ser finito y mayor que cero.
+- payload.price_ars debe ser finito y mayor que cero.
+- payload.mileage puede ser null, pero si viene informado debe ser entero y mayor o igual que cero.
+
+Consulta corregida:
+const { data, error } = await supabase
+  .from("vehicle_fuel_loads")
+  .insert(payload)
+  .select(`
+    *,
+    vehicle:vehicles!vehicle_fuel_loads_vehicle_id_fkey (
+      id,
+      license_plate,
+      name,
+      brand,
+      model
+    )
+  `)
+  .single();
+
+Log temporal agregado:
+console.error("Error al crear carga de combustible", {
+  code: error?.code,
+  message: error?.message,
+  details: error?.details,
+  hint: error?.hint,
+  payload,
+});
+
+Alcance:
+- No se modificaron RLS.
+- No se modificaron migrations.
+- No se modificaron foreign keys.
+- No se modificaron otras tablas.
+- No se modificaron otros modulos.
+- No se ejecutaron tests, build ni Playwright.
