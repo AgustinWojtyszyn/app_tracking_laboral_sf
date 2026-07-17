@@ -130,6 +130,7 @@ const withFuelMetrics = (loads = []) => {
 };
 
 const mapSupabaseError = (error, fallback) => {
+  if (error?.code === 'PGRST204') return `La estructura de la tabla no está actualizada: ${error?.message || ''}`.trim();
   if (error?.code === '23505') return 'Ya existe un vehículo con esa patente.';
   if (error?.code === '23502') return `Falta un dato obligatorio para guardar el registro: ${error?.details || error?.message || ''}`.trim();
   if (error?.code === '23503') return 'El vehículo o usuario asociado no existe o no está disponible.';
