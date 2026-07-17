@@ -33,6 +33,32 @@ const equipmentType = (record) => {
   return 'Sin vínculo';
 };
 
+const driverName = (driver) => driver?.name || driver?.full_name || driver?.email || '';
+
+const vehicleName = (vehicle) => {
+  if (!vehicle) return '';
+  return [vehicle.license_plate, vehicle.name || vehicle.brand, vehicle.model]
+    .filter(Boolean)
+    .join(' - ');
+};
+
+const daysUntil = (value) => {
+  if (!value) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  return Math.ceil((target.getTime() - today.getTime()) / 86400000);
+};
+
+const documentStatus = (expiration) => {
+  const remaining = daysUntil(expiration.expires_at);
+  if (remaining === null) return expiration.status || '';
+  if (remaining < 0) return 'vencido';
+  if (remaining <= 30) return 'proximo_a_vencer';
+  return expiration.status || 'vigente';
+};
+
 export const exportService = {
   // Helper to get formatted job object
   _mapJobToRow(job) {
@@ -182,6 +208,9 @@ export const exportService = {
     dailyOperations = [],
     incidents = [],
     maintenanceChecks = [],
+    vehicleRoutes = [],
+    maintenanceRequests = [],
+    documentExpirations = [],
   } = {}, filename = 'libro_registro_equipo.xlsx', section = 'todo') {
     const workbook = XLSX.utils.book_new();
     const shouldExport = (name) => section === 'todo' || section === name;
@@ -219,6 +248,19 @@ export const exportService = {
       textCompare(b.review_date, a.review_date)
       || textCompare(equipmentName(a), equipmentName(b))
     ));
+    const sortedVehicleRoutes = [...vehicleRoutes].sort((a, b) => (
+      textCompare(b.route_date, a.route_date)
+      || textCompare(a.vehicle?.license_plate, b.vehicle?.license_plate)
+    ));
+    const sortedMaintenanceRequests = [...maintenanceRequests].sort((a, b) => (
+      textCompare(b.request_date, a.request_date)
+      || textCompare(a.status, b.status)
+      || textCompare(a.priority, b.priority)
+    ));
+    const sortedDocumentExpirations = [...documentExpirations].sort((a, b) => (
+      textCompare(a.expires_at, b.expires_at)
+      || textCompare(a.document_type, b.document_type)
+    ));
 
     const vehiclesByType = sortedVehicles.reduce((acc, vehicle) => {
       const key = vehicle.vehicle_type || 'sin_tipo';
@@ -236,6 +278,9 @@ export const exportService = {
       { Clasificación: 'Vehículos registrados', Total: sortedVehicles.length },
       { Clasificación: 'Cargas de combustible', Total: sortedFuelLoads.length },
       { Clasificación: 'Mantenimientos', Total: sortedMaintenanceLogs.length },
+      { Clasificación: 'Recorridos diarios', Total: sortedVehicleRoutes.length },
+      { Clasificación: 'Avisos de mantenimiento', Total: sortedMaintenanceRequests.length },
+      { Clasificación: 'Vencimientos documentales', Total: sortedDocumentExpirations.length },
       { Clasificación: 'Elementos de planta', Total: sortedPlantAssets.length },
       { Clasificación: 'Operaciones diarias', Total: sortedDailyOperations.length },
       { Clasificación: 'Incidencias', Total: sortedIncidents.length },
@@ -277,10 +322,27 @@ export const exportService = {
       'Precio ARS': Number(load.price_ars || 0),
       Litros: Number(load.liters || 0),
       Kilometraje: load.mileage ?? '',
+      'Km desde carga anterior': load.has_consumption_metrics ? Number(load.kilometers_since_previous || 0) : 'Sin datos suficientes',
+      'Litros cada 100 km': load.has_consumption_metrics ? Number(load.consumption_liters_per_100km || 0) : 'Sin datos suficientes',
+      'Costo por km': load.has_consumption_metrics ? Number(load.cost_per_km || 0) : 'Sin datos suficientes',
       Observaciones: load.notes || '',
     })), 'Combustible', [
       { wch: 16 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-      { wch: 12 }, { wch: 14 }, { wch: 36 },
+      { wch: 12 }, { wch: 14 }, { wch: 24 }, { wch: 20 }, { wch: 18 }, { wch: 36 },
+    ]);
+
+    if (shouldExport('recorridos')) this._appendJsonSheet(workbook, sortedVehicleRoutes.map((route) => ({
+      Clasificación: 'Recorrido diario',
+      Fecha: route.route_date ? formatDate(route.route_date) : '',
+      Vehículo: vehicleName(route.vehicle),
+      Chofer: driverName(route.driver),
+      'Km inicial': route.mileage_start ?? '',
+      'Km final': route.mileage_end ?? '',
+      'Km recorridos': route.kilometers_traveled ?? '',
+      'Empresas / lugares visitados': (route.visited_places || []).join(' -> '),
+      Observaciones: route.observations || '',
+    })), 'Recorridos', [
+      { wch: 20 }, { wch: 14 }, { wch: 34 }, { wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 60 }, { wch: 40 },
     ]);
 
     if (shouldExport('mantenimiento')) this._appendJsonSheet(workbook, sortedMaintenanceLogs.map((log) => ({
@@ -297,6 +359,37 @@ export const exportService = {
     })), 'Mantenimiento', [
       { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 48 },
       { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 36 },
+    ]);
+
+    if (shouldExport('avisos_mantenimiento')) this._appendJsonSheet(workbook, sortedMaintenanceRequests.map((request) => ({
+      Clasificación: 'Aviso de mantenimiento',
+      Fecha: request.request_date ? formatDate(request.request_date) : '',
+      Vehículo: vehicleName(request.vehicle),
+      Chofer: driverName(request.driver),
+      Problema: request.issue_type || '',
+      Descripción: request.description || '',
+      Kilometraje: request.current_mileage ?? '',
+      Prioridad: request.priority || '',
+      Estado: request.status || '',
+      'Observaciones admin': request.admin_notes || '',
+      'Fecha resolución': request.resolved_at ? formatDate(request.resolved_at) : '',
+    })), 'Avisos mantenimiento', [
+      { wch: 24 }, { wch: 14 }, { wch: 34 }, { wch: 24 }, { wch: 24 }, { wch: 54 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 44 }, { wch: 18 },
+    ]);
+
+    if (shouldExport('vencimientos')) this._appendJsonSheet(workbook, sortedDocumentExpirations.map((expiration) => ({
+      Clasificación: 'Vencimiento documental',
+      Documento: expiration.custom_document_name || expiration.document_type || '',
+      Vehículo: vehicleName(expiration.vehicle),
+      Chofer: driverName(expiration.driver),
+      Vence: expiration.expires_at ? formatDate(expiration.expires_at) : '',
+      'Días restantes': daysUntil(expiration.expires_at) ?? '',
+      Estado: documentStatus(expiration),
+      'Última notificación': expiration.last_notified_at ? formatDate(expiration.last_notified_at) : '',
+      'Último nivel enviado': expiration.last_alert_level || '',
+      Observaciones: expiration.observations || '',
+    })), 'Vencimientos', [
+      { wch: 26 }, { wch: 24 }, { wch: 34 }, { wch: 24 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 44 },
     ]);
 
     if (shouldExport('planta')) this._appendJsonSheet(workbook, sortedPlantAssets.map((asset) => ({

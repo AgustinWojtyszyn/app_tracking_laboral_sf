@@ -1554,12 +1554,6 @@ export default function EquipmentLogPage() {
     }
   }, [equipmentItems, selectedEquipmentKey]);
 
-  const handleEquipmentHistorySelect = (key) => {
-    setSelectedEquipmentKey(key);
-    const equipment = equipmentItems.find((item) => item.key === key);
-    setSelectedVehicleId(equipment?.type === 'vehicle' ? equipment.id : '');
-  };
-
   const handleVehicleSelect = (id) => {
     setSelectedVehicleId(id);
     setSelectedEquipmentKey(id ? `vehicle:${id}` : '');
@@ -1796,18 +1790,6 @@ export default function EquipmentLogPage() {
         </div>
       </div>
 
-      {(vehicles.length > 0 || maintenanceLogs.length > 0 || plantAssets.length > 0) && (
-        <EquipmentSummaryCards vehicles={vehicles} maintenanceLogs={maintenanceLogs} plantAssets={plantAssets} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} />
-      )}
-
-      <EquipmentHistoryPanel
-        equipmentItems={equipmentItems}
-        selectedEquipmentKey={selectedEquipmentKey}
-        selectedEquipment={selectedEquipment}
-        history={selectedEquipmentHistory}
-        onSelect={handleEquipmentHistorySelect}
-      />
-
       <div className="grid gap-4 lg:grid-cols-[230px,1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
@@ -1889,12 +1871,18 @@ export default function EquipmentLogPage() {
               fuelLoads={fuelLoads}
               maintenanceRequests={maintenanceRequests}
               documentExpirations={documentExpirations}
+              plantAssets={plantAssets}
+              incidents={incidents}
+              maintenanceChecks={maintenanceChecks}
             />
           ) : activeTab === 'vehicles' ? (
             <VehiclesList
               vehicles={vehicles}
               fuelLoads={fuelLoads}
               maintenanceLogs={maintenanceLogs}
+              vehicleRoutes={vehicleRoutes}
+              maintenanceRequests={maintenanceRequests}
+              selectedVehicleHistory={selectedEquipmentHistory}
               selectedVehicleId={selectedVehicleId}
               onSelectVehicle={handleVehicleSelect}
               users={users}
@@ -2082,14 +2070,24 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicle
   );
 }
 
-function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceRequests, documentExpirations }) {
+function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceRequests, documentExpirations, plantAssets, incidents, maintenanceChecks }) {
+  const openPlantIncidents = incidents.filter((incident) => incident.plant_asset_id).length;
+  const pendingPlantChecks = maintenanceChecks.filter((check) => check.plant_asset_id && isDateWithinDays(check.next_review_date, 30));
+  const plantNews = plantAssets.filter((asset) => (
+    ['mantenimiento', 'requiere_revision'].includes(asset.status) || Boolean(asset.notes?.trim())
+  ));
   return (
     <div className="space-y-4 p-4">
-      <EquipmentSummaryCards vehicles={vehicles} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} maintenanceLogs={[]} plantAssets={[]} />
+      <EquipmentSummaryCards vehicles={vehicles} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} maintenanceLogs={[]} plantAssets={plantAssets} />
       <div className="grid gap-4 lg:grid-cols-3">
         <SummaryMiniList title="Cargas recientes" items={fuelLoads.slice(0, 5)} renderItem={(load) => `${formatDate(load.load_date)} - ${vehicleLabel(load.vehicle)} - ${formatNumber(load.liters, 2)} L`} />
         <SummaryMiniList title="Mantenimientos pendientes" items={maintenanceRequests.filter((request) => !['realizado', 'cancelado'].includes(request.status)).slice(0, 5)} renderItem={(request) => `${maintenancePriorityLabels[request.priority]} - ${vehicleLabel(request.vehicle)} - ${request.issue_type}`} />
         <SummaryMiniList title="Vencimientos" items={documentExpirations.filter((expiration) => ['proximo_a_vencer', 'vencido'].includes(documentVisualStatus(expiration))).slice(0, 5)} renderItem={(expiration) => `${documentTypeLabels[expiration.document_type]} - ${formatDate(expiration.expires_at)} - ${documentStatusLabels[documentVisualStatus(expiration)]}`} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <SummaryMiniList title="Planta con novedades" items={plantNews.slice(0, 5)} renderItem={(asset) => `${asset.name} - ${statusLabels[asset.status] || asset.status}${asset.notes ? ` - ${asset.notes}` : ''}`} />
+        <SummaryMiniList title="Incidencias de planta" items={[{ id: 'plant-incidents', text: `${openPlantIncidents} registradas` }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Calibraciones pendientes" items={pendingPlantChecks.slice(0, 5)} renderItem={(check) => `${formatDate(check.next_review_date)} - ${equipmentLabel(check)} - ${inspectionTypeLabels[check.inspection_type] || check.inspection_type}`} />
       </div>
     </div>
   );
@@ -2110,68 +2108,13 @@ function SummaryMiniList({ title, items, renderItem }) {
   );
 }
 
-function EquipmentHistoryPanel({ equipmentItems, selectedEquipmentKey, selectedEquipment, history, onSelect }) {
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">Historial cronológico por equipo</h2>
-          <p className="text-sm text-gray-500 dark:text-slate-300">Combustible, mantenimiento, operación, incidencias y revisiones del equipo seleccionado.</p>
-        </div>
-        <select
-          className={`${inputClass} md:w-96`}
-          value={selectedEquipmentKey}
-          onChange={(event) => onSelect(event.target.value)}
-        >
-          <option value="">Seleccionar equipo</option>
-          {equipmentItems.map((equipment) => (
-            <option key={equipment.key} value={equipment.key}>
-              {[equipment.identifier, equipment.name, equipment.type === 'vehicle' ? 'Vehículo' : 'Planta'].filter(Boolean).join(' - ')}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {!selectedEquipment ? (
-        <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
-          Seleccioná un vehículo o equipo de planta para ver su historial.
-        </div>
-      ) : history.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
-          No hay registros históricos para este equipo.
-        </div>
-      ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
-              <tr>
-                <th className="px-5 py-3">Tipo</th>
-                <th className="px-5 py-3">Fecha</th>
-                <th className="px-5 py-3">Descripción</th>
-                <th className="px-5 py-3">Responsable</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-              {history.map((event) => (
-                <tr key={event.id} className="align-top">
-                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{event.label}</td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.date ? formatDate(event.date) : '-'}</td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.description || '-'}</td>
-                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.responsible || selectedEquipment.responsible || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function VehiclesList({
   vehicles,
   fuelLoads,
   maintenanceLogs,
+  vehicleRoutes,
+  maintenanceRequests,
+  selectedVehicleHistory,
   selectedVehicleId,
   onSelectVehicle,
   users,
@@ -2249,6 +2192,9 @@ function VehiclesList({
           vehicles={vehicles}
           fuelLoads={selectedFuelLoads}
           maintenanceLogs={selectedMaintenanceLogs}
+          vehicleRoutes={vehicleRoutes.filter((route) => route.vehicle_id === selectedVehicleId)}
+          maintenanceRequests={maintenanceRequests.filter((request) => request.vehicle_id === selectedVehicleId)}
+          history={selectedVehicleHistory}
           users={users}
           drivers={drivers}
           canEdit={canEdit}
@@ -2274,6 +2220,9 @@ function VehicleDetail({
   vehicles,
   fuelLoads,
   maintenanceLogs,
+  vehicleRoutes,
+  maintenanceRequests,
+  history,
   users,
   drivers,
   canEdit,
@@ -2347,6 +2296,51 @@ function VehicleDetail({
         onSaved={onSaved}
         onDelete={onDeleteMaintenanceLog}
       />
+      <VehicleHistorySection vehicle={vehicle} history={history} routes={vehicleRoutes} maintenanceRequests={maintenanceRequests} />
+    </div>
+  );
+}
+
+function VehicleHistorySection({ vehicle, history, routes, maintenanceRequests }) {
+  const vehicleHistory = history || [];
+  return (
+    <div className="space-y-4 p-4">
+      <div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Historial del vehículo</h3>
+        <p className="text-sm text-gray-500 dark:text-slate-300">Recorridos, combustible, mantenimientos y avisos asociados a {vehicle.license_plate}.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <SummaryMiniList title="Recorridos recientes" items={routes.slice(0, 4)} renderItem={(route) => `${formatDate(route.route_date)} - ${driverLabel(route.driver)} - ${route.kilometers_traveled} km - ${(route.visited_places || []).join(' -> ')}`} />
+        <SummaryMiniList title="Avisos recientes" items={maintenanceRequests.slice(0, 4)} renderItem={(request) => `${formatDate(request.request_date)} - ${maintenanceRequestStatusLabels[request.status]} - ${request.issue_type}`} />
+      </div>
+      {vehicleHistory.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-600 dark:border-slate-700 dark:text-slate-300">
+          No hay historial adicional para este vehículo.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+              <tr>
+                <th className="px-5 py-3">Tipo</th>
+                <th className="px-5 py-3">Fecha</th>
+                <th className="px-5 py-3">Descripción</th>
+                <th className="px-5 py-3">Responsable</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+              {vehicleHistory.map((event) => (
+                <tr key={event.id} className="align-top">
+                  <td className="px-5 py-4 font-semibold text-gray-900 dark:text-slate-50">{event.label}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.date ? formatDate(event.date) : '-'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.description || '-'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{event.responsible || vehicleDriverLabel(vehicle)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
