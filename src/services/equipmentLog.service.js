@@ -140,6 +140,20 @@ const mapSupabaseError = (error, fallback) => {
   return fallback;
 };
 
+const logFuelLoadPayload = (payload) => {
+  console.log('Payload vehicle_fuel_loads JSON', JSON.stringify(payload, null, 2));
+};
+
+const logFuelLoadError = (error, payload) => {
+  console.error('Error al crear carga de combustible JSON', JSON.stringify({
+    message: error?.message,
+    details: error?.details,
+    hint: error?.hint,
+    code: error?.code,
+    payload,
+  }, null, 2));
+};
+
 const buildEquipmentRecordPayload = (record) => {
   const targetType = record.target_type;
   const targetId = record.target_id;
@@ -440,7 +454,7 @@ export const equipmentLogService = {
       if (vehicleError) throw vehicleError;
       if (!vehicleExists) return { success: false, error: 'El vehículo seleccionado no existe o no está disponible.' };
 
-      console.log('Payload vehicle_fuel_loads', payload);
+      logFuelLoadPayload(payload);
 
       const request = fuelLoad.id
         ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
@@ -449,13 +463,7 @@ export const equipmentLogService = {
       const { data, error } = await request.select('*').single();
 
       if (error) {
-        console.error('Error al crear carga de combustible', {
-          message: error?.message,
-          details: error?.details,
-          hint: error?.hint,
-          code: error?.code,
-          payload,
-        });
+        logFuelLoadError(error, payload);
         throw error;
       }
       return { success: true, data, message: fuelLoad.id ? 'Carga de combustible actualizada.' : 'Carga de combustible registrada.' };
