@@ -131,6 +131,9 @@ const withFuelMetrics = (loads = []) => {
 
 const mapSupabaseError = (error, fallback) => {
   if (error?.code === '23505') return 'Ya existe un vehículo con esa patente.';
+  if (error?.code === '23502') return `Falta un dato obligatorio para guardar el registro: ${error?.details || error?.message || ''}`.trim();
+  if (error?.code === '23503') return 'El vehículo o usuario asociado no existe o no está disponible.';
+  if (error?.code === '23514') return `Algún valor no cumple las reglas de la base de datos: ${error?.details || error?.message || ''}`.trim();
   if (error?.code === '42501' || /row-level security|permission denied/i.test(error?.message || '')) {
     return 'No tenés permisos para realizar esta acción.';
   }
@@ -381,29 +384,37 @@ export const equipmentLogService = {
   },
 
   async saveFuelLoad(fuelLoad) {
+    const { data: authData } = await supabase.auth.getUser();
+    const currentUserId = authData?.user?.id || null;
     const vehicleId = fuelLoad.vehicle_id || '';
     const priceArs = fuelLoad.price_ars;
     const litersValue = fuelLoad.liters;
     const mileage = fuelLoad.mileage;
     const loadDate = fuelLoad.load_date || '';
-    const estimatedTime = fuelLoad.estimated_time || '';
+    const estimatedTime = fuelLoad.estimated_time;
     const notes = fuelLoad.notes;
     const normalizedMileage =
       mileage === '' || mileage === null || mileage === undefined
         ? null
         : Number(mileage);
+    const normalizedTime =
+      typeof estimatedTime === 'string' && estimatedTime.trim()
+        ? estimatedTime.trim()
+        : null;
 
     const payload = {
-      vehicle_id: vehicleId,
+      vehicle_id: vehicleId || null,
       price_ars: Number(priceArs),
-      load_date: loadDate,
-      estimated_time: estimatedTime || null,
+      load_date: loadDate || null,
+      estimated_time: normalizedTime,
       liters: Number(litersValue),
       mileage: normalizedMileage,
       notes: notes?.trim() || null,
+      created_by: currentUserId,
     };
 
     if (!isValidUuid(vehicleId)) return { success: false, error: 'Seleccioná un vehículo válido.' };
+    if (!isValidUuid(currentUserId)) return { success: false, error: 'No se pudo identificar el usuario autenticado.' };
     if (!loadDate || !isValidDateInput(loadDate)) return { success: false, error: 'La fecha de carga debe ser válida.' };
     if (!isValidTimeInput(payload.estimated_time)) return { success: false, error: 'La hora estimada debe ser válida.' };
     if (!Number.isFinite(payload.price_ars) || payload.price_ars <= 0 || payload.price_ars > FUEL_AMOUNT_MAX_VALUE) {
@@ -420,18 +431,29 @@ export const equipmentLogService = {
     }
 
     try {
+      const { data: vehicleExists, error: vehicleError } = await supabase
+        .from('vehicles')
+        .select('id')
+        .eq('id', vehicleId)
+        .maybeSingle();
+
+      if (vehicleError) throw vehicleError;
+      if (!vehicleExists) return { success: false, error: 'El vehículo seleccionado no existe o no está disponible.' };
+
+      console.log('Payload vehicle_fuel_loads', payload);
+
       const request = fuelLoad.id
         ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
         : supabase.from('vehicle_fuel_loads').insert(payload);
 
-      const { data, error } = await request.select(vehicleFuelLoadSelect).single();
+      const { data, error } = await request.select('*').single();
 
       if (error) {
         console.error('Error al crear carga de combustible', {
-          code: error?.code,
           message: error?.message,
           details: error?.details,
           hint: error?.hint,
+          code: error?.code,
           payload,
         });
         throw error;
