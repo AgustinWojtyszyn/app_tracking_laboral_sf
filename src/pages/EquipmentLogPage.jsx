@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, ClipboardList, Edit2, FileSpreadsheet, Fuel, Plus, Search, ShieldCheck, Trash2, UserCog, Wrench } from 'lucide-react';
+import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, ClipboardList, Edit2, FileSpreadsheet, Fuel, Plus, RotateCcw, Search, ShieldCheck, Trash2, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -231,6 +231,16 @@ const emptyMaintenanceCheck = () => ({
 
 const compactUserLabel = (user) => user?.full_name || user?.email || 'Sin asignar';
 const driverLabel = (driver) => driver?.name || 'Sin chofer asignado';
+const isActiveDriver = (driver) => Boolean(driver?.is_active && !driver?.archived_at);
+const driverOptionLabel = (driver) => `${driverLabel(driver)}${isActiveDriver(driver) ? '' : ' — Inactivo'}`;
+const driverOptionsForSelection = (drivers, currentDriverId = '') => {
+  const activeDrivers = drivers.filter(isActiveDriver);
+  if (!currentDriverId || activeDrivers.some((driver) => driver.id === currentDriverId)) {
+    return activeDrivers;
+  }
+  const currentDriver = drivers.find((driver) => driver.id === currentDriverId);
+  return currentDriver ? [currentDriver, ...activeDrivers] : activeDrivers;
+};
 const vehicleDriverLabel = (vehicle) => (
   vehicle?.assigned_driver_profile?.name
     || (vehicle?.assigned_driver ? compactUserLabel(vehicle.assigned_driver) : null)
@@ -264,8 +274,6 @@ const equipmentLabel = (record) => {
 };
 
 const vehicleLabel = (vehicle) => [vehicle?.license_plate, vehicle?.name || vehicle?.brand, vehicle?.model].filter(Boolean).join(' - ') || 'Vehículo no encontrado';
-const currentDriverId = (drivers, userId) => drivers.find((driver) => driver.user_id === userId)?.id || '';
-
 function Badge({ value, children }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass[value] || 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100'}`}>
@@ -363,6 +371,8 @@ function VehicleFormDialog({ vehicle, drivers, trigger, onSaved }) {
     }
   };
 
+  const driverOptions = driverOptionsForSelection(drivers, form.assigned_driver_profile_id);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -411,8 +421,8 @@ function VehicleFormDialog({ vehicle, drivers, trigger, onSaved }) {
             <Field label="Chofer asignado">
               <select className={inputClass} value={form.assigned_driver_profile_id || ''} onChange={(e) => setValue('assigned_driver_profile_id', e.target.value)}>
                 <option value="">Sin chofer asignado</option>
-                {drivers.map((driver) => (
-                  <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>
+                {driverOptions.map((driver) => (
+                  <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>
                 ))}
               </select>
             </Field>
@@ -480,6 +490,11 @@ function VehicleFormDialog({ vehicle, drivers, trigger, onSaved }) {
           <Field label="Observaciones">
             <textarea className={`${inputClass} min-h-24`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
           </Field>
+          {driver && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+              Estado actual: <span className="font-semibold">{isActiveDriver(form) ? 'Activo' : 'Inactivo'}</span>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
@@ -1208,6 +1223,8 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
     }
   };
 
+  const driverOptions = driverOptionsForSelection(drivers, form.driver_id);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -1226,7 +1243,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
             <Field label="Chofer *">
               <select className={inputClass} value={form.driver_id} onChange={(e) => setValue('driver_id', e.target.value)} required>
                 <option value="">Seleccionar chofer</option>
-                {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>)}
+                {driverOptions.map((driver) => <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>)}
               </select>
             </Field>
           </div>
@@ -1302,6 +1319,8 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
     }
   };
 
+  const driverOptions = driverOptionsForSelection(drivers, form.driver_id);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -1311,7 +1330,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
           {formError && <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 dark:border-red-400 dark:bg-red-950 dark:text-red-50"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{formError}</span></div>}
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Vehículo *"><select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required><option value="">Seleccionar</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
-            <Field label="Chofer *"><select className={inputClass} value={form.driver_id} onChange={(e) => setValue('driver_id', e.target.value)} required><option value="">Seleccionar</option>{drivers.map((driver) => <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>)}</select></Field>
+            <Field label="Chofer *"><select className={inputClass} value={form.driver_id} onChange={(e) => setValue('driver_id', e.target.value)} required><option value="">Seleccionar</option>{driverOptions.map((driver) => <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>)}</select></Field>
             <Field label="Fecha *"><input className={inputClass} type="date" value={form.request_date || ''} onChange={(e) => setValue('request_date', e.target.value)} required /></Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -1371,6 +1390,8 @@ function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, 
     }
   };
 
+  const driverOptions = driverOptionsForSelection(drivers, form.driver_id);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -1386,7 +1407,7 @@ function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, 
           {form.document_type === 'otro' && <Field label="Nombre del documento"><input className={inputClass} value={form.custom_document_name || ''} onChange={(e) => setValue('custom_document_name', e.target.value)} /></Field>}
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Vehículo asociado"><select className={inputClass} value={form.vehicle_id || ''} onChange={(e) => setValue('vehicle_id', e.target.value)}><option value="">Sin vehículo</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
-            <Field label="Chofer asociado"><select className={inputClass} value={form.driver_id || ''} onChange={(e) => setValue('driver_id', e.target.value)}><option value="">Sin chofer</option>{drivers.map((driver) => <option key={driver.id} value={driver.id}>{driverLabel(driver)}</option>)}</select></Field>
+            <Field label="Chofer asociado"><select className={inputClass} value={form.driver_id || ''} onChange={(e) => setValue('driver_id', e.target.value)}><option value="">Sin chofer</option>{driverOptions.map((driver) => <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>)}</select></Field>
           </div>
           <Field label="Observaciones"><textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} /></Field>
           <div className="flex justify-end gap-2">
@@ -1401,7 +1422,7 @@ function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, 
 
 export default function EquipmentLogPage() {
   const { addToast } = useToast();
-  const { isAdmin, userRole, user } = useAuth();
+  const { isAdmin, userRole } = useAuth();
   const [activeTab, setActiveTab] = useState('summary');
   const [vehicles, setVehicles] = useState([]);
   const [fuelLoads, setFuelLoads] = useState([]);
@@ -1416,6 +1437,8 @@ export default function EquipmentLogPage() {
   const [selectedEquipmentKey, setSelectedEquipmentKey] = useState('');
   const [plantAssets, setPlantAssets] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [driverStatusFilter, setDriverStatusFilter] = useState('active');
+  const [togglingDriverId, setTogglingDriverId] = useState('');
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -1436,7 +1459,8 @@ export default function EquipmentLogPage() {
   const canDeleteRoutes = isAdmin;
   const canEditMaintenanceRequests = isAdmin || isDriver;
   const canEditDocumentExpirations = isAdmin;
-  const activeDriverId = currentDriverId(drivers, user?.id);
+  const activeDriverId = '';
+  const activeDrivers = useMemo(() => drivers.filter(isActiveDriver), [drivers]);
   const fullDataTabs = ['summary', 'vehicles', 'routes', 'fuel', 'maintenance', 'expirations', 'driverHistory', 'plant', 'operation', 'incidents', 'checks'];
   const equipmentItems = useMemo(() => normalizeEquipmentItems({ vehicles, plantAssets }), [vehicles, plantAssets]);
   const selectedEquipment = equipmentItems.find((equipment) => equipment.key === selectedEquipmentKey) || null;
@@ -1458,7 +1482,7 @@ export default function EquipmentLogPage() {
   };
 
   const loadDrivers = async () => {
-    const result = await equipmentLogService.getDrivers();
+    const result = await equipmentLogService.getDrivers({ activeOnly: false });
     if (result.success) setDrivers(result.data || []);
     else addToast(result.error, 'error');
   };
@@ -1474,13 +1498,13 @@ export default function EquipmentLogPage() {
         equipmentLogService.getMaintenanceRequests(),
         equipmentLogService.getDocumentExpirations(),
         equipmentLogService.getPlantAssets({ search: activeTab === 'plant' ? search : '' }),
-        equipmentLogService.getDrivers(),
+        equipmentLogService.getDrivers({ activeOnly: false }),
         equipmentLogService.getDailyOperations(),
         equipmentLogService.getIncidents(),
         equipmentLogService.getMaintenanceChecks(),
       ])
       : activeTab === 'drivers'
-        ? await equipmentLogService.getDrivers()
+        ? await equipmentLogService.getDrivers({ activeOnly: false })
       : await equipmentLogService.getPlantAssets({ search });
     setLoading(false);
 
@@ -1604,9 +1628,21 @@ export default function EquipmentLogPage() {
   };
 
   const handleArchiveDriver = async (id) => {
+    if (togglingDriverId) return;
+    setTogglingDriverId(id);
     const result = await equipmentLogService.archiveDriver(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
-    if (result.success) loadCurrentTab();
+    if (result.success) await loadCurrentTab();
+    setTogglingDriverId('');
+  };
+
+  const handleReactivateDriver = async (id) => {
+    if (togglingDriverId) return;
+    setTogglingDriverId(id);
+    const result = await equipmentLogService.reactivateDriver(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) await loadCurrentTab();
+    setTogglingDriverId('');
   };
 
   const handleDeleteDailyOperation = async (id) => {
@@ -1695,14 +1731,14 @@ export default function EquipmentLogPage() {
 
   const createButton = canManageMasterData && activeTab === 'vehicles' ? (
       <VehicleFormDialog
-        drivers={drivers}
+        drivers={activeDrivers}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vehículo</Button>}
       />
     ) : canEditRoutes && activeTab === 'routes' ? (
       <VehicleRouteFormDialog
         vehicles={vehicles}
-        drivers={drivers}
+        drivers={activeDrivers}
         defaultDriverId={activeDriverId}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo recorrido</Button>}
@@ -1717,7 +1753,7 @@ export default function EquipmentLogPage() {
     ) : canEditMaintenanceRequests && activeTab === 'maintenance' ? (
       <MaintenanceRequestFormDialog
         vehicles={vehicles}
-        drivers={drivers}
+        drivers={activeDrivers}
         defaultDriverId={activeDriverId}
         isAdmin={isAdmin}
         onSaved={loadCurrentTab}
@@ -1726,7 +1762,7 @@ export default function EquipmentLogPage() {
     ) : canEditDocumentExpirations && activeTab === 'expirations' ? (
       <DocumentExpirationFormDialog
         vehicles={vehicles}
-        drivers={drivers}
+        drivers={activeDrivers}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo vencimiento</Button>}
       />
@@ -1955,7 +1991,17 @@ export default function EquipmentLogPage() {
               search={search}
             />
           ) : activeTab === 'drivers' ? (
-            <DriversList drivers={drivers} search={search} canEdit={canManageMasterData} onSaved={loadCurrentTab} onArchive={handleArchiveDriver} />
+            <DriversList
+              drivers={drivers}
+              search={search}
+              statusFilter={driverStatusFilter}
+              onStatusFilterChange={setDriverStatusFilter}
+              canEdit={canManageMasterData}
+              onSaved={loadCurrentTab}
+              onArchive={handleArchiveDriver}
+              onReactivate={handleReactivateDriver}
+              togglingDriverId={togglingDriverId}
+            />
           ) : activeTab === 'plant' ? (
             <PlantAssetsList assets={plantAssets} users={users} canEdit={canManageMasterData} onSaved={loadCurrentTab} onDelete={handleDeletePlantAsset} />
           ) : activeTab === 'operation' ? (
@@ -2894,62 +2940,142 @@ function EquipmentRecordTable({ emptyTitle, emptyDetail, headers, records, rende
   );
 }
 
-function DriversList({ drivers, search, canEdit, onSaved, onArchive }) {
+function DriversList({
+  drivers,
+  search,
+  statusFilter,
+  onStatusFilterChange,
+  canEdit,
+  onSaved,
+  onArchive,
+  onReactivate,
+  togglingDriverId,
+}) {
   const term = search.trim().toLowerCase();
-  const filteredDrivers = term
-    ? drivers.filter((driver) => [driver.name, driver.phone, driver.notes].some((value) => String(value || '').toLowerCase().includes(term)))
-    : drivers;
+  const filteredDrivers = drivers.filter((driver) => {
+    const matchesSearch = !term || [driver.name, driver.phone, driver.notes].some((value) => String(value || '').toLowerCase().includes(term));
+    const active = isActiveDriver(driver);
+    const matchesStatus = statusFilter === 'all'
+      || (statusFilter === 'active' && active)
+      || (statusFilter === 'inactive' && !active);
+    return matchesSearch && matchesStatus;
+  });
 
   if (filteredDrivers.length === 0) {
     return (
-      <div className="p-10 text-center">
-        <p className="text-base font-semibold text-gray-900 dark:text-slate-50">No hay choferes activos.</p>
-        <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Agregá choferes operativos para asignarlos a vehículos.</p>
+      <div className="space-y-4 p-4">
+        <DriverStatusToolbar
+          statusFilter={statusFilter}
+          onStatusFilterChange={onStatusFilterChange}
+          resultCount={0}
+        />
+        <div className="p-6 text-center">
+          <p className="text-base font-semibold text-gray-900 dark:text-slate-50">No hay choferes para mostrar.</p>
+          <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Revisá la búsqueda o el filtro de estado.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
-          <tr>
-            <th className="px-5 py-3">Chofer</th>
-            <th className="px-5 py-3">Teléfono</th>
-            <th className="px-5 py-3">Observaciones</th>
-            <th className="px-5 py-3">Usuario vinculado</th>
-            {canEdit && <th className="px-5 py-3 text-right">Acciones</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-          {filteredDrivers.map((driver) => (
-            <tr key={driver.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
-              <td className="px-5 py-4 font-bold text-gray-900 dark:text-slate-50">{driver.name}</td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.phone || '-'}</td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.notes || '-'}</td>
-              <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.user_id ? 'Vinculado' : 'Sin usuario'}</td>
-              {canEdit && (
-                <td className="px-5 py-4">
-                  <div className="flex justify-end gap-2">
-                    <DriverFormDialog
-                      driver={driver}
-                      onSaved={onSaved}
-                      trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
-                    />
-                    <ConfirmationModal
-                      title="¿Desactivar chofer?"
-                      description="El chofer dejará de aparecer en selectores activos, pero conservará su historial."
-                      confirmLabel="Sí, desactivar"
-                      onConfirm={() => onArchive(driver.id)}
-                      trigger={<Button variant="ghost" size="icon"><Trash2 className="h-5 w-5 text-red-600" /></Button>}
-                    />
-                  </div>
-                </td>
-              )}
+    <div className="space-y-4 p-4">
+      <DriverStatusToolbar
+        statusFilter={statusFilter}
+        onStatusFilterChange={onStatusFilterChange}
+        resultCount={filteredDrivers.length}
+      />
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] text-left text-sm">
+          <thead className="bg-gray-50 text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+            <tr>
+              <th className="w-[26%] px-5 py-3">Chofer</th>
+              <th className="w-[18%] px-5 py-3">Teléfono</th>
+              <th className="w-[32%] px-5 py-3">Observaciones</th>
+              <th className="w-[12%] px-5 py-3">Estado</th>
+              {canEdit && <th className="w-[12%] px-5 py-3 text-right">Acciones</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+            {filteredDrivers.map((driver) => {
+              const active = isActiveDriver(driver);
+              const busy = togglingDriverId === driver.id;
+              return (
+                <tr key={driver.id} className="align-top hover:bg-gray-50 dark:hover:bg-slate-800/70">
+                  <td className="px-5 py-4 font-bold text-gray-900 dark:text-slate-50">{driver.name}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.phone || '-'}</td>
+                  <td className="px-5 py-4 text-gray-700 dark:text-slate-200">{driver.notes || '-'}</td>
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      active
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100'
+                        : 'bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200'
+                    }`}>
+                      {active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  {canEdit && (
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <DriverFormDialog
+                          driver={driver}
+                          onSaved={onSaved}
+                          trigger={<Button variant="ghost" size="icon" disabled={busy}><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+                        />
+                        {active ? (
+                          <ConfirmationModal
+                            title="¿Desactivar chofer?"
+                            description="El chofer dejará de aparecer para nuevas asignaciones, pero conservará todos sus recorridos e historial."
+                            confirmLabel="Sí, desactivar"
+                            onConfirm={() => onArchive(driver.id)}
+                            trigger={<Button variant="ghost" size="icon" disabled={busy}><Ban className="h-5 w-5 text-amber-600" /></Button>}
+                          />
+                        ) : (
+                          <ConfirmationModal
+                            title="¿Reactivar chofer?"
+                            description="El chofer volverá a estar disponible para nuevas asignaciones."
+                            confirmLabel="Sí, reactivar"
+                            onConfirm={() => onReactivate(driver.id)}
+                            variant="default"
+                            trigger={<Button variant="ghost" size="icon" disabled={busy}><RotateCcw className="h-5 w-5 text-emerald-600" /></Button>}
+                          />
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DriverStatusToolbar({ statusFilter, onStatusFilterChange, resultCount }) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="inline-flex w-full rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-slate-700 dark:bg-slate-950 sm:w-auto">
+        {[
+          ['active', 'Activos'],
+          ['inactive', 'Inactivos'],
+          ['all', 'Todos'],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onStatusFilterChange(value)}
+            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold transition sm:flex-none ${
+              statusFilter === value
+                ? 'bg-[#1e3a8a] text-white shadow-sm'
+                : 'text-gray-700 hover:bg-white dark:text-slate-200 dark:hover:bg-slate-800'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <span className="text-sm text-gray-500 dark:text-slate-300">{resultCount} resultados</span>
     </div>
   );
 }

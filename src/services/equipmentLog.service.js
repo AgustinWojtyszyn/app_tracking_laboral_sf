@@ -69,6 +69,19 @@ const isValidTimeInput = (value) => {
   return /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(String(value));
 };
 
+const isActiveDriverId = async (driverId) => {
+  if (!isValidUuid(driverId)) return false;
+  const { data, error } = await supabase
+    .from('drivers')
+    .select('id')
+    .eq('id', driverId)
+    .eq('is_active', true)
+    .is('archived_at', null)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.id);
+};
+
 const vehicleFuelLoadSelect = `
   *,
   vehicle:vehicles!vehicle_fuel_loads_vehicle_id_fkey (
@@ -78,7 +91,7 @@ const vehicleFuelLoadSelect = `
     brand,
     model,
     assigned_driver_profile_id,
-    assigned_driver_profile:drivers!vehicles_assigned_driver_profile_id_fkey(id, name, user_id)
+    assigned_driver_profile:drivers!vehicles_assigned_driver_profile_id_fkey(id, name, is_active, archived_at)
   )
 `;
 
@@ -181,7 +194,7 @@ export const equipmentLogService = {
     try {
       let query = supabase
         .from('vehicles')
-        .select('*, assigned_driver:assigned_driver_id(id, full_name, email), assigned_driver_profile:assigned_driver_profile_id(id, name, phone, notes, user_id)')
+        .select('*, assigned_driver:assigned_driver_id(id, full_name, email), assigned_driver_profile:assigned_driver_profile_id(id, name, phone, notes, is_active, archived_at)')
         .is('archived_at', null)
         .order('created_at', { ascending: false });
 
@@ -246,6 +259,10 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!vehicle.id && payload.assigned_driver_profile_id && !(await isActiveDriverId(payload.assigned_driver_profile_id))) {
+        return { success: false, error: 'Seleccioná un chofer activo.' };
+      }
+
       const request = vehicle.id
         ? supabase.from('vehicles').update(payload).eq('id', vehicle.id)
         : supabase.from('vehicles').insert([payload]);
@@ -286,7 +303,7 @@ export const equipmentLogService = {
     try {
       let query = supabase
         .from('drivers')
-        .select('id, name, phone, notes, user_id, is_active, archived_at, created_at, updated_at')
+        .select('id, name, phone, notes, is_active, archived_at, created_at, updated_at')
         .order('name', { ascending: true });
 
       if (activeOnly) {
@@ -338,7 +355,6 @@ export const equipmentLogService = {
           name,
           phone: payload.phone?.trim() || null,
           notes: payload.notes?.trim() || null,
-          is_active: payload.is_active ?? true,
         })
         .eq('id', id)
         .select()
@@ -365,19 +381,17 @@ export const equipmentLogService = {
     }
   },
 
-  async linkDriverToUser(driverId, userId) {
+  async reactivateDriver(id) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('drivers')
-        .update({ user_id: userId || null })
-        .eq('id', driverId)
-        .select()
-        .single();
+        .update({ is_active: true, archived_at: null })
+        .eq('id', id);
 
       if (error) throw error;
-      return { success: true, data, message: 'Chofer vinculado al usuario.' };
+      return { success: true, message: 'Chofer reactivado.' };
     } catch (error) {
-      return { success: false, error: mapSupabaseError(error, 'No se pudo vincular el chofer al usuario.') };
+      return { success: false, error: mapSupabaseError(error, 'No se pudo reactivar el chofer.') };
     }
   },
 
@@ -821,7 +835,7 @@ export const equipmentLogService = {
     try {
       const { data, error } = await supabase
         .from('vehicle_daily_routes')
-        .select('*, vehicle:vehicles!vehicle_daily_routes_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_daily_routes_driver_id_fkey(id, name, user_id)')
+        .select('*, vehicle:vehicles!vehicle_daily_routes_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_daily_routes_driver_id_fkey(id, name, is_active, archived_at)')
         .order('route_date', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -862,11 +876,15 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!route.id && !(await isActiveDriverId(route.driver_id))) {
+        return { success: false, error: 'Seleccioná un chofer activo.' };
+      }
+
       const request = route.id
         ? supabase.from('vehicle_daily_routes').update(payload).eq('id', route.id)
         : supabase.from('vehicle_daily_routes').insert([payload]);
       const { data, error } = await request
-        .select('*, vehicle:vehicles!vehicle_daily_routes_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_daily_routes_driver_id_fkey(id, name, user_id)')
+        .select('*, vehicle:vehicles!vehicle_daily_routes_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_daily_routes_driver_id_fkey(id, name, is_active, archived_at)')
         .single();
       if (error) throw error;
       return { success: true, data, message: route.id ? 'Recorrido actualizado.' : 'Recorrido registrado.' };
@@ -889,7 +907,7 @@ export const equipmentLogService = {
     try {
       const { data, error } = await supabase
         .from('vehicle_maintenance_requests')
-        .select('*, vehicle:vehicles!vehicle_maintenance_requests_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_maintenance_requests_driver_id_fkey(id, name, user_id)')
+        .select('*, vehicle:vehicles!vehicle_maintenance_requests_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_maintenance_requests_driver_id_fkey(id, name, is_active, archived_at)')
         .order('request_date', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -932,11 +950,15 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!request.id && !(await isActiveDriverId(request.driver_id))) {
+        return { success: false, error: 'Seleccioná un chofer activo.' };
+      }
+
       const dbRequest = request.id
         ? supabase.from('vehicle_maintenance_requests').update(payload).eq('id', request.id)
         : supabase.from('vehicle_maintenance_requests').insert([payload]);
       const { data, error } = await dbRequest
-        .select('*, vehicle:vehicles!vehicle_maintenance_requests_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_maintenance_requests_driver_id_fkey(id, name, user_id)')
+        .select('*, vehicle:vehicles!vehicle_maintenance_requests_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_maintenance_requests_driver_id_fkey(id, name, is_active, archived_at)')
         .single();
       if (error) throw error;
       return { success: true, data, message: request.id ? 'Aviso de mantenimiento actualizado.' : 'Aviso de mantenimiento registrado.' };
@@ -949,7 +971,7 @@ export const equipmentLogService = {
     try {
       const { data, error } = await supabase
         .from('vehicle_document_expirations')
-        .select('*, vehicle:vehicles!vehicle_document_expirations_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_document_expirations_driver_id_fkey(id, name, user_id)')
+        .select('*, vehicle:vehicles!vehicle_document_expirations_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_document_expirations_driver_id_fkey(id, name, is_active, archived_at)')
         .order('expires_at', { ascending: true });
       if (error) throw error;
       return { success: true, data: data || [] };
@@ -979,11 +1001,15 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!expiration.id && expiration.driver_id && !(await isActiveDriverId(expiration.driver_id))) {
+        return { success: false, error: 'Seleccioná un chofer activo.' };
+      }
+
       const request = expiration.id
         ? supabase.from('vehicle_document_expirations').update(payload).eq('id', expiration.id)
         : supabase.from('vehicle_document_expirations').insert([payload]);
       const { data, error } = await request
-        .select('*, vehicle:vehicles!vehicle_document_expirations_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_document_expirations_driver_id_fkey(id, name, user_id)')
+        .select('*, vehicle:vehicles!vehicle_document_expirations_vehicle_id_fkey(id, license_plate, name, brand, model), driver:drivers!vehicle_document_expirations_driver_id_fkey(id, name, is_active, archived_at)')
         .single();
       if (error) throw error;
       return { success: true, data, message: expiration.id ? 'Vencimiento actualizado.' : 'Vencimiento registrado.' };
