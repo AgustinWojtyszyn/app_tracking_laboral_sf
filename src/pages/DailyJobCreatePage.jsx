@@ -24,7 +24,9 @@ export default function DailyJobCreatePage() {
               <ArrowLeft className="w-4 h-4 mr-2" /> Volver
             </Button>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-50">Nueva solicitud</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-50">
+                {isDuplicate ? 'Duplicar trabajo' : 'Nueva solicitud'}
+              </h1>
               <p className="text-sm md:text-base text-gray-500 dark:text-slate-300">
                 {isDuplicate ? 'Revisá la información precargada antes de guardar.' : 'Cargá la información completa para generar el trabajo.'}
               </p>
@@ -41,6 +43,7 @@ export default function DailyJobCreatePage() {
         <JobForm
           mode="page"
           initialJobData={duplicateJobDraft}
+          submitLabel={isDuplicate ? 'Crear copia' : null}
           onCancel={() => navigate('/app/trabajos-diarios')}
           onSuccess={() => navigate('/app/trabajos-diarios')}
         />

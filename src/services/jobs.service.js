@@ -8,6 +8,7 @@ import {
   validateJobImageDrafts,
   validateJobImageFile,
 } from '@/utils/jobImageAttachments';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 
 const JOB_IMAGES_BUCKET = 'job-request-images';
 const DEBUG_MAINTENANCE = false;
@@ -156,6 +157,7 @@ export const jobsService = {
   async listJobsPaginated({
     date = null,
     location = null,
+    status = null,
     search = '',
     page = 1,
     pageSize = 10,
@@ -164,6 +166,7 @@ export const jobsService = {
       const { data, error } = await supabase.rpc('list_jobs_paginated', {
         p_date: normalizeRpcFilterValue(date),
         p_location: normalizeRpcFilterValue(location),
+        p_status: normalizeRpcFilterValue(status),
         p_search: normalizeRpcFilterValue(search),
         p_page: page,
         p_page_size: pageSize,
@@ -198,12 +201,14 @@ export const jobsService = {
   async listJobsForExport({
     date = null,
     location = null,
+    status = null,
     search = '',
   } = {}) {
     try {
       const { data, error } = await supabase.rpc('list_jobs_for_export', {
         p_date: normalizeRpcFilterValue(date),
         p_location: normalizeRpcFilterValue(location),
+        p_status: normalizeRpcFilterValue(status),
         p_search: normalizeRpcFilterValue(search),
       });
 
@@ -225,6 +230,56 @@ export const jobsService = {
         data: { items: [] },
         error: 'No se pudieron preparar los trabajos para exportar.',
       };
+    }
+  },
+
+  async getDailyJobsSummary({
+    date = null,
+    location = null,
+    search = '',
+  } = {}) {
+    try {
+      const result = await this.listJobsForExport({ date, location, search });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      const items = Array.isArray(result.data?.items) ? result.data.items : [];
+      const workerIds = new Set();
+      const locations = new Set();
+
+      const summary = items.reduce((acc, job) => {
+        const status = normalizeJobStatus(job?.status || job?.estado);
+        const workerKey = job?.worker_id || job?.workers?.id || null;
+        const locationKey = String(job?.location || '').trim().toLowerCase();
+        if (workerKey) workerIds.add(workerKey);
+        if (locationKey) locations.add(locationKey);
+
+        acc.total += 1;
+        if (status === 'pending') acc.pending += 1;
+        if (status === 'completed') acc.completed += 1;
+        acc.totalCharge += Number(job?.amount_to_charge) || 0;
+        acc.workerCost += Number(job?.cost_spent) || 0;
+        return acc;
+      }, {
+        total: 0,
+        pending: 0,
+        completed: 0,
+        workers: 0,
+        locations: 0,
+        totalCharge: 0,
+        workerCost: 0,
+        balance: 0,
+      });
+
+      summary.workers = workerIds.size;
+      summary.locations = locations.size;
+      summary.balance = summary.totalCharge - summary.workerCost;
+
+      return { success: true, data: summary };
+    } catch (error) {
+      console.error('getDailyJobsSummary error', error);
+      return { success: false, error: 'No se pudo calcular el resumen del día.' };
     }
   },
 
@@ -641,12 +696,14 @@ export const jobsService = {
     }
   },
 
-  async deleteCompletedJobs(startDate, endDate) {
+  async deleteCompletedJobs(startDate, endDate, filters = {}) {
     try {
       const { data, error } = await supabase.rpc('bulk_delete_jobs', {
         p_start_date: startDate,
         p_end_date: endDate,
         p_status: 'completed',
+        p_location: normalizeRpcFilterValue(filters.location),
+        p_search: normalizeRpcFilterValue(filters.search),
       });
 
       if (error) throw error;
@@ -656,12 +713,14 @@ export const jobsService = {
     }
   },
 
-  async deletePendingJobs(startDate, endDate) {
+  async deletePendingJobs(startDate, endDate, filters = {}) {
     try {
       const { data, error } = await supabase.rpc('bulk_delete_jobs', {
         p_start_date: startDate,
         p_end_date: endDate,
         p_status: 'pending',
+        p_location: normalizeRpcFilterValue(filters.location),
+        p_search: normalizeRpcFilterValue(filters.search),
       });
 
       if (error) throw error;

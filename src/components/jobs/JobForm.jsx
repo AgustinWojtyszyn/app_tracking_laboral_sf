@@ -17,9 +17,17 @@ import JobDetailsSection from '@/components/jobs/form/JobDetailsSection';
 import JobImagesSection from '@/components/jobs/form/JobImagesSection';
 import JobAssignmentSection from '@/components/jobs/form/JobAssignmentSection';
 import JobFormActions from '@/components/jobs/form/JobFormActions';
-export default function JobForm({ jobToEdit = null, initialJobData = null, onSuccess, mode = 'modal', onCancel }) {
+export default function JobForm({
+  jobToEdit = null,
+  initialJobData = null,
+  onSuccess,
+  mode = 'modal',
+  onCancel,
+  submitLabel = null,
+}) {
   const isPage = mode === 'page';
   const isModal = !isPage;
+  const isDuplicate = Boolean(initialJobData && !jobToEdit);
   const { user } = useAuth();
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
@@ -239,6 +247,7 @@ export default function JobForm({ jobToEdit = null, initialJobData = null, onSuc
               locationSearch={locationSearch}
               setLocationSearch={setLocationSearch}
               filteredLocationOptions={filteredLocationOptions}
+              showStatus={Boolean(jobToEdit)}
             />
           </section>
 
@@ -301,6 +310,7 @@ export default function JobForm({ jobToEdit = null, initialJobData = null, onSuc
               jobToEdit={jobToEdit}
               onCancel={onCancel}
               variant="footer"
+              submitLabel={submitLabel || (isDuplicate ? 'Crear copia' : null)}
             />
           </section>
         </>
@@ -313,6 +323,7 @@ export default function JobForm({ jobToEdit = null, initialJobData = null, onSuc
             locationSearch={locationSearch}
             setLocationSearch={setLocationSearch}
             filteredLocationOptions={filteredLocationOptions}
+            showStatus={Boolean(jobToEdit)}
           />
           <JobDetailsSection
             formData={formData}
@@ -347,6 +358,7 @@ export default function JobForm({ jobToEdit = null, initialJobData = null, onSuc
             jobToEdit={jobToEdit}
             onCancel={onCancel}
             variant="inline"
+            submitLabel={submitLabel || (isDuplicate ? 'Crear copia' : null)}
           />
         </>
       )}
@@ -368,7 +380,7 @@ export default function JobForm({ jobToEdit = null, initialJobData = null, onSuc
       )}
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 dark:text-slate-50 form-lg">
         <DialogHeader>
-          <DialogTitle className="text-[#1e3a8a] text-2xl md:text-3xl">{jobToEdit ? 'Editar Trabajo' : 'Nuevo Trabajo'}</DialogTitle>
+          <DialogTitle className="text-[#1e3a8a] text-2xl md:text-3xl">{jobToEdit ? 'Editar Trabajo' : isDuplicate ? 'Duplicar trabajo' : 'Nuevo Trabajo'}</DialogTitle>
         </DialogHeader>
         {formBody}
       </DialogContent>

@@ -7,7 +7,8 @@ export default function JobMainInfoSection({
   errors,
   locationSearch,
   setLocationSearch,
-  filteredLocationOptions
+  filteredLocationOptions,
+  showStatus = false
 }) {
   return (
     <>
@@ -22,20 +23,23 @@ export default function JobMainInfoSection({
           />
           {errors.date && <span className="text-xs text-red-500">{errors.date}</span>}
         </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Estado</label>
-          <select
-            className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
-            value={formData.status}
-            onChange={e => setFormData({ ...formData, status: e.target.value })}
-            required
-          >
-            <option value="pending">Pendiente</option>
-            <option value="completed">Completado</option>
-            <option value="archived">Archivado</option>
-          </select>
-          {errors.status && <span className="text-xs text-red-500">{errors.status}</span>}
-        </div>
+        {showStatus && (
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-100">Estado</label>
+            <select
+              className="w-full mt-1 p-2 border border-gray-300 dark:border-slate-700 rounded focus:border-[#1e3a8a] outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-50"
+              value={formData.status}
+              onChange={e => setFormData({ ...formData, status: e.target.value })}
+              required
+            >
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En proceso</option>
+              <option value="completed">Completado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+            {errors.status && <span className="text-xs text-red-500">{errors.status}</span>}
+          </div>
+        )}
       </div>
 
       <div>

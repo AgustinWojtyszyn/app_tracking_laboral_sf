@@ -17,8 +17,18 @@ import JobsPagination from '@/components/jobs/JobsPagination';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
-import { normalizeJobStatus } from '@/utils/jobStatus';
+import { getJobStatusBadgeClass, getJobStatusLabel, JOB_STATUS_OPTIONS, normalizeJobStatus } from '@/utils/jobStatus';
 import { JOB_LOCATIONS } from '@/constants/jobLocations';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const getArgentinaToday = () => (
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
@@ -40,6 +50,17 @@ const buildDuplicateJobDraft = (job, selectedDate) => ({
   worker_id: job?.worker_id || '',
 });
 
+const emptySummary = {
+  total: 0,
+  pending: 0,
+  completed: 0,
+  workers: 0,
+  locations: 0,
+  totalCharge: 0,
+  workerCost: 0,
+  balance: 0,
+};
+
 export default function DailyJobsPage() {
   const { user, isAdmin, userRole } = useAuth();
   const navigate = useNavigate();
@@ -57,19 +78,22 @@ export default function DailyJobsPage() {
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [summary, setSummary] = useState(emptySummary);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const reqIdRef = useRef(0);
+  const summaryReqIdRef = useRef(0);
   const exportLockRef = useRef(false);
   const shareLockRef = useRef(false);
-  const filteredJobs = jobs;
-  const hasJobs = filteredJobs.length > 0;
   const clearDisabled = clearing || loading || exporting || sharing;
   const clearPendingDisabled = clearingPending || loading || exporting || sharing;
   const autoTourStartedRef = useRef(false);
@@ -85,6 +109,12 @@ export default function DailyJobsPage() {
     setCurrentPage(1);
   };
 
+  const handleStatusFilterChange = (eventOrValue) => {
+    const value = typeof eventOrValue === 'string' ? eventOrValue : eventOrValue.target.value;
+    setSelectedStatus(value);
+    setCurrentPage(1);
+  };
+
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
   };
@@ -96,7 +126,11 @@ export default function DailyJobsPage() {
 
   useEffect(() => {
     if (user) fetchJobs();
-  }, [user, date, selectedLocation, debouncedSearchTerm, currentPage, pageSize]);
+  }, [user, date, selectedLocation, selectedStatus, debouncedSearchTerm, currentPage, pageSize]);
+
+  useEffect(() => {
+    if (user) fetchSummary();
+  }, [user, date, selectedLocation, debouncedSearchTerm]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -121,6 +155,7 @@ export default function DailyJobsPage() {
       const result = await withTimeout(jobsService.listJobsPaginated({
         date,
         location: selectedLocation,
+        status: selectedStatus,
         search: debouncedSearchTerm,
         page: currentPage,
         pageSize,
@@ -166,6 +201,21 @@ export default function DailyJobsPage() {
     }
   };
 
+  const fetchSummary = async () => {
+    const reqId = ++summaryReqIdRef.current;
+    const result = await jobsService.getDailyJobsSummary({
+      date,
+      location: selectedLocation,
+      search: debouncedSearchTerm,
+    });
+    if (reqId !== summaryReqIdRef.current) return;
+    if (result?.success) {
+      setSummary({ ...emptySummary, ...(result.data || {}) });
+    } else {
+      setSummary(emptySummary);
+    }
+  };
+
   const handleDateChange = (event) => {
     const nextDate = event.target.value;
     if (!nextDate) return;
@@ -193,6 +243,7 @@ export default function DailyJobsPage() {
     const result = await jobsService.listJobsForExport({
       date,
       location: selectedLocation,
+      status: selectedStatus,
       search: searchTerm.trim(),
     });
 
@@ -250,7 +301,10 @@ export default function DailyJobsPage() {
       return;
     }
     setClearing(true);
-    const result = await jobsService.deleteCompletedJobs(date, date);
+    const result = await jobsService.deleteCompletedJobs(date, date, {
+      location: selectedLocation,
+      search: searchTerm.trim(),
+    });
     if (result.success) {
       const removed = result.removed || 0;
       addToast(
@@ -260,6 +314,7 @@ export default function DailyJobsPage() {
         'success'
       );
       fetchJobs();
+      fetchSummary();
     } else {
       addToast(result.error, 'error');
     }
@@ -272,7 +327,10 @@ export default function DailyJobsPage() {
       return;
     }
     setClearingPending(true);
-    const result = await jobsService.deletePendingJobs(date, date);
+    const result = await jobsService.deletePendingJobs(date, date, {
+      location: selectedLocation,
+      search: searchTerm.trim(),
+    });
     if (result.success) {
       const removed = result.removed || 0;
       addToast(
@@ -282,10 +340,36 @@ export default function DailyJobsPage() {
         'success'
       );
       fetchJobs();
+      fetchSummary();
     } else {
       addToast(result.error, 'error');
     }
     setClearingPending(false);
+  };
+
+  const applyStatusChange = async (job, nextStatus) => {
+    if (!job?.id) return;
+    setUpdatingStatusId(job.id);
+    const result = await jobsService.updateJob(job.id, { status: nextStatus }, user?.id || null);
+    if (result.success) {
+      addToast(isEn ? 'Status updated.' : 'Estado actualizado.', 'success');
+      fetchJobs();
+      fetchSummary();
+    } else {
+      addToast(result.error || (isEn ? 'Status could not be updated.' : 'No se pudo actualizar el estado.'), 'error');
+    }
+    setUpdatingStatusId(null);
+  };
+
+  const handleRowStatusChange = (job, nextStatus) => {
+    const normalizedNext = normalizeJobStatus(nextStatus);
+    const currentStatus = normalizeJobStatus(job?.status || job?.estado);
+    if (normalizedNext === currentStatus) return;
+    if (normalizedNext === 'cancelled') {
+      setPendingStatusChange({ job, nextStatus: normalizedNext });
+      return;
+    }
+    applyStatusChange(job, normalizedNext);
   };
 
   useEffect(() => {
@@ -373,7 +457,11 @@ export default function DailyJobsPage() {
 	          </Button>
           <ConfirmationModal
             title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
-            description={isEn ? 'Delete all completed jobs for this day.' : 'Eliminar todos los trabajos con estado completado de esta fecha.'}
+            description={
+              isEn
+                ? `Delete ${summary.completed || 0} completed jobs for this day and active place/search filters.`
+                : `Eliminar ${summary.completed || 0} trabajos con estado completado de esta fecha y filtros activos de lugar/búsqueda.`
+            }
             confirmLabel={isEn ? 'Delete' : 'Eliminar'}
             onConfirm={handleClearCompleted}
             trigger={
@@ -389,7 +477,11 @@ export default function DailyJobsPage() {
           />
           <ConfirmationModal
             title={isEn ? 'Clean pending?' : '¿Limpiar pendientes?'}
-            description={isEn ? 'Delete all pending jobs for this day.' : 'Eliminar todos los trabajos pendientes de esta fecha.'}
+            description={
+              isEn
+                ? `Delete ${summary.pending || 0} pending jobs for this day and active place/search filters.`
+                : `Eliminar ${summary.pending || 0} trabajos pendientes de esta fecha y filtros activos de lugar/búsqueda.`
+            }
             confirmLabel={isEn ? 'Delete pending' : 'Eliminar pendientes'}
             onConfirm={handleClearPending}
             trigger={
@@ -416,16 +508,93 @@ export default function DailyJobsPage() {
         </div>
       </div>
 
+      <section className="rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 md:p-5 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-slate-50">
+            {isEn ? 'Day summary' : 'Resumen del día'}
+          </h3>
+          <span className="text-xs text-gray-500 dark:text-slate-400">{formatDate(date)}</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-3">
+          {[
+            {
+              key: 'all',
+              label: isEn ? 'Total jobs' : 'Total de trabajos',
+              value: summary.total,
+              active: selectedStatus === 'all',
+              onClick: () => handleStatusFilterChange('all'),
+            },
+            {
+              key: 'pending',
+              label: isEn ? 'Pending' : 'Pendientes',
+              value: summary.pending,
+              active: selectedStatus === 'pending',
+              onClick: () => handleStatusFilterChange('pending'),
+            },
+            {
+              key: 'completed',
+              label: isEn ? 'Completed' : 'Completados',
+              value: summary.completed,
+              active: selectedStatus === 'completed',
+              onClick: () => handleStatusFilterChange('completed'),
+            },
+            {
+              key: 'workers',
+              label: isEn ? 'Workers involved' : 'Trabajadores involucrados',
+              value: summary.workers,
+            },
+            {
+              key: 'locations',
+              label: isEn ? 'Places served' : 'Lugares atendidos',
+              value: summary.locations,
+            },
+          ].map((card) => {
+            const content = (
+              <>
+                <span className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">{card.label}</span>
+                <span className="mt-1 block text-2xl font-bold text-gray-900 dark:text-slate-50">{card.value || 0}</span>
+              </>
+            );
+            const className = `min-h-[82px] rounded-lg border p-3 text-left transition ${
+              card.active
+                ? 'border-[#1e3a8a] bg-blue-50 ring-2 ring-[#1e3a8a]/20 dark:border-blue-500 dark:bg-blue-950/30'
+                : 'border-gray-100 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40'
+            }`;
+            return card.onClick ? (
+              <button key={card.key} type="button" onClick={card.onClick} className={className}>
+                {content}
+              </button>
+            ) : (
+              <div key={card.key} className={className}>
+                {content}
+              </div>
+            );
+          })}
+          <div className="min-h-[82px] rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-slate-800 dark:bg-slate-950/40">
+            <span className="text-xs font-semibold uppercase text-gray-500 dark:text-slate-400">
+              {isEn ? 'Estimated balance' : 'Balance estimado'}
+            </span>
+            <div className="mt-2 space-y-1 text-xs text-gray-600 dark:text-slate-300">
+              <div className="flex justify-between gap-2"><span>{isEn ? 'Charge' : 'A cobrar'}</span><strong>{formatCurrency(summary.totalCharge)}</strong></div>
+              <div className="flex justify-between gap-2"><span>{isEn ? 'Worker cost' : 'Costo trab.'}</span><strong>{formatCurrency(summary.workerCost)}</strong></div>
+              <div className="flex justify-between gap-2 text-gray-900 dark:text-slate-50"><span>{isEn ? 'Difference' : 'Diferencia'}</span><strong>{formatCurrency(summary.balance)}</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <JobsFilters
         isEn={isEn}
         date={date}
         searchTerm={searchTerm}
         selectedLocation={selectedLocation}
+        selectedStatus={selectedStatus}
         locationOptions={locationOptions}
         pageSize={pageSize}
         onDateChange={handleDateChange}
         onSearchChange={handleSearchChange}
         onLocationChange={handleLocationChange}
+        onStatusChange={handleStatusFilterChange}
         onPageSizeChange={handlePageSizeChange}
       />
 
@@ -471,20 +640,6 @@ export default function DailyJobsPage() {
                   ) : jobs.map((job) => (
                     (() => {
                       const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
-                      const statusClass = normalizedStatus === 'completed'
-                        ? 'bg-green-100 text-green-700'
-                        : normalizedStatus === 'pending'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : normalizedStatus === 'archived'
-                        ? 'bg-gray-100 text-gray-700'
-                        : 'bg-slate-100 text-slate-700';
-                      const statusLabel = normalizedStatus === 'completed'
-                        ? (isEn ? 'Completed' : 'Completado')
-                        : normalizedStatus === 'pending'
-                          ? (isEn ? 'Pending' : 'Pendiente')
-                          : normalizedStatus === 'archived'
-                            ? (isEn ? 'Archived' : 'Archivado')
-                            : (isEn ? 'Not informed' : 'No informado');
                       return (
                     <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                       <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
@@ -497,9 +652,24 @@ export default function DailyJobsPage() {
                       <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.cost_spent)}</td>
                       <td className="px-3 md:px-4 py-3 text-right text-gray-700 dark:text-slate-200">{formatCurrency(job.amount_to_charge)}</td>
                       <td className="px-3 md:px-4 py-3 text-center">
-                        <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${statusClass}`}>
-                          {statusLabel}
-                        </span>
+                        <div className="flex flex-col items-center gap-2">
+                          <span className={`text-[10px] md:text-xs px-3 py-1.5 rounded-full font-semibold ${getJobStatusBadgeClass(normalizedStatus)}`}>
+                            {getJobStatusLabel(normalizedStatus, isEn)}
+                          </span>
+                          <select
+                            value={normalizedStatus}
+                            onChange={(event) => handleRowStatusChange(job, event.target.value)}
+                            disabled={updatingStatusId === job.id}
+                            className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+                            aria-label={isEn ? 'Change job status' : 'Cambiar estado del trabajo'}
+                          >
+                            {JOB_STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {isEn ? option.labelEn : option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
                       <td className="px-3 md:px-4 py-3 text-center">
                         <div className="flex justify-center gap-3 flex-wrap">
@@ -557,9 +727,45 @@ export default function DailyJobsPage() {
           onSuccess={() => {
             setEditingJob(null);
             fetchJobs();
+            fetchSummary();
           }}
         />
       )}
+
+      <AlertDialog
+        open={Boolean(pendingStatusChange)}
+        onOpenChange={(open) => {
+          if (!open) setPendingStatusChange(null);
+        }}
+      >
+        <AlertDialogContent className="bg-background text-foreground border border-border shadow-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold text-foreground">
+              {isEn ? 'Cancel job?' : '¿Cancelar trabajo?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              {isEn
+                ? 'This will mark the selected job as cancelled.'
+                : 'Esto marcará el trabajo seleccionado como cancelado.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">
+              {isEn ? 'Back' : 'Volver'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const change = pendingStatusChange;
+                setPendingStatusChange(null);
+                if (change?.job) applyStatusChange(change.job, change.nextStatus);
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isEn ? 'Cancel job' : 'Cancelar trabajo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
         </div>
     );

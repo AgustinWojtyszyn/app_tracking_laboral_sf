@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { workersService } from '@/services/workers.service';
+import { normalizeJobStatus } from '@/utils/jobStatus';
 
 const buildInitialForm = () => ({
   date: new Date().toISOString().split('T')[0],
@@ -21,6 +22,7 @@ const buildInitialForm = () => ({
 const hydrateFormForEdit = (jobToEdit, initialForm) => ({
   ...initialForm,
   ...jobToEdit,
+  status: normalizeJobStatus(jobToEdit.status || jobToEdit.estado),
   group_id: jobToEdit.group_id || '',
   requested_by: jobToEdit.requested_by || '',
   action_type: jobToEdit.action_type || '',

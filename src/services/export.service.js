@@ -1,7 +1,7 @@
 
 import * as XLSX from 'xlsx';
 import { formatDate } from '@/utils/formatters';
-import { normalizeJobStatus } from '@/utils/jobStatus';
+import { getJobStatusLabel } from '@/utils/jobStatus';
 
 const resolveSectorLabel = (job) => {
   const sectorType = (job?.sector_type || '').trim();
@@ -62,15 +62,6 @@ const documentStatus = (expiration) => {
 export const exportService = {
   // Helper to get formatted job object
   _mapJobToRow(job) {
-    const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
-    const statusLabel = normalizedStatus === 'completed'
-      ? 'Completado'
-      : normalizedStatus === 'pending'
-      ? 'Pendiente'
-      : normalizedStatus === 'archived'
-      ? 'Archivado'
-      : 'No informado';
-
     return {
       Fecha: formatDate(job.date),
       Ubicación: job.location || '',
@@ -80,7 +71,7 @@ export const exportService = {
       Descripción: job.description || '',
       Grupo: job.groups?.name || '-',
       Trabajador: job.workers?.display_name || job.workers?.alias || '-',
-      Estado: statusLabel
+      Estado: getJobStatusLabel(job?.estado || job?.status)
     };
   },
 
@@ -166,21 +157,12 @@ export const exportService = {
     if (!jobs || jobs.length === 0) return '';
 
     const lines = jobs.map((job, idx) => {
-      const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
-      const statusLabel = normalizedStatus === 'completed'
-        ? 'Completado'
-        : normalizedStatus === 'archived'
-        ? 'Archivado'
-        : normalizedStatus === 'pending'
-        ? 'Pendiente'
-        : 'No informado';
-
       return [
         `#${idx + 1} | ${formatDate(job.date)} - ${job.title || job.description || 'Sin descripción'}`,
         `Lugar: ${job.location || '-'}`,
         `Trabajador: ${job.workers?.display_name || job.workers?.alias || '-'}`,
         `Grupo: ${job.groups?.name || '-'}`,
-        `Estado: ${statusLabel}`
+        `Estado: ${getJobStatusLabel(job?.estado || job?.status)}`
       ].join('\n');
     });
 

@@ -6,13 +6,17 @@ export default function JobFormActions({
   loading,
   jobToEdit,
   onCancel,
-  variant = 'footer'
+  variant = 'footer',
+  submitLabel = null
 }) {
+  const defaultLabel = jobToEdit ? 'Actualizar' : 'Guardar';
+  const label = submitLabel || defaultLabel;
+
   if (variant === 'inline') {
     return (
       <Button type="submit" disabled={loading} className="w-full bg-[#1e3a8a] hover:bg-blue-900 text-white mt-4">
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        {jobToEdit ? 'Actualizar' : 'Guardar'}
+        {label}
       </Button>
     );
   }
@@ -32,7 +36,7 @@ export default function JobFormActions({
       </Button>
       <Button type="submit" disabled={loading} className="h-11 px-5 bg-[#1e3a8a] hover:bg-blue-900 text-white">
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        {jobToEdit ? 'Actualizar' : 'Guardar'}
+        {label}
       </Button>
     </div>
   );
