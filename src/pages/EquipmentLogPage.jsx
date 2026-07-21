@@ -490,9 +490,9 @@ function VehicleFormDialog({ vehicle, drivers, trigger, onSaved }) {
           <Field label="Observaciones">
             <textarea className={`${inputClass} min-h-24`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
           </Field>
-          {driver && (
+          {vehicle && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-              Estado actual: <span className="font-semibold">{isActiveDriver(form) ? 'Activo' : 'Inactivo'}</span>
+              Estado actual: <span className="font-semibold">{statusLabels[form.status] || form.status}</span>
             </div>
           )}
           <div className="flex justify-end gap-2">
