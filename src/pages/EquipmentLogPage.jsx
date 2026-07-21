@@ -1460,7 +1460,9 @@ export default function EquipmentLogPage() {
   const canEditRoutes = isAdmin || isDriver;
   const canDeleteRoutes = isAdmin;
   const canEditMaintenanceRequests = isAdmin || isDriver;
+  const canDeleteMaintenanceRequests = isAdmin;
   const canEditDocumentExpirations = isAdmin;
+  const canDeleteDocumentExpirations = isAdmin;
   const activeDriverId = '';
   const activeDrivers = useMemo(() => drivers.filter(isActiveDriver), [drivers]);
   const fullDataTabs = ['summary', 'vehicles', 'routes', 'fuel', 'maintenance', 'expirations', 'driverHistory', 'plant', 'operation', 'incidents', 'checks'];
@@ -1699,6 +1701,18 @@ export default function EquipmentLogPage() {
 
   const handleDeleteVehicleRoute = async (id) => {
     const result = await equipmentLogService.deleteVehicleRoute(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteMaintenanceRequest = async (id) => {
+    const result = await equipmentLogService.deleteMaintenanceRequest(id);
+    addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+    if (result.success) loadCurrentTab();
+  };
+
+  const handleDeleteDocumentExpiration = async (id) => {
+    const result = await equipmentLogService.deleteDocumentExpiration(id);
     addToast(result.success ? result.message : result.error, result.success ? 'success' : 'error');
     if (result.success) loadCurrentTab();
   };
@@ -2042,9 +2056,11 @@ export default function EquipmentLogPage() {
               drivers={drivers}
               search={search}
               canEdit={canEditMaintenanceRequests}
+              canDelete={canDeleteMaintenanceRequests}
               isAdmin={isAdmin}
               defaultDriverId={activeDriverId}
               onSaved={loadCurrentTab}
+              onDelete={handleDeleteMaintenanceRequest}
             />
           ) : activeTab === 'expirations' ? (
             <DocumentExpirationsList
@@ -2053,7 +2069,9 @@ export default function EquipmentLogPage() {
               drivers={drivers}
               search={search}
               canEdit={canEditDocumentExpirations}
+              canDelete={canDeleteDocumentExpirations}
               onSaved={loadCurrentTab}
+              onDelete={handleDeleteDocumentExpiration}
             />
           ) : activeTab === 'driverHistory' ? (
             <DriverHistoryList
@@ -2767,7 +2785,7 @@ function VehicleRoutesList({ routes, vehicles, drivers, search, canEdit, canDele
   );
 }
 
-function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit, isAdmin, defaultDriverId, onSaved }) {
+function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit, canDelete, isAdmin, defaultDriverId, onSaved, onDelete }) {
   const filtered = filterEquipmentRecords(requests, search);
   const unresolved = requests.filter((request) => !['realizado', 'cancelado'].includes(request.status));
   const highPriority = unresolved.filter((request) => request.priority === 'alta').length;
@@ -2796,7 +2814,7 @@ function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit,
           request.admin_notes || '-',
         ]}
         canEdit={canEdit}
-        canDelete={false}
+        canDelete={canDelete}
         editDialog={(request) => (
           <MaintenanceRequestFormDialog
             request={request}
@@ -2808,14 +2826,14 @@ function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit,
             trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
           />
         )}
-        onDelete={() => {}}
-        deleteTitle=""
+        onDelete={onDelete}
+        deleteTitle="¿Eliminar aviso de mantenimiento?"
       />
     </div>
   );
 }
 
-function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEdit, onSaved }) {
+function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEdit, canDelete, onSaved, onDelete }) {
   const filtered = filterEquipmentRecords(expirations, search);
   return (
     <EquipmentRecordTable
@@ -2837,7 +2855,7 @@ function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEd
         ];
       }}
       canEdit={canEdit}
-      canDelete={false}
+      canDelete={canDelete}
       editDialog={(expiration) => (
         <DocumentExpirationFormDialog
           expiration={expiration}
@@ -2847,8 +2865,8 @@ function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEd
           trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
         />
       )}
-      onDelete={() => {}}
-      deleteTitle=""
+      onDelete={onDelete}
+      deleteTitle="¿Eliminar vencimiento?"
     />
   );
 }

@@ -967,6 +967,16 @@ export const equipmentLogService = {
     }
   },
 
+  async deleteMaintenanceRequest(id) {
+    try {
+      const { error } = await supabase.from('vehicle_maintenance_requests').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Aviso de mantenimiento eliminado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el aviso de mantenimiento.') };
+    }
+  },
+
   async getDocumentExpirations() {
     try {
       const { data, error } = await supabase
@@ -1015,6 +1025,16 @@ export const equipmentLogService = {
       return { success: true, data, message: expiration.id ? 'Vencimiento actualizado.' : 'Vencimiento registrado.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo guardar el vencimiento.') };
+    }
+  },
+
+  async deleteDocumentExpiration(id) {
+    try {
+      const { error } = await supabase.from('vehicle_document_expirations').delete().eq('id', id);
+      if (error) throw error;
+      return { success: true, message: 'Vencimiento eliminado.' };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo eliminar el vencimiento.') };
     }
   },
 };
