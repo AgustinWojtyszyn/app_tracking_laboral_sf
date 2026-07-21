@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, ClipboardList, Edit2, FileSpreadsheet, Fuel, Plus, RotateCcw, Search, ShieldCheck, Trash2, UserCog, Wrench } from 'lucide-react';
+import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, ChevronDown, ClipboardList, Edit2, FileSpreadsheet, Fuel, Menu, Plus, RotateCcw, Search, ShieldCheck, Trash2, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -1443,6 +1443,8 @@ export default function EquipmentLogPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [openNavGroup, setOpenNavGroup] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isDriver = userRole === 'chofer';
   const canManageMasterData = isAdmin;
@@ -1597,6 +1599,50 @@ export default function EquipmentLogPage() {
     { key: 'incidents', label: 'Incidencias', icon: AlertCircle },
     { key: 'checks', label: 'Mantenimiento / Calibración', icon: Wrench },
   ]), []);
+  const tabByKey = useMemo(() => Object.fromEntries(tabs.map((tab) => [tab.key, tab])), [tabs]);
+  const tabTitles = {
+    vehicles: 'Vehículos',
+    summary: 'Resumen',
+    routes: 'Recorridos',
+    fuel: 'Combustible',
+    maintenance: 'Mantenimientos',
+    expirations: 'Vencimientos',
+    driverHistory: 'Historial de actividad de choferes',
+    drivers: 'Gestión de choferes',
+    plant: 'Planta',
+    operation: 'Operación diaria',
+    incidents: 'Incidencias',
+    checks: 'Mantenimiento / Calibración',
+  };
+  const tabDescriptions = {
+    vehicles: 'Fichas, historial de combustible, mantenimiento y vencimientos.',
+    summary: 'Indicadores operativos del módulo de vehículos.',
+    routes: 'Recorridos diarios con kilometraje, chofer y empresas visitadas.',
+    fuel: 'Cargas de combustible, consumo estimado y costo por kilómetro.',
+    maintenance: 'Avisos de mantenimiento informados por choferes y seguimiento administrativo.',
+    expirations: 'Seguros, RTO, licencias y otros documentos con alertas.',
+    driverHistory: 'Historial de asignaciones, actividad y registros por chofer, incluso si fue desactivado.',
+    drivers: 'Registro actual de choferes disponibles para asignaciones y administración operativa.',
+    plant: 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.',
+    operation: 'Uso diario por equipo, fecha, turno y operador.',
+    incidents: 'Fallas, anomalías, mantenimiento menor y acciones correctivas.',
+    checks: 'Revisiones preventivas, predictivas y calibraciones programadas.',
+  };
+  const navGroups = useMemo(() => ([
+    { key: 'vehicles', label: 'Vehículos', icon: Car, tabs: ['vehicles', 'routes', 'fuel', 'maintenance', 'expirations'] },
+    { key: 'drivers', label: 'Choferes', icon: UserCog, tabs: ['drivers', 'driverHistory'] },
+    { key: 'plant', label: 'Planta', icon: Building2, tabs: ['plant', 'operation', 'incidents', 'checks'] },
+  ]), []);
+
+  useEffect(() => {
+    const activeGroup = navGroups.find((group) => group.tabs.includes(activeTab));
+    setOpenNavGroup(activeGroup?.key || '');
+  }, [activeTab, navGroups]);
+
+  const handleTabSelect = (key) => {
+    setActiveTab(key);
+    setMobileNavOpen(false);
+  };
 
   const handleArchiveVehicle = async (id) => {
     const result = await equipmentLogService.archiveVehicle(id);
@@ -1826,26 +1872,81 @@ export default function EquipmentLogPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[230px,1fr]">
+      <div className="grid gap-4 lg:grid-cols-[250px,1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const active = activeTab === tab.key;
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen((open) => !open)}
+            className="mb-2 flex w-full items-center justify-between rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800 transition hover:bg-blue-50 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-800 lg:hidden"
+          >
+            <span className="flex items-center gap-2">
+              <Menu className="h-4 w-4" />
+              Secciones
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${mobileNavOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <div className={`${mobileNavOpen ? 'grid' : 'hidden'} gap-2 lg:grid`}>
+            <button
+              type="button"
+              onClick={() => handleTabSelect('summary')}
+              className={`flex items-center justify-start gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                activeTab === 'summary'
+                  ? 'bg-[#1e3a8a] text-white shadow-sm'
+                  : 'text-gray-700 hover:bg-blue-50 dark:text-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              <ClipboardList className="h-5 w-5" />
+              Resumen
+            </button>
+            {navGroups.map((group) => {
+              const GroupIcon = group.icon;
+              const open = openNavGroup === group.key;
+              const groupActive = group.tabs.includes(activeTab);
               return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition lg:justify-start ${
-                    active
-                      ? 'bg-[#1e3a8a] text-white shadow-sm'
-                      : 'text-gray-700 hover:bg-blue-50 dark:text-slate-200 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  {tab.label}
-                </button>
+                <div key={group.key} className="rounded-xl border border-gray-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setOpenNavGroup(open ? '' : group.key)}
+                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition ${
+                      groupActive
+                        ? 'text-[#1e3a8a] dark:text-blue-200'
+                        : 'text-gray-700 hover:bg-blue-50 dark:text-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <GroupIcon className="h-5 w-5" />
+                      {group.label}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+                  </button>
+                  <div className={`grid overflow-hidden transition-[grid-template-rows] duration-150 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                    <div className="min-h-0">
+                      <div className="space-y-1 px-2 pb-2">
+                        {group.tabs.map((key) => {
+                          const tab = tabByKey[key];
+                          if (!tab) return null;
+                          const Icon = tab.icon;
+                          const active = activeTab === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => handleTabSelect(key)}
+                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition ${
+                                active
+                                  ? 'bg-[#1e3a8a] text-white shadow-sm'
+                                  : 'text-gray-600 hover:bg-blue-50 dark:text-slate-300 dark:hover:bg-slate-800'
+                              }`}
+                            >
+                              <Icon className="h-4 w-4" />
+                              {tabTitles[key] || tab.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -1855,36 +1956,10 @@ export default function EquipmentLogPage() {
           <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">
-                {{
-                  vehicles: 'Vehículos',
-                  summary: 'Resumen',
-                  routes: 'Recorridos',
-                  fuel: 'Combustible',
-                  maintenance: 'Mantenimientos',
-                  expirations: 'Vencimientos',
-                  driverHistory: 'Historial de choferes',
-                  drivers: 'Choferes',
-                  plant: 'Planta',
-                  operation: 'Operación diaria',
-                  incidents: 'Incidencias',
-                  checks: 'Mantenimiento / Calibración',
-                }[activeTab]}
+                {tabTitles[activeTab]}
               </h2>
               <p className="text-sm text-gray-500 dark:text-slate-300">
-                {{
-                  vehicles: 'Fichas, historial de combustible, mantenimiento y vencimientos.',
-                  summary: 'Indicadores operativos del módulo de vehículos.',
-                  routes: 'Recorridos diarios con kilometraje, chofer y empresas visitadas.',
-                  fuel: 'Cargas de combustible, consumo estimado y costo por kilómetro.',
-                  maintenance: 'Avisos de mantenimiento informados por choferes y seguimiento administrativo.',
-                  expirations: 'Seguros, RTO, licencias y otros documentos con alertas.',
-                  driverHistory: 'Actividad histórica por chofer aunque sea desactivado.',
-                  drivers: 'Padrón operativo de choferes asignables a vehículos.',
-                  plant: 'Cámaras, áreas operativas, partes comunes y equipos internos. Administración queda excluida.',
-                  operation: 'Uso diario por equipo, fecha, turno y operador.',
-                  incidents: 'Fallas, anomalías, mantenimiento menor y acciones correctivas.',
-                  checks: 'Revisiones preventivas, predictivas y calibraciones programadas.',
-                }[activeTab]}
+                {tabDescriptions[activeTab]}
               </p>
             </div>
             <div className="relative w-full md:w-80">
@@ -2085,28 +2160,40 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicle
   )).length;
 
   const cards = [
-    { label: 'Vehículos activos', value: activeVehicles, detail: vehicles.length ? `${vehicles.length} en registro` : 'Sin vehículos cargados', icon: Car },
-    { label: 'Recorridos del día', value: todayRoutes.length, detail: `${formatNumber(todayKm, 0)} km recorridos`, icon: CalendarClock },
-    { label: 'Cargas recientes', value: fuelLoads.slice(0, 5).length, detail: 'Últimos registros de combustible', icon: Fuel },
-    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: `${highPriorityMaintenance} de prioridad alta`, icon: Wrench },
-    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: `${expiredDocuments} vencidos`, icon: AlertCircle },
-    { label: 'Novedades de planta', value: plantNews, detail: 'Revisión, mantenimiento u observaciones', icon: Building2 },
+    { label: 'Vehículos activos', value: activeVehicles, detail: vehicles.length ? `${vehicles.length} en registro` : 'Sin vehículos cargados', icon: Car, tone: 'normal' },
+    { label: 'Recorridos del día', value: todayRoutes.length, detail: `${formatNumber(todayKm, 0)} km recorridos`, icon: CalendarClock, tone: 'normal' },
+    { label: 'Cargas recientes', value: fuelLoads.slice(0, 5).length, detail: 'Últimos registros de combustible', icon: Fuel, tone: 'normal' },
+    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: `${highPriorityMaintenance} de prioridad alta`, icon: Wrench, tone: highPriorityMaintenance > 0 ? 'warning' : pendingMaintenance > 0 ? 'notice' : 'normal' },
+    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: `${expiredDocuments} vencidos`, icon: AlertCircle, tone: expiredDocuments > 0 ? 'critical' : upcomingExpirations > 0 ? 'warning' : 'normal' },
+    { label: 'Novedades de planta', value: plantNews, detail: 'Revisión, mantenimiento u observaciones', icon: Building2, tone: plantNews > 0 ? 'notice' : 'normal' },
   ];
+  const toneClass = {
+    normal: 'border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900',
+    notice: 'border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/30',
+    warning: 'border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/30',
+    critical: 'border-red-200 bg-red-50/80 dark:border-red-900/60 dark:bg-red-950/30',
+  };
+  const iconClass = {
+    normal: 'bg-blue-100 text-[#1e3a8a] dark:bg-blue-900/40 dark:text-blue-100',
+    notice: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-100',
+    warning: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-100',
+    critical: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-100',
+  };
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
-          <div key={card.label} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">{card.label}</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-slate-50">{card.value}</p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{card.detail}</p>
+          <div key={card.label} className={`rounded-lg border p-3 shadow-sm ${toneClass[card.tone]}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">{card.label}</p>
+                <p className="mt-0.5 text-2xl font-bold leading-tight text-gray-900 dark:text-slate-50">{card.value}</p>
+                <p className="mt-0.5 text-xs leading-snug text-gray-500 dark:text-slate-400">{card.detail}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-[#1e3a8a] dark:bg-blue-900/40 dark:text-blue-100">
-                <Icon className="h-5 w-5" />
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClass[card.tone]}`}>
+                <Icon className="h-4 w-4" />
               </div>
             </div>
           </div>
@@ -2122,32 +2209,89 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
   const plantNews = plantAssets.filter((asset) => (
     ['mantenimiento', 'requiere_revision'].includes(asset.status) || Boolean(asset.notes?.trim())
   ));
+  const pendingMaintenance = maintenanceRequests.filter((request) => !['realizado', 'cancelado'].includes(request.status));
+  const urgentMaintenance = pendingMaintenance.filter((request) => request.priority === 'alta');
+  const urgentExpirations = documentExpirations.filter((expiration) => ['proximo_a_vencer', 'vencido'].includes(documentVisualStatus(expiration)));
+  const summarySections = [
+    {
+      title: 'Vencimientos',
+      items: urgentExpirations.slice(0, 5),
+      tone: urgentExpirations.some((expiration) => documentVisualStatus(expiration) === 'vencido') ? 'critical' : urgentExpirations.length > 0 ? 'warning' : 'normal',
+      priority: urgentExpirations.length > 0 ? 0 : 2,
+      renderItem: (expiration) => `${documentTypeLabels[expiration.document_type]} - ${formatDate(expiration.expires_at)} - ${documentStatusLabels[documentVisualStatus(expiration)]}`,
+    },
+    {
+      title: 'Mantenimientos pendientes',
+      items: pendingMaintenance.slice(0, 5),
+      tone: urgentMaintenance.length > 0 ? 'warning' : pendingMaintenance.length > 0 ? 'notice' : 'normal',
+      priority: urgentMaintenance.length > 0 ? 0 : pendingMaintenance.length > 0 ? 1 : 2,
+      renderItem: (request) => `${maintenancePriorityLabels[request.priority]} - ${vehicleLabel(request.vehicle)} - ${request.issue_type}`,
+    },
+    {
+      title: 'Cargas recientes',
+      items: fuelLoads.slice(0, 5),
+      tone: 'normal',
+      priority: 2,
+      renderItem: (load) => `${formatDate(load.load_date)} - ${vehicleLabel(load.vehicle)} - ${formatNumber(load.liters, 2)} L`,
+    },
+    {
+      title: 'Planta con novedades',
+      items: plantNews.slice(0, 5),
+      tone: plantNews.length > 0 ? 'notice' : 'normal',
+      priority: plantNews.length > 0 ? 1 : 2,
+      renderItem: (asset) => `${asset.name} - ${statusLabels[asset.status] || asset.status}${asset.notes ? ` - ${asset.notes}` : ''}`,
+    },
+    {
+      title: 'Incidencias de planta',
+      items: openPlantIncidents > 0 ? [{ id: 'plant-incidents', text: `${openPlantIncidents} registradas` }] : [],
+      tone: openPlantIncidents > 0 ? 'warning' : 'normal',
+      priority: openPlantIncidents > 0 ? 1 : 2,
+      renderItem: (item) => item.text,
+    },
+    {
+      title: 'Calibraciones pendientes',
+      items: pendingPlantChecks.slice(0, 5),
+      tone: pendingPlantChecks.length > 0 ? 'warning' : 'normal',
+      priority: pendingPlantChecks.length > 0 ? 1 : 2,
+      renderItem: (check) => `${formatDate(check.next_review_date)} - ${equipmentLabel(check)} - ${inspectionTypeLabels[check.inspection_type] || check.inspection_type}`,
+    },
+  ].sort((a, b) => a.priority - b.priority);
   return (
     <div className="space-y-4 p-4">
       <EquipmentSummaryCards vehicles={vehicles} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} maintenanceLogs={[]} plantAssets={plantAssets} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <SummaryMiniList title="Cargas recientes" items={fuelLoads.slice(0, 5)} renderItem={(load) => `${formatDate(load.load_date)} - ${vehicleLabel(load.vehicle)} - ${formatNumber(load.liters, 2)} L`} />
-        <SummaryMiniList title="Mantenimientos pendientes" items={maintenanceRequests.filter((request) => !['realizado', 'cancelado'].includes(request.status)).slice(0, 5)} renderItem={(request) => `${maintenancePriorityLabels[request.priority]} - ${vehicleLabel(request.vehicle)} - ${request.issue_type}`} />
-        <SummaryMiniList title="Vencimientos" items={documentExpirations.filter((expiration) => ['proximo_a_vencer', 'vencido'].includes(documentVisualStatus(expiration))).slice(0, 5)} renderItem={(expiration) => `${documentTypeLabels[expiration.document_type]} - ${formatDate(expiration.expires_at)} - ${documentStatusLabels[documentVisualStatus(expiration)]}`} />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <SummaryMiniList title="Planta con novedades" items={plantNews.slice(0, 5)} renderItem={(asset) => `${asset.name} - ${statusLabels[asset.status] || asset.status}${asset.notes ? ` - ${asset.notes}` : ''}`} />
-        <SummaryMiniList title="Incidencias de planta" items={[{ id: 'plant-incidents', text: `${openPlantIncidents} registradas` }]} renderItem={(item) => item.text} />
-        <SummaryMiniList title="Calibraciones pendientes" items={pendingPlantChecks.slice(0, 5)} renderItem={(check) => `${formatDate(check.next_review_date)} - ${equipmentLabel(check)} - ${inspectionTypeLabels[check.inspection_type] || check.inspection_type}`} />
+      <div className="grid items-start gap-3 xl:grid-cols-3">
+        {summarySections.map((section) => (
+          <SummaryMiniList
+            key={section.title}
+            title={section.title}
+            items={section.items}
+            tone={section.tone}
+            renderItem={section.renderItem}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function SummaryMiniList({ title, items, renderItem }) {
+function SummaryMiniList({ title, items, renderItem, tone = 'normal' }) {
+  const toneClass = {
+    normal: 'border-gray-100 dark:border-slate-800',
+    notice: 'border-blue-200 bg-blue-50/50 dark:border-blue-900/60 dark:bg-blue-950/20',
+    warning: 'border-amber-200 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20',
+    critical: 'border-red-200 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/20',
+  };
   return (
-    <div className="rounded-lg border border-gray-100 p-4 dark:border-slate-800">
-      <h3 className="font-bold text-gray-900 dark:text-slate-50">{title}</h3>
+    <div className={`rounded-lg border p-3 ${toneClass[tone]}`}>
+      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-50">{title}</h3>
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-gray-500 dark:text-slate-300">Sin registros.</p>
+        <div className="mt-2 flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:bg-slate-800/70 dark:text-slate-300">
+          <ClipboardList className="h-4 w-4 shrink-0" />
+          <span>No hay registros para mostrar.</span>
+        </div>
       ) : (
-        <ul className="mt-3 space-y-2 text-sm text-gray-700 dark:text-slate-200">
-          {items.map((item) => <li key={item.id} className="rounded-md bg-gray-50 px-3 py-2 dark:bg-slate-800">{renderItem(item)}</li>)}
+        <ul className="mt-2 space-y-1.5 text-sm text-gray-700 dark:text-slate-200">
+          {items.map((item) => <li key={item.id} className="rounded-md bg-white/70 px-3 py-2 shadow-sm ring-1 ring-gray-100 dark:bg-slate-800 dark:ring-slate-700">{renderItem(item)}</li>)}
         </ul>
       )}
     </div>

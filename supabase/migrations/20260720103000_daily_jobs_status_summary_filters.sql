@@ -402,6 +402,5 @@ begin
   );
 end;
 $function$;
-
 revoke all on function public.list_jobs_paginated(date, text, text, text, integer, integer) from public, anon;
 grant execute on function public.list_jobs_paginated(date, text, text, text, integer, integer) to authenticated, service_role;

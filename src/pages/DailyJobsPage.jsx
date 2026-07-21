@@ -6,7 +6,7 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Copy } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Copy, MoreHorizontal, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -77,6 +77,7 @@ export default function DailyJobsPage() {
   const [clearingPending, setClearingPending] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -432,78 +433,92 @@ export default function DailyJobsPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-slate-900 p-4 md:p-5 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 text-gray-900 dark:text-slate-50">
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 text-gray-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50 md:p-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col md:flex-row md:items-center gap-3 w-full xl:w-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-50">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-50 md:text-3xl">
               {isEn ? 'Daily Jobs' : 'Trabajos Diarios'}
             </h2>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:gap-3 w-full xl:flex-1">
-	          <Button
-	            variant="default"
-	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-base shadow-md bg-gradient-to-r from-[#1D976C] to-[#93F9B9] text-[#0b4f31] hover:from-[#168b60] hover:to-[#83efad] border-0 gap-2 whitespace-nowrap"
-	            onClick={handleExportExcel}
-	            disabled={loading || exporting || sharing}
-	          >
-	            <FileSpreadsheet className="w-5 h-5" /> {exporting ? (isEn ? 'Preparing...' : 'Preparando...') : (isEn ? 'Export to Excel' : 'Exportar a Excel')}
-	          </Button>
-	          <Button
-	            variant="default"
-	            className="w-full sm:w-auto md:min-w-[170px] h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-base shadow-md bg-[#25D366] hover:bg-[#1ebe5a] text-white border-0 gap-2 whitespace-nowrap"
-	            onClick={handleShare}
-	            disabled={loading || sharing || exporting}
-	          >
-	            <MessageCircle className="w-5 h-5" /> {sharing ? (isEn ? 'Preparing...' : 'Preparando...') : (isEn ? 'Share WhatsApp' : 'Compartir WhatsApp')}
-	          </Button>
-          <ConfirmationModal
-            title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
-            description={
-              isEn
-                ? `Delete ${summary.completed || 0} completed jobs for this day and active place/search filters.`
-                : `Eliminar ${summary.completed || 0} trabajos con estado completado de esta fecha y filtros activos de lugar/búsqueda.`
-            }
-            confirmLabel={isEn ? 'Delete' : 'Eliminar'}
-            onConfirm={handleClearCompleted}
-            trigger={
-              <Button
-                type="button"
-                variant="destructive"
-                className="w-full sm:w-auto md:min-w-[150px] h-10 sm:h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 whitespace-nowrap"
-                disabled={clearDisabled}
-              >
-                <Trash2 className="w-5 h-5 mr-2" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
-              </Button>
-            }
-          />
-          <ConfirmationModal
-            title={isEn ? 'Clean pending?' : '¿Limpiar pendientes?'}
-            description={
-              isEn
-                ? `Delete ${summary.pending || 0} pending jobs for this day and active place/search filters.`
-                : `Eliminar ${summary.pending || 0} trabajos pendientes de esta fecha y filtros activos de lugar/búsqueda.`
-            }
-            confirmLabel={isEn ? 'Delete pending' : 'Eliminar pendientes'}
-            onConfirm={handleClearPending}
-            trigger={
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto md:min-w-[150px] h-10 sm:h-11 md:h-11 text-sm md:text-sm lg:text-base shadow-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 whitespace-nowrap"
-                disabled={clearPendingDisabled}
-              >
-                <Trash2 className="w-5 h-5 mr-2" /> {clearingPending ? (isEn ? 'Cleaning pending...' : 'Limpiando pendientes...') : (isEn ? 'Clear pending' : 'Limpiar pendientes')}
-              </Button>
-            }
-          />
-          <div className="sm:ml-auto w-full sm:w-auto md:min-w-[150px]">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:flex-1">
+          <Button
+            type="button"
+            onClick={() => navigate('/app/trabajos-diarios/nuevo')}
+            className="h-11 w-full bg-[#1e3a8a] px-4 text-sm font-semibold text-white hover:bg-blue-900 sm:w-auto md:min-w-[170px] md:text-base"
+            data-tour="nuevo-trabajo"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Trabajo
+          </Button>
+          <Button
+            variant="outline"
+            className="h-10 w-full gap-2 whitespace-nowrap border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 sm:w-auto md:min-w-[160px]"
+            onClick={handleExportExcel}
+            disabled={loading || exporting || sharing}
+          >
+            <FileSpreadsheet className="h-4 w-4" /> {exporting ? (isEn ? 'Preparing...' : 'Preparando...') : (isEn ? 'Export to Excel' : 'Exportar a Excel')}
+          </Button>
+          <Button
+            variant="outline"
+            className="h-10 w-full gap-2 whitespace-nowrap border-green-200 bg-white text-sm font-semibold text-green-700 hover:bg-green-50 sm:w-auto md:min-w-[165px]"
+            onClick={handleShare}
+            disabled={loading || sharing || exporting}
+          >
+            <MessageCircle className="h-4 w-4" /> {sharing ? (isEn ? 'Preparing...' : 'Preparando...') : (isEn ? 'Share WhatsApp' : 'Compartir WhatsApp')}
+          </Button>
+          <div className="relative w-full sm:w-auto">
             <Button
               type="button"
-              onClick={() => navigate('/app/trabajos-diarios/nuevo')}
-              className="w-full h-11 px-4 text-sm md:text-base bg-[#1e3a8a] hover:bg-blue-900 text-white whitespace-nowrap"
-              data-tour="nuevo-trabajo"
+              variant="outline"
+              onClick={() => setMoreActionsOpen((open) => !open)}
+              className="h-10 w-full gap-2 whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-slate-200 sm:w-auto"
             >
-              Nuevo Trabajo
+              <MoreHorizontal className="h-4 w-4" />
+              {isEn ? 'More actions' : 'Más acciones'}
             </Button>
+            {moreActionsOpen && (
+              <div className="absolute right-0 z-20 mt-2 grid w-full min-w-[230px] gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900 sm:w-64">
+                <ConfirmationModal
+                  title={isEn ? 'Clean completed?' : '¿Limpiar completados?'}
+                  description={
+                    isEn
+                      ? `Delete ${summary.completed || 0} completed jobs for this day and active place/search filters.`
+                      : `Eliminar ${summary.completed || 0} trabajos con estado completado de esta fecha y filtros activos de lugar/búsqueda.`
+                  }
+                  confirmLabel={isEn ? 'Delete' : 'Eliminar'}
+                  onConfirm={handleClearCompleted}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-9 w-full justify-start gap-2 text-sm font-semibold text-red-700 hover:bg-red-50 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
+                      disabled={clearDisabled}
+                    >
+                      <Trash2 className="h-4 w-4" /> {clearing ? (isEn ? 'Cleaning...' : 'Limpiando...') : (isEn ? 'Clear completed' : 'Limpiar completados')}
+                    </Button>
+                  }
+                />
+                <ConfirmationModal
+                  title={isEn ? 'Clean pending?' : '¿Limpiar pendientes?'}
+                  description={
+                    isEn
+                      ? `Delete ${summary.pending || 0} pending jobs for this day and active place/search filters.`
+                      : `Eliminar ${summary.pending || 0} trabajos pendientes de esta fecha y filtros activos de lugar/búsqueda.`
+                  }
+                  confirmLabel={isEn ? 'Delete pending' : 'Eliminar pendientes'}
+                  onConfirm={handleClearPending}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-9 w-full justify-start gap-2 text-sm font-semibold text-amber-800 hover:bg-amber-50 hover:text-amber-900 dark:text-amber-200 dark:hover:bg-amber-950/40"
+                      disabled={clearPendingDisabled}
+                    >
+                      <Trash2 className="h-4 w-4" /> {clearingPending ? (isEn ? 'Cleaning pending...' : 'Limpiando pendientes...') : (isEn ? 'Clear pending' : 'Limpiar pendientes')}
+                    </Button>
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -599,7 +614,7 @@ export default function DailyJobsPage() {
       />
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="tabla-trabajos">
-        <div className="px-4 md:px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+        <div className="px-4 md:px-6 py-3 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary table' : 'Tabla resumen'}</h2>
           <span className="text-sm md:text-base text-gray-500 dark:text-slate-300">{totalCount} {isEn ? 'jobs' : 'trabajos'}</span>
         </div>
@@ -633,7 +648,7 @@ export default function DailyJobsPage() {
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {jobs.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-3 md:px-4 py-6 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
+                      <td colSpan={11} className="px-3 md:px-4 py-4 text-center text-gray-500 dark:text-slate-300 text-sm md:text-base">
                         {t('monthlyPage.emptyDesc')}
                       </td>
                     </tr>
