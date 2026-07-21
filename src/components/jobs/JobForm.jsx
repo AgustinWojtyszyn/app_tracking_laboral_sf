@@ -100,7 +100,6 @@ export default function JobForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[notify-worker-email] submit-click', { jobId: jobToEdit?.id || null });
 
     const validation = validateJobForm({ formData, workerId, imageAttachments });
     setErrors(validation.errors);

@@ -54,6 +54,7 @@ describe('jobsService.listJobsPaginated', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_paginated', {
       p_date: '2026-07-10',
       p_location: 'Clorox',
+      p_status: null,
       p_search: 'campana',
       p_page: 2,
       p_page_size: 30,
@@ -89,10 +90,45 @@ describe('jobsService.listJobsPaginated', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_paginated', {
       p_date: null,
       p_location: null,
+      p_status: null,
       p_search: null,
       p_page: 1,
       p_page_size: 10,
     });
+  });
+
+  it('envia estado especifico al listado paginado', async () => {
+    const { jobsService, supabase } = await buildJobsService({
+      rpcResult: {
+        items: [{ id: '1', title: 'Campana', status: 'completed' }],
+        total_count: 1,
+        page: 1,
+        page_size: 10,
+        total_pages: 1,
+        has_previous_page: false,
+        has_next_page: false,
+      },
+    });
+
+    const result = await jobsService.listJobsPaginated({
+      date: '2026-07-10',
+      location: 'Clorox',
+      status: 'completed',
+      search: 'campana',
+      page: 1,
+      pageSize: 10,
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_paginated', {
+      p_date: '2026-07-10',
+      p_location: 'Clorox',
+      p_status: 'completed',
+      p_search: 'campana',
+      p_page: 1,
+      p_page_size: 10,
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.items).toHaveLength(1);
   });
 
   it('normaliza data null, respuesta incompleta e items no array', async () => {
@@ -145,6 +181,31 @@ describe('jobsService.listJobsPaginated', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
       p_date: '2026-07-10',
       p_location: 'ServiFood',
+      p_status: null,
+      p_search: 'campana',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.items).toHaveLength(1);
+  });
+
+  it('envia estado especifico a exportacion', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: { items: [{ id: '1', title: 'Campana', status: 'pending' }] },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.listJobsForExport({
+      date: '2026-07-10',
+      location: 'ServiFood',
+      status: 'pending',
+      search: 'campana',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
+      p_date: '2026-07-10',
+      p_location: 'ServiFood',
+      p_status: 'pending',
       p_search: 'campana',
     });
     expect(result.success).toBe(true);
@@ -168,6 +229,7 @@ describe('jobsService.listJobsPaginated', () => {
     expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
       p_date: null,
       p_location: null,
+      p_status: null,
       p_search: null,
     });
     expect(result.success).toBe(false);

@@ -154,9 +154,7 @@ const mapSupabaseError = (error, fallback) => {
   return fallback;
 };
 
-const logFuelLoadPayload = (payload) => {
-  console.log('Payload vehicle_fuel_loads JSON', JSON.stringify(payload, null, 2));
-};
+const logFuelLoadPayload = () => {};
 
 const logFuelLoadError = (error, payload) => {
   console.error('Error al crear carga de combustible JSON', JSON.stringify({
@@ -164,7 +162,7 @@ const logFuelLoadError = (error, payload) => {
     details: error?.details,
     hint: error?.hint,
     code: error?.code,
-    payload,
+    vehicle_id: payload?.vehicle_id || null,
   }, null, 2));
 };
 

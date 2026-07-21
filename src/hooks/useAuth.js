@@ -1,3 +1,3 @@
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
-import { useAuth } from '../context/AuthContext';
 export { useAuth };

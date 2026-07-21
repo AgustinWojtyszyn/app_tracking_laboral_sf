@@ -183,11 +183,6 @@ export const groupsService = {
 
       const isEmail = rawIdentifier.includes('@');
       const normalizedEmail = rawIdentifier.toLowerCase();
-      console.log('addMember - identificador para búsqueda:', {
-        rawIdentifier,
-        normalizedEmail,
-        mode: isEmail ? 'email' : 'name'
-      });
 
       const { data, error } = await supabase.rpc('add_group_member_secure', {
         p_group_id: groupId,
@@ -243,7 +238,6 @@ export const groupsService = {
 
   async requestToJoin(groupId, userId) {
     try {
-      console.log('requestToJoin - params', { groupId, userId });
       if (!userId) return { success: false, error: 'Usuario no válido.' };
       if (!groupId) {
         console.warn('requestToJoin - sin groupId');
@@ -286,8 +280,6 @@ export const groupsService = {
       if (error) throw error;
       if (!inserted?.group_id) {
         console.error('requestToJoin - solicitud insertada sin group_id', inserted);
-      } else {
-        console.log('requestToJoin - solicitud creada', inserted);
       }
       return { success: true, message: 'Solicitud enviada al administrador del grupo.' };
     } catch (error) {
