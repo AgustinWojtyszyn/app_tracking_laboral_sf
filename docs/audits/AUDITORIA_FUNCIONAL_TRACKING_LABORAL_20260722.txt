@@ -1,0 +1,83 @@
+Auditoria funcional breve - Tracking Laboral
+Fecha: 2026-07-22
+
+Alcance inspeccionado
+- Trabajos diarios: listados, filtros, formularios y exportaciones principales.
+- Registro de equipo y planta: vehiculos, combustible, mantenimientos, recorridos, vencimientos, choferes, operaciones diarias, incidencias y revisiones.
+- Servicios de persistencia y exportacion vinculados a esos flujos.
+
+Hallazgos priorizados
+
+1. Datos repetidos al cargar registros operativos.
+   Flujo afectado: cargas de combustible, mantenimientos de vehiculo, recorridos diarios y avisos de mantenimiento.
+   Utilidad operativa: alta. El usuario ya tiene vehiculo, kilometraje actual y chofer asignado en la ficha, pero los vuelve a completar en cargas frecuentes.
+   Complejidad estimada: baja/media.
+   Archivos involucrados: src/pages/EquipmentLogPage.jsx.
+   Propuesta minima: autocompletar kilometraje actual y chofer activo asignado al elegir vehiculo, preservando valores editados manualmente.
+
+2. Vencimientos documentales pueden quedar asociados a vehiculo y chofer a la vez.
+   Flujo afectado: documentacion y vencimientos.
+   Utilidad operativa: alta. El listado muestra un solo asociado cuando ambos existen, lo que vuelve ambiguo el responsable real del vencimiento.
+   Complejidad estimada: baja.
+   Archivos involucrados: src/pages/EquipmentLogPage.jsx, src/services/equipmentLog.service.js.
+   Propuesta minima: resolverlo en UI sin tocar reglas de base, limpiando la asociacion opuesta y mostrando error claro si llegan ambas.
+
+3. Vencimientos importantes no tienen indicadores en la vista especifica.
+   Flujo afectado: documentacion y vencimientos.
+   Utilidad operativa: media/alta. El resumen general muestra alertas, pero en la solapa de vencimientos falta una lectura inmediata de vencidos/proximos/vigentes.
+   Complejidad estimada: baja.
+   Archivos involucrados: src/pages/EquipmentLogPage.jsx.
+   Propuesta minima: agregar contadores reutilizando SummaryMiniList y documentVisualStatus.
+
+4. Choferes sin cuenta propia dependen de buena carga administrativa.
+   Flujo afectado: recorridos, avisos y vehiculos.
+   Utilidad operativa: alta. La app ya tiene tabla de drivers independiente de usuarios autenticados; conviene reforzar autocompletado desde esa entidad.
+   Complejidad estimada: baja/media.
+   Archivos involucrados: src/pages/EquipmentLogPage.jsx.
+   Propuesta minima: usar assigned_driver_profile_id para sugerir chofer activo en formularios operativos.
+
+5. Listados transversales tienen busqueda general pero pocos filtros especificos.
+   Flujo afectado: recorridos, combustible, vencimientos, operaciones, incidencias.
+   Utilidad operativa: media. La busqueda por JSON ayuda, pero para operacion diaria serian utiles filtros por fecha, vehiculo/chofer y estado.
+   Complejidad estimada: media.
+   Archivos involucrados: src/pages/EquipmentLogPage.jsx y posiblemente helpers de filtros.
+   Propuesta minima: agregar filtros por fecha/estado por solapa en otra sesion.
+
+6. Exportaciones no siempre reflejan los mismos nombres visibles.
+   Flujo afectado: exportacion Excel de vehiculos y combustible.
+   Utilidad operativa: media. Algunas hojas usan assigned_driver de usuario y otras usan assigned_driver_profile, lo que puede ocultar choferes sin cuenta.
+   Complejidad estimada: baja/media.
+   Archivos involucrados: src/services/export.service.js.
+   Propuesta minima: normalizar nombres de chofer desde driver profile cuando exista.
+
+Mejoras implementadas en esta sesion
+
+1. Autocompletado operativo desde vehiculo.
+   Por que se eligio: es la mejora de mayor uso diario y no cambia reglas de negocio ni base de datos.
+   Comportamiento anterior: al crear carga de combustible o mantenimiento se seleccionaba vehiculo, pero el kilometraje quedaba vacio; en recorridos y avisos se podia terminar seleccionando el primer chofer aunque el vehiculo tuviera otro asignado.
+   Comportamiento nuevo: al abrir o cambiar vehiculo, los formularios sugieren kilometraje actual. En recorridos y avisos tambien sugieren el chofer activo asignado al vehiculo. Si el usuario ya modifico manualmente kilometraje o chofer, se preserva su valor.
+
+2. Asociacion excluyente en vencimientos.
+   Por que se eligio: evita registros ambiguos sin tocar constraints, RLS ni migraciones.
+   Comportamiento anterior: el formulario permitia elegir vehiculo y chofer en el mismo vencimiento; el listado priorizaba vehiculo y podia ocultar el chofer.
+   Comportamiento nuevo: elegir vehiculo limpia chofer y elegir chofer limpia vehiculo. Si por una edicion previa el formulario llega con ambos valores, muestra el mensaje "Asocia el vencimiento a un vehiculo o a un chofer, no a ambos." antes de guardar.
+
+3. Indicadores en la solapa de vencimientos.
+   Por que se eligio: mejora la lectura operativa diaria reutilizando patrones existentes.
+   Comportamiento anterior: la solapa mostraba solo la tabla filtrable.
+   Comportamiento nuevo: arriba de la tabla se muestran contadores de vencidos, proximos 30 dias y vigentes, con tonos critico/advertencia cuando corresponde.
+
+Archivos modificados
+- src/pages/EquipmentLogPage.jsx
+- docs/audits/AUDITORIA_FUNCIONAL_TRACKING_LABORAL_20260722.txt
+
+Mejoras utiles pendientes
+- Normalizar exportaciones para mostrar choferes sin usuario autenticado usando assigned_driver_profile cuando exista.
+- Agregar filtros especificos por fecha, vehiculo, chofer y estado en recorridos, combustible y vencimientos.
+- Sugerir "proximo control" en mantenimiento preventivo a partir de reglas configurables, si el negocio define periodicidad.
+- Mejorar estados vacios filtrados para distinguir "no hay registros" de "la busqueda no encontro resultados".
+- Revisar consistencia entre Jobs/DailyJobs y exportaciones de trabajos diarios con foco en columnas visibles vs columnas exportadas.
+
+Validacion
+- No se ejecutaron tests, build ni Playwright por pedido explicito del usuario.
+- La revision realizada fue estatica sobre implementacion real y diff generado.

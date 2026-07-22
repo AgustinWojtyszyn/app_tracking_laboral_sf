@@ -274,6 +274,15 @@ const equipmentLabel = (record) => {
 };
 
 const vehicleLabel = (vehicle) => [vehicle?.license_plate, vehicle?.name || vehicle?.brand, vehicle?.model].filter(Boolean).join(' - ') || 'Vehículo no encontrado';
+const findVehicleById = (vehicles, id) => vehicles.find((vehicle) => vehicle.id === id) || null;
+const vehicleCurrentMileage = (vehicle) => (
+  vehicle?.mileage_end ?? vehicle?.mileage_start ?? ''
+);
+const assignedActiveDriverIdForVehicle = (vehicle, drivers) => {
+  const assignedId = vehicle?.assigned_driver_profile_id || vehicle?.assigned_driver_profile?.id || '';
+  if (!assignedId) return '';
+  return drivers.some((driver) => driver.id === assignedId && isActiveDriver(driver)) ? assignedId : '';
+};
 function Badge({ value, children }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass[value] || 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100'}`}>
@@ -517,6 +526,8 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    const defaultVehicleId = selectedVehicleId || vehicles[0]?.id || '';
+    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(fuelLoad ? {
       ...emptyFuelLoad(),
       ...fuelLoad,
@@ -529,13 +540,26 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
       notes: fuelLoad.notes || '',
     } : {
       ...emptyFuelLoad(),
-      vehicle_id: selectedVehicleId || vehicles[0]?.id || '',
+      vehicle_id: defaultVehicleId,
+      mileage: vehicleCurrentMileage(defaultVehicle),
     });
   }, [fuelLoad, open, selectedVehicleId, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleVehicleChange = (vehicleId) => {
+    setFormError('');
+    const vehicle = findVehicleById(vehicles, vehicleId);
+    setForm((prev) => ({
+      ...prev,
+      vehicle_id: vehicleId,
+      mileage: !prev.mileage || String(prev.mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
+        ? vehicleCurrentMileage(vehicle)
+        : prev.mileage,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -573,7 +597,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
             </div>
           )}
           <Field label="Vehículo *">
-            <select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required>
+            <select className={inputClass} value={form.vehicle_id} onChange={(e) => handleVehicleChange(e.target.value)} required>
               <option value="">Seleccionar vehículo</option>
               {vehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
@@ -637,6 +661,8 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    const defaultVehicleId = selectedVehicleId || vehicles[0]?.id || '';
+    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(maintenanceLog ? {
       ...emptyMaintenanceLog(),
       ...maintenanceLog,
@@ -650,13 +676,26 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
       notes: maintenanceLog.notes || '',
     } : {
       ...emptyMaintenanceLog(),
-      vehicle_id: selectedVehicleId || vehicles[0]?.id || '',
+      vehicle_id: defaultVehicleId,
+      mileage: vehicleCurrentMileage(defaultVehicle),
     });
   }, [maintenanceLog, open, selectedVehicleId, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleVehicleChange = (vehicleId) => {
+    setFormError('');
+    const vehicle = findVehicleById(vehicles, vehicleId);
+    setForm((prev) => ({
+      ...prev,
+      vehicle_id: vehicleId,
+      mileage: !prev.mileage || String(prev.mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
+        ? vehicleCurrentMileage(vehicle)
+        : prev.mileage,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -694,7 +733,7 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
             </div>
           )}
           <Field label="Vehículo *">
-            <select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required>
+            <select className={inputClass} value={form.vehicle_id} onChange={(e) => handleVehicleChange(e.target.value)} required>
               <option value="">Seleccionar vehículo</option>
               {vehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
@@ -1177,6 +1216,8 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    const defaultVehicleId = vehicles[0]?.id || '';
+    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(route ? {
       ...emptyVehicleRoute(),
       ...route,
@@ -1186,8 +1227,9 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
       observations: route.observations || '',
     } : {
       ...emptyVehicleRoute(),
-      vehicle_id: vehicles[0]?.id || '',
-      driver_id: defaultDriverId || drivers[0]?.id || '',
+      vehicle_id: defaultVehicleId,
+      driver_id: defaultDriverId || assignedActiveDriverIdForVehicle(defaultVehicle, drivers) || drivers[0]?.id || '',
+      mileage_start: vehicleCurrentMileage(defaultVehicle),
     });
   }, [defaultDriverId, drivers, open, route, vehicles]);
 
@@ -1207,6 +1249,22 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
           : [...current, place],
       };
     });
+  };
+
+  const handleVehicleChange = (vehicleId) => {
+    setFormError('');
+    const vehicle = findVehicleById(vehicles, vehicleId);
+    const assignedDriverId = assignedActiveDriverIdForVehicle(vehicle, drivers);
+    setForm((prev) => ({
+      ...prev,
+      vehicle_id: vehicleId,
+      driver_id: assignedDriverId && (!prev.driver_id || prev.driver_id === assignedActiveDriverIdForVehicle(findVehicleById(vehicles, prev.vehicle_id), drivers))
+        ? assignedDriverId
+        : prev.driver_id,
+      mileage_start: !prev.mileage_start || String(prev.mileage_start) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
+        ? vehicleCurrentMileage(vehicle)
+        : prev.mileage_start,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -1235,7 +1293,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Fecha *"><input className={inputClass} type="date" value={form.route_date || ''} onChange={(e) => setValue('route_date', e.target.value)} required /></Field>
             <Field label="Vehículo *">
-              <select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required>
+              <select className={inputClass} value={form.vehicle_id} onChange={(e) => handleVehicleChange(e.target.value)} required>
                 <option value="">Seleccionar vehículo</option>
                 {vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}
               </select>
@@ -1287,6 +1345,8 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    const defaultVehicleId = vehicles[0]?.id || '';
+    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(request ? {
       ...emptyMaintenanceRequest(),
       ...request,
@@ -1295,14 +1355,31 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
       resolved_at: request.resolved_at || '',
     } : {
       ...emptyMaintenanceRequest(),
-      vehicle_id: vehicles[0]?.id || '',
-      driver_id: defaultDriverId || drivers[0]?.id || '',
+      vehicle_id: defaultVehicleId,
+      driver_id: defaultDriverId || assignedActiveDriverIdForVehicle(defaultVehicle, drivers) || drivers[0]?.id || '',
+      current_mileage: vehicleCurrentMileage(defaultVehicle),
     });
   }, [defaultDriverId, drivers, open, request, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleVehicleChange = (vehicleId) => {
+    setFormError('');
+    const vehicle = findVehicleById(vehicles, vehicleId);
+    const assignedDriverId = assignedActiveDriverIdForVehicle(vehicle, drivers);
+    setForm((prev) => ({
+      ...prev,
+      vehicle_id: vehicleId,
+      driver_id: assignedDriverId && (!prev.driver_id || prev.driver_id === assignedActiveDriverIdForVehicle(findVehicleById(vehicles, prev.vehicle_id), drivers))
+        ? assignedDriverId
+        : prev.driver_id,
+      current_mileage: !prev.current_mileage || String(prev.current_mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
+        ? vehicleCurrentMileage(vehicle)
+        : prev.current_mileage,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -1329,7 +1406,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
         <form onSubmit={handleSubmit} className="grid gap-4">
           {formError && <div role="alert" className="flex items-start gap-3 rounded-lg border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-bold text-red-900 dark:border-red-400 dark:bg-red-950 dark:text-red-50"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{formError}</span></div>}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Vehículo *"><select className={inputClass} value={form.vehicle_id} onChange={(e) => setValue('vehicle_id', e.target.value)} required><option value="">Seleccionar</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
+            <Field label="Vehículo *"><select className={inputClass} value={form.vehicle_id} onChange={(e) => handleVehicleChange(e.target.value)} required><option value="">Seleccionar</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
             <Field label="Chofer *"><select className={inputClass} value={form.driver_id} onChange={(e) => setValue('driver_id', e.target.value)} required><option value="">Seleccionar</option>{driverOptions.map((driver) => <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>)}</select></Field>
             <Field label="Fecha *"><input className={inputClass} type="date" value={form.request_date || ''} onChange={(e) => setValue('request_date', e.target.value)} required /></Field>
           </div>
@@ -1378,6 +1455,10 @@ function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, 
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (form.vehicle_id && form.driver_id) {
+      setFormError('Asociá el vencimiento a un vehículo o a un chofer, no a ambos.');
+      return;
+    }
     setSaving(true);
     const result = await equipmentLogService.saveDocumentExpiration(form);
     setSaving(false);
@@ -1391,6 +1472,14 @@ function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, 
   };
 
   const driverOptions = driverOptionsForSelection(drivers, form.driver_id);
+  const handleVehicleChange = (vehicleId) => {
+    setValue('vehicle_id', vehicleId);
+    if (vehicleId) setForm((prev) => ({ ...prev, driver_id: '' }));
+  };
+  const handleDriverChange = (driverId) => {
+    setValue('driver_id', driverId);
+    if (driverId) setForm((prev) => ({ ...prev, vehicle_id: '' }));
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -1406,9 +1495,10 @@ function DocumentExpirationFormDialog({ expiration, vehicles, drivers, trigger, 
           </div>
           {form.document_type === 'otro' && <Field label="Nombre del documento"><input className={inputClass} value={form.custom_document_name || ''} onChange={(e) => setValue('custom_document_name', e.target.value)} /></Field>}
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Vehículo asociado"><select className={inputClass} value={form.vehicle_id || ''} onChange={(e) => setValue('vehicle_id', e.target.value)}><option value="">Sin vehículo</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
-            <Field label="Chofer asociado"><select className={inputClass} value={form.driver_id || ''} onChange={(e) => setValue('driver_id', e.target.value)}><option value="">Sin chofer</option>{driverOptions.map((driver) => <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>)}</select></Field>
+            <Field label="Vehículo asociado"><select className={inputClass} value={form.vehicle_id || ''} onChange={(e) => handleVehicleChange(e.target.value)}><option value="">Sin vehículo</option>{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></Field>
+            <Field label="Chofer asociado"><select className={inputClass} value={form.driver_id || ''} onChange={(e) => handleDriverChange(e.target.value)}><option value="">Sin chofer</option>{driverOptions.map((driver) => <option key={driver.id} value={driver.id}>{driverOptionLabel(driver)}</option>)}</select></Field>
           </div>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Cada vencimiento debe quedar asociado a un solo responsable operativo.</p>
           <Field label="Observaciones"><textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} /></Field>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -2835,39 +2925,49 @@ function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit,
 
 function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEdit, canDelete, onSaved, onDelete }) {
   const filtered = filterEquipmentRecords(expirations, search);
+  const expired = expirations.filter((expiration) => documentVisualStatus(expiration) === 'vencido').length;
+  const upcoming = expirations.filter((expiration) => documentVisualStatus(expiration) === 'proximo_a_vencer').length;
+  const active = expirations.filter((expiration) => documentVisualStatus(expiration) === 'vigente').length;
   return (
-    <EquipmentRecordTable
-      emptyTitle="No hay vencimientos registrados."
-      emptyDetail="Registrá seguros, RTO, licencias u otros documentos."
-      headers={['Documento', 'Asociado', 'Vence', 'Días', 'Estado', 'Última notificación', 'Observaciones']}
-      records={filtered}
-      renderCells={(expiration) => {
-        const status = documentVisualStatus(expiration);
-        const remaining = daysUntil(expiration.expires_at);
-        return [
-          expiration.custom_document_name || documentTypeLabels[expiration.document_type] || expiration.document_type,
-          expiration.vehicle ? vehicleLabel(expiration.vehicle) : driverLabel(expiration.driver),
-          formatDate(expiration.expires_at),
-          remaining === null ? '-' : remaining,
-          <Badge value={status}>{documentStatusLabels[status]}</Badge>,
-          expiration.last_notified_at ? formatDate(expiration.last_notified_at) : '-',
-          expiration.observations || '-',
-        ];
-      }}
-      canEdit={canEdit}
-      canDelete={canDelete}
-      editDialog={(expiration) => (
-        <DocumentExpirationFormDialog
-          expiration={expiration}
-          vehicles={vehicles}
-          drivers={drivers}
-          onSaved={onSaved}
-          trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
-        />
-      )}
-      onDelete={onDelete}
-      deleteTitle="¿Eliminar vencimiento?"
-    />
+    <div className="space-y-4">
+      <div className="grid gap-3 p-4 sm:grid-cols-3">
+        <SummaryMiniList title="Vencidos" tone={expired > 0 ? 'critical' : 'normal'} items={[{ id: 'expired', text: String(expired) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Próximos 30 días" tone={upcoming > 0 ? 'warning' : 'normal'} items={[{ id: 'upcoming', text: String(upcoming) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Vigentes" items={[{ id: 'active', text: String(active) }]} renderItem={(item) => item.text} />
+      </div>
+      <EquipmentRecordTable
+        emptyTitle="No hay vencimientos registrados."
+        emptyDetail="Registrá seguros, RTO, licencias u otros documentos."
+        headers={['Documento', 'Asociado', 'Vence', 'Días', 'Estado', 'Última notificación', 'Observaciones']}
+        records={filtered}
+        renderCells={(expiration) => {
+          const status = documentVisualStatus(expiration);
+          const remaining = daysUntil(expiration.expires_at);
+          return [
+            expiration.custom_document_name || documentTypeLabels[expiration.document_type] || expiration.document_type,
+            expiration.vehicle ? vehicleLabel(expiration.vehicle) : driverLabel(expiration.driver),
+            formatDate(expiration.expires_at),
+            remaining === null ? '-' : remaining,
+            <Badge value={status}>{documentStatusLabels[status]}</Badge>,
+            expiration.last_notified_at ? formatDate(expiration.last_notified_at) : '-',
+            expiration.observations || '-',
+          ];
+        }}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        editDialog={(expiration) => (
+          <DocumentExpirationFormDialog
+            expiration={expiration}
+            vehicles={vehicles}
+            drivers={drivers}
+            onSaved={onSaved}
+            trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
+          />
+        )}
+        onDelete={onDelete}
+        deleteTitle="¿Eliminar vencimiento?"
+      />
+    </div>
   );
 }
 
