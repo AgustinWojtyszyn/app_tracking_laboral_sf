@@ -993,6 +993,9 @@ export const equipmentLogService = {
   async saveDocumentExpiration(expiration) {
     if (!VEHICLE_DOCUMENT_TYPES.includes(expiration.document_type)) return { success: false, error: 'Seleccioná un tipo de documento válido.' };
     if (!expiration.vehicle_id && !expiration.driver_id) return { success: false, error: 'Asociá el vencimiento a un vehículo o chofer.' };
+    if (expiration.vehicle_id && expiration.driver_id) {
+      return { success: false, error: 'El vencimiento debe pertenecer a un vehículo o a un chofer, pero no a ambos.' };
+    }
     if (expiration.vehicle_id && !isValidUuid(expiration.vehicle_id)) return { success: false, error: 'Seleccioná un vehículo válido.' };
     if (expiration.driver_id && !isValidUuid(expiration.driver_id)) return { success: false, error: 'Seleccioná un chofer válido.' };
     if (!isValidDateInput(expiration.expires_at)) return { success: false, error: 'La fecha de vencimiento debe ser válida.' };

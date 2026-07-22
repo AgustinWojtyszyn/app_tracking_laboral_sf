@@ -283,6 +283,14 @@ const assignedActiveDriverIdForVehicle = (vehicle, drivers) => {
   if (!assignedId) return '';
   return drivers.some((driver) => driver.id === assignedId && isActiveDriver(driver)) ? assignedId : '';
 };
+const nextDriverIdForVehicleChange = ({ previousDriverId, previousVehicle, nextVehicle, drivers }) => {
+  const previousAssignedDriverId = assignedActiveDriverIdForVehicle(previousVehicle, drivers);
+  const nextAssignedDriverId = assignedActiveDriverIdForVehicle(nextVehicle, drivers);
+  const previousWasEmptyOrAutofilled = !previousDriverId || previousDriverId === previousAssignedDriverId;
+  if (nextAssignedDriverId && previousWasEmptyOrAutofilled) return nextAssignedDriverId;
+  if (!nextAssignedDriverId && previousWasEmptyOrAutofilled) return '';
+  return previousDriverId;
+};
 function Badge({ value, children }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass[value] || 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100'}`}>
@@ -1206,7 +1214,7 @@ function EquipmentRecordFormDialog({ type, record, vehicles, plantAssets, trigge
   );
 }
 
-function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, defaultDriverId = '' }) {
+function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1228,10 +1236,10 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
     } : {
       ...emptyVehicleRoute(),
       vehicle_id: defaultVehicleId,
-      driver_id: defaultDriverId || assignedActiveDriverIdForVehicle(defaultVehicle, drivers) || drivers[0]?.id || '',
+      driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, drivers),
       mileage_start: vehicleCurrentMileage(defaultVehicle),
     });
-  }, [defaultDriverId, drivers, open, route, vehicles]);
+  }, [drivers, open, route, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
@@ -1254,13 +1262,15 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
   const handleVehicleChange = (vehicleId) => {
     setFormError('');
     const vehicle = findVehicleById(vehicles, vehicleId);
-    const assignedDriverId = assignedActiveDriverIdForVehicle(vehicle, drivers);
     setForm((prev) => ({
       ...prev,
       vehicle_id: vehicleId,
-      driver_id: assignedDriverId && (!prev.driver_id || prev.driver_id === assignedActiveDriverIdForVehicle(findVehicleById(vehicles, prev.vehicle_id), drivers))
-        ? assignedDriverId
-        : prev.driver_id,
+      driver_id: nextDriverIdForVehicleChange({
+        previousDriverId: prev.driver_id,
+        previousVehicle: findVehicleById(vehicles, prev.vehicle_id),
+        nextVehicle: vehicle,
+        drivers,
+      }),
       mileage_start: !prev.mileage_start || String(prev.mileage_start) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
         ? vehicleCurrentMileage(vehicle)
         : prev.mileage_start,
@@ -1335,7 +1345,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved, de
   );
 }
 
-function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onSaved, defaultDriverId = '', isAdmin = false }) {
+function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onSaved, isAdmin = false }) {
   const { addToast } = useToast();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1356,10 +1366,10 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
     } : {
       ...emptyMaintenanceRequest(),
       vehicle_id: defaultVehicleId,
-      driver_id: defaultDriverId || assignedActiveDriverIdForVehicle(defaultVehicle, drivers) || drivers[0]?.id || '',
+      driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, drivers),
       current_mileage: vehicleCurrentMileage(defaultVehicle),
     });
-  }, [defaultDriverId, drivers, open, request, vehicles]);
+  }, [drivers, open, request, vehicles]);
 
   const setValue = (key, value) => {
     setFormError('');
@@ -1369,13 +1379,15 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
   const handleVehicleChange = (vehicleId) => {
     setFormError('');
     const vehicle = findVehicleById(vehicles, vehicleId);
-    const assignedDriverId = assignedActiveDriverIdForVehicle(vehicle, drivers);
     setForm((prev) => ({
       ...prev,
       vehicle_id: vehicleId,
-      driver_id: assignedDriverId && (!prev.driver_id || prev.driver_id === assignedActiveDriverIdForVehicle(findVehicleById(vehicles, prev.vehicle_id), drivers))
-        ? assignedDriverId
-        : prev.driver_id,
+      driver_id: nextDriverIdForVehicleChange({
+        previousDriverId: prev.driver_id,
+        previousVehicle: findVehicleById(vehicles, prev.vehicle_id),
+        nextVehicle: vehicle,
+        drivers,
+      }),
       current_mileage: !prev.current_mileage || String(prev.current_mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
         ? vehicleCurrentMileage(vehicle)
         : prev.current_mileage,
@@ -1553,7 +1565,6 @@ export default function EquipmentLogPage() {
   const canDeleteMaintenanceRequests = isAdmin;
   const canEditDocumentExpirations = isAdmin;
   const canDeleteDocumentExpirations = isAdmin;
-  const activeDriverId = '';
   const activeDrivers = useMemo(() => drivers.filter(isActiveDriver), [drivers]);
   const fullDataTabs = ['summary', 'vehicles', 'routes', 'fuel', 'maintenance', 'expirations', 'driverHistory', 'plant', 'operation', 'incidents', 'checks'];
   const equipmentItems = useMemo(() => normalizeEquipmentItems({ vehicles, plantAssets }), [vehicles, plantAssets]);
@@ -1889,7 +1900,6 @@ export default function EquipmentLogPage() {
       <VehicleRouteFormDialog
         vehicles={vehicles}
         drivers={activeDrivers}
-        defaultDriverId={activeDriverId}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Nuevo recorrido</Button>}
       />
@@ -1904,7 +1914,6 @@ export default function EquipmentLogPage() {
       <MaintenanceRequestFormDialog
         vehicles={vehicles}
         drivers={activeDrivers}
-        defaultDriverId={activeDriverId}
         isAdmin={isAdmin}
         onSaved={loadCurrentTab}
         trigger={<Button className="bg-[#1e3a8a] text-white hover:bg-blue-900"><Plus className="mr-2 h-4 w-4" /> Informar mantenimiento</Button>}
@@ -2123,7 +2132,6 @@ export default function EquipmentLogPage() {
               search={search}
               canEdit={canEditRoutes}
               canDelete={canDeleteRoutes}
-              defaultDriverId={activeDriverId}
               onSaved={loadCurrentTab}
               onDelete={handleDeleteVehicleRoute}
             />
@@ -2148,7 +2156,6 @@ export default function EquipmentLogPage() {
               canEdit={canEditMaintenanceRequests}
               canDelete={canDeleteMaintenanceRequests}
               isAdmin={isAdmin}
-              defaultDriverId={activeDriverId}
               onSaved={loadCurrentTab}
               onDelete={handleDeleteMaintenanceRequest}
             />
@@ -2839,7 +2846,7 @@ function MaintenanceLogsSection({ vehicles, selectedVehicle, maintenanceLogs, ca
   );
 }
 
-function VehicleRoutesList({ routes, vehicles, drivers, search, canEdit, canDelete, defaultDriverId, onSaved, onDelete }) {
+function VehicleRoutesList({ routes, vehicles, drivers, search, canEdit, canDelete, onSaved, onDelete }) {
   const filtered = filterEquipmentRecords(routes, search);
   return (
     <EquipmentRecordTable
@@ -2864,7 +2871,6 @@ function VehicleRoutesList({ routes, vehicles, drivers, search, canEdit, canDele
           route={route}
           vehicles={vehicles}
           drivers={drivers}
-          defaultDriverId={defaultDriverId}
           onSaved={onSaved}
           trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
         />
@@ -2875,7 +2881,7 @@ function VehicleRoutesList({ routes, vehicles, drivers, search, canEdit, canDele
   );
 }
 
-function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit, canDelete, isAdmin, defaultDriverId, onSaved, onDelete }) {
+function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit, canDelete, isAdmin, onSaved, onDelete }) {
   const filtered = filterEquipmentRecords(requests, search);
   const unresolved = requests.filter((request) => !['realizado', 'cancelado'].includes(request.status));
   const highPriority = unresolved.filter((request) => request.priority === 'alta').length;
@@ -2910,7 +2916,6 @@ function MaintenanceRequestsList({ requests, vehicles, drivers, search, canEdit,
             request={request}
             vehicles={vehicles}
             drivers={drivers}
-            defaultDriverId={defaultDriverId}
             isAdmin={isAdmin}
             onSaved={onSaved}
             trigger={<Button variant="ghost" size="icon"><Edit2 className="h-5 w-5 text-blue-600" /></Button>}
@@ -2931,9 +2936,9 @@ function DocumentExpirationsList({ expirations, vehicles, drivers, search, canEd
   return (
     <div className="space-y-4">
       <div className="grid gap-3 p-4 sm:grid-cols-3">
-        <SummaryMiniList title="Vencidos" tone={expired > 0 ? 'critical' : 'normal'} items={[{ id: 'expired', text: String(expired) }]} renderItem={(item) => item.text} />
-        <SummaryMiniList title="Próximos 30 días" tone={upcoming > 0 ? 'warning' : 'normal'} items={[{ id: 'upcoming', text: String(upcoming) }]} renderItem={(item) => item.text} />
-        <SummaryMiniList title="Vigentes" items={[{ id: 'active', text: String(active) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Total vencidos" tone={expired > 0 ? 'critical' : 'normal'} items={[{ id: 'expired', text: String(expired) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Total próximos 30 días" tone={upcoming > 0 ? 'warning' : 'normal'} items={[{ id: 'upcoming', text: String(upcoming) }]} renderItem={(item) => item.text} />
+        <SummaryMiniList title="Total vigentes" items={[{ id: 'active', text: String(active) }]} renderItem={(item) => item.text} />
       </div>
       <EquipmentRecordTable
         emptyTitle="No hay vencimientos registrados."

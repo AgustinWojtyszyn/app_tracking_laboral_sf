@@ -1,0 +1,70 @@
+Auditoria post-cambios - Tracking Laboral
+Fecha: 2026-07-22
+
+Estado revisado
+- Arbol de trabajo limpio al iniciar esta auditoria post-cambios.
+- Se reviso el estado actual de src/pages/EquipmentLogPage.jsx y las validaciones relacionadas en src/services/equipmentLog.service.js.
+- No se ejecutaron tests, build ni Playwright.
+
+Resumen ejecutivo
+- Las mejoras aplicadas son coherentes con los flujos reales y estan acotadas al modulo de Registro de equipo y planta.
+- No se detectaron regresiones bloqueantes por lectura estatica.
+- Hay riesgos residuales de consistencia porque algunas reglas nuevas quedaron solo en UI y no en el servicio.
+- La mejora de autocompletado reduce carga repetitiva, pero aumenta la importancia de que el usuario revise el vehiculo seleccionado cuando carga desde vistas generales.
+
+Hallazgos post-cambios
+
+1. Autocompletado de kilometraje en combustible y mantenimiento
+   Estado: correcto con observacion.
+   Flujo afectado: cargas de combustible y mantenimiento de vehiculo.
+   Comportamiento observado: al crear un registro se toma mileage_end o mileage_start del vehiculo por defecto/seleccionado. Al cambiar de vehiculo, el kilometraje se actualiza solo si el valor previo parecia autocompletado; si el usuario lo edito, se conserva.
+   Utilidad operativa: alta.
+   Riesgo residual: medio/bajo. En vistas generales, el formulario sigue seleccionando el primer vehiculo de la lista. Antes esto ya ocurria, pero ahora tambien trae kilometraje, por lo que una carga rapida podria quedar asociada al primer vehiculo si el usuario no revisa el selector.
+   Propuesta pendiente: en altas desde solapas generales, considerar iniciar sin vehiculo seleccionado o destacar el selector cuando no hay contexto de vehiculo.
+
+2. Autocompletado de chofer asignado en recorridos y avisos
+   Estado: correcto con observacion.
+   Flujo afectado: recorridos diarios y avisos de mantenimiento.
+   Comportamiento observado: se usa assigned_driver_profile_id del vehiculo cuando el chofer esta activo; si no hay chofer asignado activo, cae al primer chofer activo recibido.
+   Utilidad operativa: alta, especialmente para choferes sin cuenta autenticada.
+   Riesgo residual: medio/bajo. Si un vehiculo no tiene chofer activo asignado, el fallback al primer chofer activo puede generar una seleccion valida pero operacionalmente incorrecta.
+   Propuesta pendiente: cuando no exista chofer asignado al vehiculo, dejar el campo chofer vacio y obligar eleccion explicita.
+
+3. Exclusividad vehiculo/chofer en vencimientos
+   Estado: parcialmente correcto.
+   Flujo afectado: documentacion y vencimientos.
+   Comportamiento observado: el formulario limpia chofer al elegir vehiculo y limpia vehiculo al elegir chofer. Ademas bloquea submit si ambos valores llegan cargados.
+   Utilidad operativa: alta.
+   Riesgo residual: medio. src/services/equipmentLog.service.js todavia permite guardar un vencimiento con vehicle_id y driver_id si el servicio se invoca desde otro punto, estado viejo, consola o futura UI. La regla nueva vive solo en EquipmentLogPage.jsx.
+   Propuesta pendiente: agregar validacion no destructiva en saveDocumentExpiration para rechazar ambos valores. No requiere migracion ni cambio de RLS.
+
+4. Indicadores en vencimientos
+   Estado: correcto.
+   Flujo afectado: documentacion y vencimientos.
+   Comportamiento observado: la solapa muestra contadores de vencidos, proximos 30 dias y vigentes reutilizando documentVisualStatus y SummaryMiniList.
+   Utilidad operativa: media/alta.
+   Riesgo residual: bajo. Los contadores se calculan sobre todos los vencimientos cargados en la solapa, no sobre el resultado filtrado por busqueda. Esto puede ser deseable para estado general, pero podria confundir si el usuario espera que cambien con la busqueda.
+   Propuesta pendiente: definir si los indicadores deben representar total de modulo o resultado filtrado; si son totales, rotularlos como "Total vencidos", "Total proximos 30 dias", etc.
+
+5. Consistencia con exportaciones
+   Estado: pendiente.
+   Flujo afectado: exportacion Excel de equipo/planta.
+   Comportamiento observado: la auditoria previa marco que algunas exportaciones pueden no reflejar choferes de drivers sin cuenta autenticada. Los cambios actuales no tocaron export.service.js.
+   Utilidad operativa: media.
+   Riesgo residual: medio. La UI puede mostrar chofer asignado por driver profile, mientras ciertas hojas exportadas pueden seguir priorizando assigned_driver de usuario.
+   Propuesta pendiente: normalizar helper de chofer en export.service.js para usar assigned_driver_profile cuando exista.
+
+Conclusiones
+- Los cambios aplicados mejoran tareas repetitivas reales sin introducir dependencias nuevas ni tocar base, RLS, cron, correos o Edge Functions.
+- Para cerrar los principales riesgos residuales conviene hacer una segunda pasada chica sobre:
+  1. saveDocumentExpiration: rechazar vehicle_id y driver_id simultaneos.
+  2. Formularios globales: evitar fallback silencioso al primer chofer cuando el vehiculo no tiene chofer asignado.
+  3. Exportaciones: usar driver profiles para choferes sin cuenta propia.
+
+Verificacion recomendada manual
+- Crear carga de combustible desde detalle de vehiculo y confirmar que trae kilometraje del vehiculo seleccionado.
+- Crear carga desde solapa Combustible y cambiar de vehiculo para confirmar que el kilometraje cambia si no fue editado.
+- Crear recorrido con vehiculo que tiene chofer activo asignado y confirmar que sugiere ese chofer.
+- Crear aviso de mantenimiento con vehiculo sin chofer asignado y revisar que el fallback actual sea aceptable para operacion.
+- Editar vencimiento legacy que tenga vehiculo y chofer; confirmar que muestra error hasta elegir solo uno.
+- Revisar Excel exportado para validar si el nombre de chofer coincide con lo visto en pantalla.

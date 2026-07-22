@@ -34,6 +34,14 @@ const equipmentType = (record) => {
 };
 
 const driverName = (driver) => driver?.name || driver?.full_name || driver?.email || '';
+const recordDriverName = (record) => driverName(
+  record?.assigned_driver_profile
+  || record?.driver_profile
+  || record?.driver
+  || record?.assigned_driver
+  || record?.vehicle?.assigned_driver_profile
+  || record?.vehicle?.assigned_driver
+);
 
 const vehicleName = (vehicle) => {
   if (!vehicle) return '';
@@ -282,7 +290,7 @@ export const exportService = {
       Marca: vehicle.brand || '',
       Modelo: vehicle.model || '',
       Año: vehicle.year || '',
-      Chofer: vehicle.assigned_driver?.full_name || vehicle.assigned_driver?.email || '',
+      Chofer: recordDriverName(vehicle),
       'Km inicio': vehicle.mileage_start ?? '',
       'Km cierre': vehicle.mileage_end ?? '',
       'Vence registro/cédula': vehicle.registration_expires_at ? formatDate(vehicle.registration_expires_at) : '',
@@ -317,7 +325,7 @@ export const exportService = {
       Clasificación: 'Recorrido diario',
       Fecha: route.route_date ? formatDate(route.route_date) : '',
       Vehículo: vehicleName(route.vehicle),
-      Chofer: driverName(route.driver),
+      Chofer: recordDriverName(route),
       'Km inicial': route.mileage_start ?? '',
       'Km final': route.mileage_end ?? '',
       'Km recorridos': route.kilometers_traveled ?? '',
@@ -347,7 +355,7 @@ export const exportService = {
       Clasificación: 'Aviso de mantenimiento',
       Fecha: request.request_date ? formatDate(request.request_date) : '',
       Vehículo: vehicleName(request.vehicle),
-      Chofer: driverName(request.driver),
+      Chofer: recordDriverName(request),
       Problema: request.issue_type || '',
       Descripción: request.description || '',
       Kilometraje: request.current_mileage ?? '',
