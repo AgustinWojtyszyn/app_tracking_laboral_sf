@@ -82,6 +82,38 @@ const isActiveDriverId = async (driverId) => {
   return Boolean(data?.id);
 };
 
+const getCurrentUserContext = async () => {
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData?.user?.id || null;
+  if (!isValidUuid(userId)) return { userId: null, isAdmin: false };
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+
+  return { userId, role: data?.role || 'user', isAdmin: data?.role === 'admin' };
+};
+
+const canAssignDriverForCurrentUser = async (driverId) => {
+  const { userId, role, isAdmin } = await getCurrentUserContext();
+  if (isAdmin) return true;
+  if (role !== 'chofer') return false;
+  if (!isValidUuid(userId)) return false;
+
+  const { data, error } = await supabase
+    .from('drivers')
+    .select('id')
+    .eq('id', driverId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+
+  return Boolean(data?.id);
+};
+
 const vehicleFuelLoadSelect = `
   *,
   vehicle:vehicles!vehicle_fuel_loads_vehicle_id_fkey (
@@ -874,6 +906,9 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!(await canAssignDriverForCurrentUser(route.driver_id))) {
+        return { success: false, error: 'No podés asignar este registro a otro chofer.' };
+      }
       if (!route.id && !(await isActiveDriverId(route.driver_id))) {
         return { success: false, error: 'Seleccioná un chofer activo.' };
       }
@@ -948,6 +983,9 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!(await canAssignDriverForCurrentUser(request.driver_id))) {
+        return { success: false, error: 'No podés asignar este registro a otro chofer.' };
+      }
       if (!request.id && !(await isActiveDriverId(request.driver_id))) {
         return { success: false, error: 'Seleccioná un chofer activo.' };
       }
