@@ -464,8 +464,18 @@ export const equipmentLogService = {
   },
 
   async saveFuelLoad(fuelLoad) {
-    const { data: authData } = await supabase.auth.getUser();
-    const currentUserId = authData?.user?.id || null;
+    let currentUserContext;
+    try {
+      currentUserContext = await getCurrentUserContext();
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo verificar tus permisos para guardar cargas de combustible.') };
+    }
+
+    const currentUserId = currentUserContext.userId;
+    if (!currentUserContext.isAdmin) {
+      return { success: false, error: 'No tenés permisos para guardar cargas de combustible' };
+    }
+
     const vehicleId = fuelLoad.vehicle_id || '';
     const priceArs = fuelLoad.price_ars;
     const litersValue = fuelLoad.liters;
@@ -490,8 +500,8 @@ export const equipmentLogService = {
       liters: Number(litersValue),
       mileage: normalizedMileage,
       notes: notes?.trim() || null,
-      created_by: currentUserId,
     };
+    if (!fuelLoad.id) payload.created_by = currentUserId;
 
     if (!isValidUuid(vehicleId)) return { success: false, error: 'Seleccioná un vehículo válido.' };
     if (!isValidUuid(currentUserId)) return { success: false, error: 'No se pudo identificar el usuario autenticado.' };
@@ -540,6 +550,11 @@ export const equipmentLogService = {
 
   async deleteFuelLoad(id) {
     try {
+      const { isAdmin } = await getCurrentUserContext();
+      if (!isAdmin) {
+        return { success: false, error: 'No tenés permisos para eliminar cargas de combustible' };
+      }
+
       const { error } = await supabase
         .from('vehicle_fuel_loads')
         .delete()
