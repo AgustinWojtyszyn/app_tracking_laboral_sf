@@ -11,7 +11,7 @@ Resumen ejecutivo
 - No se detectaron regresiones bloqueantes por lectura estatica.
 - Hay riesgos residuales de consistencia porque algunas reglas nuevas quedaron solo en UI y no en el servicio.
 - La mejora de autocompletado reduce carga repetitiva, pero aumenta la importancia de que el usuario revise el vehiculo seleccionado cuando carga desde vistas generales.
-
+d 
 Hallazgos post-cambios
 
 1. Autocompletado de kilometraje en combustible y mantenimiento
