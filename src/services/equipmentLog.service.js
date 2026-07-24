@@ -547,11 +547,18 @@ export const equipmentLogService = {
   },
 
   async saveMaintenanceLog(maintenanceLog) {
-    if (!maintenanceLog.vehicle_id) return { success: false, error: 'Seleccioná un vehículo.' };
+    const vehicleId = String(maintenanceLog.vehicle_id || '').trim();
+    const maintenanceDate = String(maintenanceLog.maintenance_date || '').trim();
+    const nextControlDate = String(maintenanceLog.next_control_date || '').trim() || null;
+
+    if (!isValidUuid(vehicleId)) return { success: false, error: 'Seleccioná un vehículo válido.' };
     if (!VEHICLE_MAINTENANCE_TYPES.includes(maintenanceLog.maintenance_type)) {
       return { success: false, error: 'Seleccioná un tipo de mantenimiento válido.' };
     }
-    if (!maintenanceLog.maintenance_date) return { success: false, error: 'La fecha es obligatoria.' };
+    if (!isValidDateInput(maintenanceDate)) return { success: false, error: 'La fecha debe ser válida.' };
+    if (nextControlDate && !isValidDateInput(nextControlDate)) {
+      return { success: false, error: 'La fecha de próximo control debe ser válida.' };
+    }
     if (!maintenanceLog.detail?.trim()) return { success: false, error: 'El detalle es obligatorio.' };
 
     const mileage = normalizeMileage(maintenanceLog.mileage);
@@ -567,13 +574,13 @@ export const equipmentLogService = {
     }
 
     const payload = {
-      vehicle_id: maintenanceLog.vehicle_id,
+      vehicle_id: vehicleId,
       maintenance_type: maintenanceLog.maintenance_type,
-      maintenance_date: maintenanceLog.maintenance_date,
+      maintenance_date: maintenanceDate,
       detail: maintenanceLog.detail.trim(),
       mileage,
       value_ars: valueArs,
-      next_control_date: maintenanceLog.next_control_date || null,
+      next_control_date: nextControlDate,
       notes: maintenanceLog.notes?.trim() || null,
     };
 
