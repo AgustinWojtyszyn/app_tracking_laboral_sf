@@ -175,27 +175,15 @@ const withFuelMetrics = (loads = []) => {
 };
 
 const mapSupabaseError = (error, fallback) => {
-  if (error?.code === 'PGRST204') return `La estructura de la tabla no está actualizada: ${error?.message || ''}`.trim();
+  if (error?.code === 'PGRST204') return 'No se pudo completar la operación con los datos enviados.';
   if (error?.code === '23505') return 'Ya existe un vehículo con esa patente.';
-  if (error?.code === '23502') return `Falta un dato obligatorio para guardar el registro: ${error?.details || error?.message || ''}`.trim();
+  if (error?.code === '23502') return 'Faltan datos obligatorios para completar la operación.';
   if (error?.code === '23503') return 'El vehículo o usuario asociado no existe o no está disponible.';
-  if (error?.code === '23514') return `Algún valor no cumple las reglas de la base de datos: ${error?.details || error?.message || ''}`.trim();
+  if (error?.code === '23514') return 'Uno de los valores ingresados no es válido.';
   if (error?.code === '42501' || /row-level security|permission denied/i.test(error?.message || '')) {
     return 'No tenés permisos para realizar esta acción.';
   }
   return fallback;
-};
-
-const logFuelLoadPayload = () => {};
-
-const logFuelLoadError = (error, payload) => {
-  console.error('Error al crear carga de combustible JSON', JSON.stringify({
-    message: error?.message,
-    details: error?.details,
-    hint: error?.hint,
-    code: error?.code,
-    vehicle_id: payload?.vehicle_id || null,
-  }, null, 2));
 };
 
 const buildEquipmentRecordPayload = (record) => {
@@ -530,18 +518,13 @@ export const equipmentLogService = {
       if (vehicleError) throw vehicleError;
       if (!vehicleExists) return { success: false, error: 'El vehículo seleccionado no existe o no está disponible.' };
 
-      logFuelLoadPayload(payload);
-
       const request = fuelLoad.id
         ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
         : supabase.from('vehicle_fuel_loads').insert(payload);
 
       const { data, error } = await request.select('*').single();
 
-      if (error) {
-        logFuelLoadError(error, payload);
-        throw error;
-      }
+      if (error) throw error;
       return { success: true, data, message: fuelLoad.id ? 'Carga de combustible actualizada.' : 'Carga de combustible registrada.' };
     } catch (error) {
       return { success: false, error: mapSupabaseError(error, 'No se pudo guardar la carga de combustible.') };
