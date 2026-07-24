@@ -207,6 +207,30 @@ const emptyListIfUnavailable = (error) => {
   return { success: true, data: [] };
 };
 
+const formatMileageForMessage = (value) => (
+  new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Number(value))
+);
+
+const validateNewMileageIsNotRegressive = async ({ vehicleId, mileage, message }) => {
+  if (mileage === null || mileage === undefined || mileage === '') return { success: true };
+
+  try {
+    const result = await equipmentLogService.getVehicleCurrentMileage(vehicleId);
+    if (!result.success || result.data === null || result.data === undefined) return { success: true };
+
+    const currentMileage = Number(result.data);
+    const nextMileage = Number(mileage);
+    if (!Number.isFinite(currentMileage) || !Number.isFinite(nextMileage)) return { success: true };
+    if (nextMileage < currentMileage) {
+      return { success: false, error: message(formatMileageForMessage(currentMileage)) };
+    }
+  } catch {
+    return { success: true };
+  }
+
+  return { success: true };
+};
+
 export const equipmentLogService = {
   async getVehicles({ search = '' } = {}) {
     try {
@@ -518,6 +542,15 @@ export const equipmentLogService = {
       if (vehicleError) throw vehicleError;
       if (!vehicleExists) return { success: false, error: 'El vehículo seleccionado no existe o no está disponible.' };
 
+      if (!fuelLoad.id && payload.mileage !== null) {
+        const mileageCheck = await validateNewMileageIsNotRegressive({
+          vehicleId,
+          mileage: payload.mileage,
+          message: (currentMileage) => `El kilometraje no puede ser menor al último registrado para este vehículo (${currentMileage} km)`,
+        });
+        if (!mileageCheck.success) return mileageCheck;
+      }
+
       const request = fuelLoad.id
         ? supabase.from('vehicle_fuel_loads').update(payload).eq('id', fuelLoad.id)
         : supabase.from('vehicle_fuel_loads').insert(payload);
@@ -604,6 +637,15 @@ export const equipmentLogService = {
     };
 
     try {
+      if (!maintenanceLog.id) {
+        const mileageCheck = await validateNewMileageIsNotRegressive({
+          vehicleId,
+          mileage,
+          message: (currentMileage) => `El kilometraje no puede ser menor al último registrado para este vehículo (${currentMileage} km)`,
+        });
+        if (!mileageCheck.success) return mileageCheck;
+      }
+
       const request = maintenanceLog.id
         ? supabase.from('vehicle_maintenance_logs').update(payload).eq('id', maintenanceLog.id)
         : supabase.from('vehicle_maintenance_logs').insert([payload]);
@@ -937,6 +979,14 @@ export const equipmentLogService = {
       }
       if (!route.id && !(await isActiveDriverId(route.driver_id))) {
         return { success: false, error: 'Seleccioná un chofer activo.' };
+      }
+      if (!route.id) {
+        const mileageCheck = await validateNewMileageIsNotRegressive({
+          vehicleId: route.vehicle_id,
+          mileage: mileageStart,
+          message: (currentMileage) => `El kilometraje inicial no puede ser menor al último registrado para este vehículo (${currentMileage} km)`,
+        });
+        if (!mileageCheck.success) return mileageCheck;
       }
 
       const request = route.id
