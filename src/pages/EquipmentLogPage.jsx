@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Ban, BookOpen, Building2, CalendarClock, Car, ChevronDown, ClipboardList, Edit2, FileSpreadsheet, Fuel, Menu, Plus, RotateCcw, Search, ShieldCheck, Trash2, UserCog, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -278,6 +278,57 @@ const findVehicleById = (vehicles, id) => vehicles.find((vehicle) => vehicle.id 
 const vehicleCurrentMileage = (vehicle) => (
   vehicle?.mileage_end ?? vehicle?.mileage_start ?? ''
 );
+const mileageSuggestionValue = (value) => (
+  value === null || value === undefined ? '' : String(value)
+);
+const vehicleMileageFallback = (vehicles, vehicleId) => (
+  mileageSuggestionValue(vehicleCurrentMileage(findVehicleById(vehicles, vehicleId)))
+);
+const useVehicleMileageSuggestion = ({ open, vehicleId, vehicles, skip = false, canApply, onApply }) => {
+  const requestIdRef = useRef(0);
+  const canApplyRef = useRef(canApply);
+  const onApplyRef = useRef(onApply);
+  const vehiclesRef = useRef(vehicles);
+
+  useEffect(() => {
+    vehiclesRef.current = vehicles;
+  }, [vehicles]);
+
+  useEffect(() => {
+    canApplyRef.current = canApply;
+  }, [canApply]);
+
+  useEffect(() => {
+    onApplyRef.current = onApply;
+  }, [onApply]);
+
+  useEffect(() => {
+    if (!open || skip || !vehicleId) return undefined;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    let cancelled = false;
+
+    const fallback = vehicleMileageFallback(vehiclesRef.current, vehicleId);
+    equipmentLogService.getVehicleCurrentMileage(vehicleId)
+      .then((result) => {
+        if (cancelled || requestIdRef.current !== requestId) return;
+        if (!canApplyRef.current?.(vehicleId)) return;
+        const suggestedMileage = result?.success
+          ? mileageSuggestionValue(result.data ?? fallback)
+          : fallback;
+        onApplyRef.current?.(vehicleId, suggestedMileage);
+      })
+      .catch(() => {
+        if (cancelled || requestIdRef.current !== requestId) return;
+        if (!canApplyRef.current?.(vehicleId)) return;
+        onApplyRef.current?.(vehicleId, fallback);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, skip, vehicleId]);
+};
 const assignedActiveDriverIdForVehicle = (vehicle, drivers) => {
   const assignedId = vehicle?.assigned_driver_profile_id || vehicle?.assigned_driver_profile?.id || '';
   if (!assignedId) return '';
@@ -530,12 +581,13 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyFuelLoad());
   const [formError, setFormError] = useState('');
+  const mileageEditedRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    mileageEditedRef.current = Boolean(fuelLoad);
     const defaultVehicleId = selectedVehicleId || vehicles[0]?.id || '';
-    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(fuelLoad ? {
       ...emptyFuelLoad(),
       ...fuelLoad,
@@ -549,24 +601,42 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
     } : {
       ...emptyFuelLoad(),
       vehicle_id: defaultVehicleId,
-      mileage: vehicleCurrentMileage(defaultVehicle),
+      mileage: vehicleMileageFallback(vehicles, defaultVehicleId),
     });
   }, [fuelLoad, open, selectedVehicleId, vehicles]);
+
+  useVehicleMileageSuggestion({
+    open,
+    vehicleId: form.vehicle_id,
+    vehicles,
+    skip: Boolean(fuelLoad),
+    canApply: (vehicleId) => !mileageEditedRef.current && form.vehicle_id === vehicleId,
+    onApply: (vehicleId, mileage) => {
+      setForm((prev) => (
+        prev.vehicle_id === vehicleId && !mileageEditedRef.current
+          ? { ...prev, mileage }
+          : prev
+      ));
+    },
+  });
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const setMileageValue = (value) => {
+    mileageEditedRef.current = true;
+    setValue('mileage', value);
+  };
+
   const handleVehicleChange = (vehicleId) => {
     setFormError('');
-    const vehicle = findVehicleById(vehicles, vehicleId);
+    mileageEditedRef.current = false;
     setForm((prev) => ({
       ...prev,
       vehicle_id: vehicleId,
-      mileage: !prev.mileage || String(prev.mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
-        ? vehicleCurrentMileage(vehicle)
-        : prev.mileage,
+      mileage: vehicleMileageFallback(vehicles, vehicleId),
     }));
   };
 
@@ -638,8 +708,8 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
                 maxLength={VEHICLE_MILEAGE_MAX_DIGITS}
                 value={form.mileage}
                 onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
-                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
-                onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
+                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: setMileageValue })}
+                onChange={(e) => setMileageValue(mileageDigits(e.target.value))}
                 disabled={!canEditMileage}
               />
             </Field>
@@ -665,12 +735,13 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyMaintenanceLog());
   const [formError, setFormError] = useState('');
+  const mileageEditedRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    mileageEditedRef.current = Boolean(maintenanceLog);
     const defaultVehicleId = selectedVehicleId || vehicles[0]?.id || '';
-    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(maintenanceLog ? {
       ...emptyMaintenanceLog(),
       ...maintenanceLog,
@@ -685,24 +756,42 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
     } : {
       ...emptyMaintenanceLog(),
       vehicle_id: defaultVehicleId,
-      mileage: vehicleCurrentMileage(defaultVehicle),
+      mileage: vehicleMileageFallback(vehicles, defaultVehicleId),
     });
   }, [maintenanceLog, open, selectedVehicleId, vehicles]);
+
+  useVehicleMileageSuggestion({
+    open,
+    vehicleId: form.vehicle_id,
+    vehicles,
+    skip: Boolean(maintenanceLog),
+    canApply: (vehicleId) => !mileageEditedRef.current && form.vehicle_id === vehicleId,
+    onApply: (vehicleId, mileage) => {
+      setForm((prev) => (
+        prev.vehicle_id === vehicleId && !mileageEditedRef.current
+          ? { ...prev, mileage }
+          : prev
+      ));
+    },
+  });
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const setMileageValue = (value) => {
+    mileageEditedRef.current = true;
+    setValue('mileage', value);
+  };
+
   const handleVehicleChange = (vehicleId) => {
     setFormError('');
-    const vehicle = findVehicleById(vehicles, vehicleId);
+    mileageEditedRef.current = false;
     setForm((prev) => ({
       ...prev,
       vehicle_id: vehicleId,
-      mileage: !prev.mileage || String(prev.mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
-        ? vehicleCurrentMileage(vehicle)
-        : prev.mileage,
+      mileage: vehicleMileageFallback(vehicles, vehicleId),
     }));
   };
 
@@ -773,8 +862,8 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
                 maxLength={VEHICLE_MILEAGE_MAX_DIGITS}
                 value={form.mileage}
                 onBeforeInput={preventInvalidLimitedInput({ pattern: /^\d+$/, maxLength: VEHICLE_MILEAGE_MAX_DIGITS })}
-                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: (value) => setValue('mileage', value) })}
-                onChange={(e) => setValue('mileage', mileageDigits(e.target.value))}
+                onPaste={pasteLimitedValue({ formatter: mileageDigits, maxLength: VEHICLE_MILEAGE_MAX_DIGITS, onValue: setMileageValue })}
+                onChange={(e) => setMileageValue(mileageDigits(e.target.value))}
                 disabled={!canEditMileage}
                 required
               />
@@ -1220,10 +1309,12 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyVehicleRoute());
   const [formError, setFormError] = useState('');
+  const mileageStartEditedRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    mileageStartEditedRef.current = Boolean(route);
     const defaultVehicleId = vehicles[0]?.id || '';
     const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(route ? {
@@ -1237,13 +1328,33 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
       ...emptyVehicleRoute(),
       vehicle_id: defaultVehicleId,
       driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, drivers),
-      mileage_start: vehicleCurrentMileage(defaultVehicle),
+      mileage_start: vehicleMileageFallback(vehicles, defaultVehicleId),
     });
   }, [drivers, open, route, vehicles]);
+
+  useVehicleMileageSuggestion({
+    open,
+    vehicleId: form.vehicle_id,
+    vehicles,
+    skip: Boolean(route),
+    canApply: (vehicleId) => !mileageStartEditedRef.current && form.vehicle_id === vehicleId,
+    onApply: (vehicleId, mileage) => {
+      setForm((prev) => (
+        prev.vehicle_id === vehicleId && !mileageStartEditedRef.current
+          ? { ...prev, mileage_start: mileage }
+          : prev
+      ));
+    },
+  });
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setMileageStartValue = (value) => {
+    mileageStartEditedRef.current = true;
+    setValue('mileage_start', value);
   };
 
   const togglePlace = (place) => {
@@ -1262,6 +1373,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
   const handleVehicleChange = (vehicleId) => {
     setFormError('');
     const vehicle = findVehicleById(vehicles, vehicleId);
+    mileageStartEditedRef.current = false;
     setForm((prev) => ({
       ...prev,
       vehicle_id: vehicleId,
@@ -1271,9 +1383,8 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
         nextVehicle: vehicle,
         drivers,
       }),
-      mileage_start: !prev.mileage_start || String(prev.mileage_start) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
-        ? vehicleCurrentMileage(vehicle)
-        : prev.mileage_start,
+      mileage_start: vehicleMileageFallback(vehicles, vehicleId),
+      mileage_end: '',
     }));
   };
 
@@ -1316,7 +1427,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
             </Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Kilometraje inicial *"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.mileage_start} onChange={(e) => setValue('mileage_start', mileageDigits(e.target.value))} required /></Field>
+            <Field label="Kilometraje inicial *"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.mileage_start} onChange={(e) => setMileageStartValue(mileageDigits(e.target.value))} required /></Field>
             <Field label="Kilometraje final *"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.mileage_end} onChange={(e) => setValue('mileage_end', mileageDigits(e.target.value))} required /></Field>
           </div>
           <Field label="Empresas o lugares visitados *">
@@ -1351,10 +1462,12 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyMaintenanceRequest());
   const [formError, setFormError] = useState('');
+  const currentMileageEditedRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setFormError('');
+    currentMileageEditedRef.current = Boolean(request);
     const defaultVehicleId = vehicles[0]?.id || '';
     const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
     setForm(request ? {
@@ -1367,18 +1480,39 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
       ...emptyMaintenanceRequest(),
       vehicle_id: defaultVehicleId,
       driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, drivers),
-      current_mileage: vehicleCurrentMileage(defaultVehicle),
+      current_mileage: vehicleMileageFallback(vehicles, defaultVehicleId),
     });
   }, [drivers, open, request, vehicles]);
+
+  useVehicleMileageSuggestion({
+    open,
+    vehicleId: form.vehicle_id,
+    vehicles,
+    skip: Boolean(request),
+    canApply: (vehicleId) => !currentMileageEditedRef.current && form.vehicle_id === vehicleId,
+    onApply: (vehicleId, mileage) => {
+      setForm((prev) => (
+        prev.vehicle_id === vehicleId && !currentMileageEditedRef.current
+          ? { ...prev, current_mileage: mileage }
+          : prev
+      ));
+    },
+  });
 
   const setValue = (key, value) => {
     setFormError('');
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const setCurrentMileageValue = (value) => {
+    currentMileageEditedRef.current = true;
+    setValue('current_mileage', value);
+  };
+
   const handleVehicleChange = (vehicleId) => {
     setFormError('');
     const vehicle = findVehicleById(vehicles, vehicleId);
+    currentMileageEditedRef.current = false;
     setForm((prev) => ({
       ...prev,
       vehicle_id: vehicleId,
@@ -1388,9 +1522,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
         nextVehicle: vehicle,
         drivers,
       }),
-      current_mileage: !prev.current_mileage || String(prev.current_mileage) === String(vehicleCurrentMileage(findVehicleById(vehicles, prev.vehicle_id)))
-        ? vehicleCurrentMileage(vehicle)
-        : prev.current_mileage,
+      current_mileage: vehicleMileageFallback(vehicles, vehicleId),
     }));
   };
 
@@ -1425,7 +1557,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Tipo de problema *"><input className={inputClass} value={form.issue_type || ''} onChange={(e) => setValue('issue_type', e.target.value)} required /></Field>
             <Field label="Prioridad"><select className={inputClass} value={form.priority} onChange={(e) => setValue('priority', e.target.value)}>{VEHICLE_MAINTENANCE_PRIORITIES.map((priority) => <option key={priority} value={priority}>{maintenancePriorityLabels[priority]}</option>)}</select></Field>
-            <Field label="Kilometraje actual"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.current_mileage ?? ''} onChange={(e) => setValue('current_mileage', mileageDigits(e.target.value))} /></Field>
+            <Field label="Kilometraje actual"><input className={inputClass} inputMode="numeric" maxLength={VEHICLE_MILEAGE_MAX_DIGITS} value={form.current_mileage ?? ''} onChange={(e) => setCurrentMileageValue(mileageDigits(e.target.value))} /></Field>
           </div>
           <Field label="Descripción libre *"><textarea className={`${inputClass} min-h-24`} value={form.description || ''} onChange={(e) => setValue('description', e.target.value)} required /></Field>
           {isAdmin && (
