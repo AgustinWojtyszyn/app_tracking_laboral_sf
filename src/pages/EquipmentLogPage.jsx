@@ -284,23 +284,19 @@ const mileageSuggestionValue = (value) => (
 const vehicleMileageFallback = (vehicles, vehicleId) => (
   mileageSuggestionValue(vehicleCurrentMileage(findVehicleById(vehicles, vehicleId)))
 );
+const useLatestRef = (value) => {
+  const ref = useRef(value);
+  useEffect(() => {
+    ref.current = value;
+  }, [value]);
+  return ref;
+};
+const recordDialogKey = (record) => (record ? `edit:${record.id || 'current'}` : 'create');
 const useVehicleMileageSuggestion = ({ open, vehicleId, vehicles, skip = false, canApply, onApply }) => {
   const requestIdRef = useRef(0);
-  const canApplyRef = useRef(canApply);
-  const onApplyRef = useRef(onApply);
-  const vehiclesRef = useRef(vehicles);
-
-  useEffect(() => {
-    vehiclesRef.current = vehicles;
-  }, [vehicles]);
-
-  useEffect(() => {
-    canApplyRef.current = canApply;
-  }, [canApply]);
-
-  useEffect(() => {
-    onApplyRef.current = onApply;
-  }, [onApply]);
+  const canApplyRef = useLatestRef(canApply);
+  const onApplyRef = useLatestRef(onApply);
+  const vehiclesRef = useLatestRef(vehicles);
 
   useEffect(() => {
     if (!open || skip || !vehicleId) return undefined;
@@ -582,28 +578,58 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
   const [form, setForm] = useState(emptyFuelLoad());
   const [formError, setFormError] = useState('');
   const mileageEditedRef = useRef(false);
+  const preparedKeyRef = useRef('');
+  const vehiclesRef = useLatestRef(vehicles);
+  const selectedVehicleIdRef = useLatestRef(selectedVehicleId);
+  const fuelLoadRef = useLatestRef(fuelLoad);
+  const dialogKey = recordDialogKey(fuelLoad);
 
-  useEffect(() => {
-    if (!open) return;
+  const resetDialogState = useCallback(() => {
+    setForm(emptyFuelLoad());
     setFormError('');
-    mileageEditedRef.current = Boolean(fuelLoad);
-    const defaultVehicleId = selectedVehicleId || vehicles[0]?.id || '';
-    setForm(fuelLoad ? {
+    mileageEditedRef.current = false;
+    preparedKeyRef.current = '';
+  }, []);
+
+  const prepareForm = useCallback(() => {
+    const currentVehicles = vehiclesRef.current;
+    const currentFuelLoad = fuelLoadRef.current;
+    const defaultVehicleId = selectedVehicleIdRef.current || currentVehicles[0]?.id || '';
+    setFormError('');
+    mileageEditedRef.current = Boolean(currentFuelLoad);
+    setForm(currentFuelLoad ? {
       ...emptyFuelLoad(),
-      ...fuelLoad,
-      vehicle_id: fuelLoad.vehicle_id || '',
-      price_ars: fuelLoad.price_ars ?? '',
-      load_date: fuelLoad.load_date || todayInputDate(),
-      estimated_time: fuelLoad.estimated_time?.slice(0, 5) || currentInputTime(),
-      liters: fuelLoad.liters ?? '',
-      mileage: fuelLoad.mileage ?? '',
-      notes: fuelLoad.notes || '',
+      ...currentFuelLoad,
+      vehicle_id: currentFuelLoad.vehicle_id || '',
+      price_ars: currentFuelLoad.price_ars ?? '',
+      load_date: currentFuelLoad.load_date || todayInputDate(),
+      estimated_time: currentFuelLoad.estimated_time?.slice(0, 5) || currentInputTime(),
+      liters: currentFuelLoad.liters ?? '',
+      mileage: currentFuelLoad.mileage ?? '',
+      notes: currentFuelLoad.notes || '',
     } : {
       ...emptyFuelLoad(),
       vehicle_id: defaultVehicleId,
-      mileage: vehicleMileageFallback(vehicles, defaultVehicleId),
+      mileage: vehicleMileageFallback(currentVehicles, defaultVehicleId),
     });
-  }, [fuelLoad, open, selectedVehicleId, vehicles]);
+  }, [fuelLoadRef, selectedVehicleIdRef, vehiclesRef]);
+
+  useEffect(() => {
+    if (!open || preparedKeyRef.current === dialogKey) return;
+    preparedKeyRef.current = dialogKey;
+    prepareForm();
+  }, [dialogKey, open, prepareForm]);
+
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      preparedKeyRef.current = dialogKey;
+      prepareForm();
+      setOpen(true);
+      return;
+    }
+    setOpen(false);
+    resetDialogState();
+  };
 
   useVehicleMileageSuggestion({
     open,
@@ -649,7 +675,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
 
     if (result.success) {
       addToast(result.message, 'success');
-      setOpen(false);
+      handleOpenChange(false);
       onSaved();
     } else {
       setFormError(result.error);
@@ -657,7 +683,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader>
@@ -718,7 +744,7 @@ function FuelLoadFormDialog({ fuelLoad, vehicles, selectedVehicleId = '', trigge
             <textarea className={`${inputClass} min-h-20`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving || vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
               {saving ? 'Guardando...' : 'Guardar'}
             </Button>
@@ -736,29 +762,59 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
   const [form, setForm] = useState(emptyMaintenanceLog());
   const [formError, setFormError] = useState('');
   const mileageEditedRef = useRef(false);
+  const preparedKeyRef = useRef('');
+  const vehiclesRef = useLatestRef(vehicles);
+  const selectedVehicleIdRef = useLatestRef(selectedVehicleId);
+  const maintenanceLogRef = useLatestRef(maintenanceLog);
+  const dialogKey = recordDialogKey(maintenanceLog);
 
-  useEffect(() => {
-    if (!open) return;
+  const resetDialogState = useCallback(() => {
+    setForm(emptyMaintenanceLog());
     setFormError('');
-    mileageEditedRef.current = Boolean(maintenanceLog);
-    const defaultVehicleId = selectedVehicleId || vehicles[0]?.id || '';
-    setForm(maintenanceLog ? {
+    mileageEditedRef.current = false;
+    preparedKeyRef.current = '';
+  }, []);
+
+  const prepareForm = useCallback(() => {
+    const currentVehicles = vehiclesRef.current;
+    const currentMaintenanceLog = maintenanceLogRef.current;
+    const defaultVehicleId = selectedVehicleIdRef.current || currentVehicles[0]?.id || '';
+    setFormError('');
+    mileageEditedRef.current = Boolean(currentMaintenanceLog);
+    setForm(currentMaintenanceLog ? {
       ...emptyMaintenanceLog(),
-      ...maintenanceLog,
-      vehicle_id: maintenanceLog.vehicle_id || '',
-      maintenance_type: maintenanceLog.maintenance_type || 'preventivo',
-      maintenance_date: maintenanceLog.maintenance_date || todayInputDate(),
-      detail: maintenanceLog.detail || '',
-      mileage: maintenanceLog.mileage ?? '',
-      value_ars: maintenanceLog.value_ars ?? '',
-      next_control_date: maintenanceLog.next_control_date || '',
-      notes: maintenanceLog.notes || '',
+      ...currentMaintenanceLog,
+      vehicle_id: currentMaintenanceLog.vehicle_id || '',
+      maintenance_type: currentMaintenanceLog.maintenance_type || 'preventivo',
+      maintenance_date: currentMaintenanceLog.maintenance_date || todayInputDate(),
+      detail: currentMaintenanceLog.detail || '',
+      mileage: currentMaintenanceLog.mileage ?? '',
+      value_ars: currentMaintenanceLog.value_ars ?? '',
+      next_control_date: currentMaintenanceLog.next_control_date || '',
+      notes: currentMaintenanceLog.notes || '',
     } : {
       ...emptyMaintenanceLog(),
       vehicle_id: defaultVehicleId,
-      mileage: vehicleMileageFallback(vehicles, defaultVehicleId),
+      mileage: vehicleMileageFallback(currentVehicles, defaultVehicleId),
     });
-  }, [maintenanceLog, open, selectedVehicleId, vehicles]);
+  }, [maintenanceLogRef, selectedVehicleIdRef, vehiclesRef]);
+
+  useEffect(() => {
+    if (!open || preparedKeyRef.current === dialogKey) return;
+    preparedKeyRef.current = dialogKey;
+    prepareForm();
+  }, [dialogKey, open, prepareForm]);
+
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      preparedKeyRef.current = dialogKey;
+      prepareForm();
+      setOpen(true);
+      return;
+    }
+    setOpen(false);
+    resetDialogState();
+  };
 
   useVehicleMileageSuggestion({
     open,
@@ -804,7 +860,7 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
 
     if (result.success) {
       addToast(result.message, 'success');
-      setOpen(false);
+      handleOpenChange(false);
       onSaved();
     } else {
       setFormError(result.error);
@@ -812,7 +868,7 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader>
@@ -882,7 +938,7 @@ function MaintenanceLogFormDialog({ maintenanceLog, vehicles, selectedVehicleId 
             <textarea className={`${inputClass} min-h-20`} value={form.notes || ''} onChange={(e) => setValue('notes', e.target.value)} />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving || vehicles.length === 0} className="bg-[#1e3a8a] text-white hover:bg-blue-900">
               {saving ? 'Guardando...' : 'Guardar'}
             </Button>
@@ -1310,27 +1366,58 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
   const [form, setForm] = useState(emptyVehicleRoute());
   const [formError, setFormError] = useState('');
   const mileageStartEditedRef = useRef(false);
+  const preparedKeyRef = useRef('');
+  const vehiclesRef = useLatestRef(vehicles);
+  const driversRef = useLatestRef(drivers);
+  const routeRef = useLatestRef(route);
+  const dialogKey = recordDialogKey(route);
 
-  useEffect(() => {
-    if (!open) return;
+  const resetDialogState = useCallback(() => {
+    setForm(emptyVehicleRoute());
     setFormError('');
-    mileageStartEditedRef.current = Boolean(route);
-    const defaultVehicleId = vehicles[0]?.id || '';
-    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
-    setForm(route ? {
+    mileageStartEditedRef.current = false;
+    preparedKeyRef.current = '';
+  }, []);
+
+  const prepareForm = useCallback(() => {
+    const currentVehicles = vehiclesRef.current;
+    const currentDrivers = driversRef.current;
+    const currentRoute = routeRef.current;
+    const defaultVehicleId = currentVehicles[0]?.id || '';
+    const defaultVehicle = findVehicleById(currentVehicles, defaultVehicleId);
+    setFormError('');
+    mileageStartEditedRef.current = Boolean(currentRoute);
+    setForm(currentRoute ? {
       ...emptyVehicleRoute(),
-      ...route,
-      visited_places: Array.isArray(route.visited_places) ? route.visited_places : [],
-      mileage_start: route.mileage_start ?? '',
-      mileage_end: route.mileage_end ?? '',
-      observations: route.observations || '',
+      ...currentRoute,
+      visited_places: Array.isArray(currentRoute.visited_places) ? currentRoute.visited_places : [],
+      mileage_start: currentRoute.mileage_start ?? '',
+      mileage_end: currentRoute.mileage_end ?? '',
+      observations: currentRoute.observations || '',
     } : {
       ...emptyVehicleRoute(),
       vehicle_id: defaultVehicleId,
-      driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, drivers),
-      mileage_start: vehicleMileageFallback(vehicles, defaultVehicleId),
+      driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, currentDrivers),
+      mileage_start: vehicleMileageFallback(currentVehicles, defaultVehicleId),
     });
-  }, [drivers, open, route, vehicles]);
+  }, [driversRef, routeRef, vehiclesRef]);
+
+  useEffect(() => {
+    if (!open || preparedKeyRef.current === dialogKey) return;
+    preparedKeyRef.current = dialogKey;
+    prepareForm();
+  }, [dialogKey, open, prepareForm]);
+
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      preparedKeyRef.current = dialogKey;
+      prepareForm();
+      setOpen(true);
+      return;
+    }
+    setOpen(false);
+    resetDialogState();
+  };
 
   useVehicleMileageSuggestion({
     open,
@@ -1395,7 +1482,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
     setSaving(false);
     if (result.success) {
       addToast(result.message, 'success');
-      setOpen(false);
+      handleOpenChange(false);
       onSaved();
     } else {
       setFormError(result.error);
@@ -1405,7 +1492,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
   const driverOptions = driverOptionsForSelection(drivers, form.driver_id);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader><DialogTitle>{route ? 'Editar recorrido' : 'Registrar recorrido diario'}</DialogTitle></DialogHeader>
@@ -1447,7 +1534,7 @@ function VehicleRouteFormDialog({ route, vehicles, drivers, trigger, onSaved }) 
           </Field>
           <Field label="Observaciones"><textarea className={`${inputClass} min-h-20`} value={form.observations || ''} onChange={(e) => setValue('observations', e.target.value)} /></Field>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         </form>
@@ -1463,26 +1550,57 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
   const [form, setForm] = useState(emptyMaintenanceRequest());
   const [formError, setFormError] = useState('');
   const currentMileageEditedRef = useRef(false);
+  const preparedKeyRef = useRef('');
+  const vehiclesRef = useLatestRef(vehicles);
+  const driversRef = useLatestRef(drivers);
+  const requestRef = useLatestRef(request);
+  const dialogKey = recordDialogKey(request);
 
-  useEffect(() => {
-    if (!open) return;
+  const resetDialogState = useCallback(() => {
+    setForm(emptyMaintenanceRequest());
     setFormError('');
-    currentMileageEditedRef.current = Boolean(request);
-    const defaultVehicleId = vehicles[0]?.id || '';
-    const defaultVehicle = findVehicleById(vehicles, defaultVehicleId);
-    setForm(request ? {
+    currentMileageEditedRef.current = false;
+    preparedKeyRef.current = '';
+  }, []);
+
+  const prepareForm = useCallback(() => {
+    const currentVehicles = vehiclesRef.current;
+    const currentDrivers = driversRef.current;
+    const currentRequest = requestRef.current;
+    const defaultVehicleId = currentVehicles[0]?.id || '';
+    const defaultVehicle = findVehicleById(currentVehicles, defaultVehicleId);
+    setFormError('');
+    currentMileageEditedRef.current = Boolean(currentRequest);
+    setForm(currentRequest ? {
       ...emptyMaintenanceRequest(),
-      ...request,
-      current_mileage: request.current_mileage ?? '',
-      admin_notes: request.admin_notes || '',
-      resolved_at: request.resolved_at || '',
+      ...currentRequest,
+      current_mileage: currentRequest.current_mileage ?? '',
+      admin_notes: currentRequest.admin_notes || '',
+      resolved_at: currentRequest.resolved_at || '',
     } : {
       ...emptyMaintenanceRequest(),
       vehicle_id: defaultVehicleId,
-      driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, drivers),
-      current_mileage: vehicleMileageFallback(vehicles, defaultVehicleId),
+      driver_id: assignedActiveDriverIdForVehicle(defaultVehicle, currentDrivers),
+      current_mileage: vehicleMileageFallback(currentVehicles, defaultVehicleId),
     });
-  }, [drivers, open, request, vehicles]);
+  }, [driversRef, requestRef, vehiclesRef]);
+
+  useEffect(() => {
+    if (!open || preparedKeyRef.current === dialogKey) return;
+    preparedKeyRef.current = dialogKey;
+    prepareForm();
+  }, [dialogKey, open, prepareForm]);
+
+  const handleOpenChange = (nextOpen) => {
+    if (nextOpen) {
+      preparedKeyRef.current = dialogKey;
+      prepareForm();
+      setOpen(true);
+      return;
+    }
+    setOpen(false);
+    resetDialogState();
+  };
 
   useVehicleMileageSuggestion({
     open,
@@ -1533,7 +1651,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
     setSaving(false);
     if (result.success) {
       addToast(result.message, 'success');
-      setOpen(false);
+      handleOpenChange(false);
       onSaved();
     } else {
       setFormError(result.error);
@@ -1543,7 +1661,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
   const driverOptions = driverOptionsForSelection(drivers, form.driver_id);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-50">
         <DialogHeader><DialogTitle>{request ? 'Editar aviso de mantenimiento' : 'Informar mantenimiento'}</DialogTitle></DialogHeader>
@@ -1570,7 +1688,7 @@ function MaintenanceRequestFormDialog({ request, vehicles, drivers, trigger, onS
             </>
           )}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={saving} className="bg-[#1e3a8a] text-white hover:bg-blue-900">{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         </form>
