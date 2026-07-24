@@ -243,6 +243,27 @@ export const equipmentLogService = {
     }
   },
 
+  async getVehicleCurrentMileage(vehicleId) {
+    const normalizedVehicleId = String(vehicleId || '').trim();
+    if (!isValidUuid(normalizedVehicleId)) {
+      return { success: false, error: 'Seleccioná un vehículo válido.' };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_vehicle_current_mileage', {
+        p_vehicle_id: normalizedVehicleId,
+      });
+      if (error) throw error;
+
+      return {
+        success: true,
+        data: data === null || data === undefined ? null : Number(data),
+      };
+    } catch (error) {
+      return { success: false, error: mapSupabaseError(error, 'No se pudo obtener el kilometraje actual.') };
+    }
+  },
+
   async saveVehicle(vehicle) {
     const licensePlate = normalizeLicensePlate(vehicle.license_plate);
     if (!licensePlate) return { success: false, error: 'La patente es obligatoria.' };
