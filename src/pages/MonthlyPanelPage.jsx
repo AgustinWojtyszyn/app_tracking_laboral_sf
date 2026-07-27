@@ -25,8 +25,10 @@ import JobForm from '@/components/jobs/JobForm';
 import {
   applyMonthlyPanelFilters,
   buildMonthlyLocationOptions,
+  buildMonthlyPeriodSummary,
   createLatestRequestGuard,
   getMonthlyUnknownLocations,
+  getPreviousDateRange,
   normalizeDateOnly,
   paginateMonthlyJobs,
   shouldApplyMonthlyJobsResult
@@ -53,8 +55,12 @@ export default function MonthlyPanelPage() {
   const [deletingJobId, setDeletingJobId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
   const mountedRef = useRef(false);
   const requestGuardRef = useRef(createLatestRequestGuard());
+  const summaryRequestGuardRef = useRef(createLatestRequestGuard());
   
   // Use filter hook for state management
   const { filters, setFilter } = useFilters({
@@ -71,6 +77,10 @@ export default function MonthlyPanelPage() {
     setCurrentPage(1);
     setFilter(key, value);
   }, [setFilter]);
+
+  const handleRetrySummary = () => {
+    void fetchMonthlySummary();
+  };
 
   useEffect(() => {
     mountedRef.current = true;
@@ -99,11 +109,78 @@ export default function MonthlyPanelPage() {
     getJobsByDateRange
   ]);
 
+  const fetchMonthlySummary = useCallback(async () => {
+    if (!user || !filters.startDate || !filters.endDate) {
+      setSummary(null);
+      setSummaryError('');
+      return;
+    }
+
+    const requestId = summaryRequestGuardRef.current.next();
+    setSummaryLoading(true);
+    setSummaryError('');
+
+    const previousRange = getPreviousDateRange(filters.startDate, filters.endDate);
+    const currentQueryFilters = {
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      currentUserId: user?.id,
+      status: 'all',
+      groupId: filters.groupId === 'all' ? null : filters.groupId,
+      workerId: filters.workerId === 'all' ? null : filters.workerId,
+      location: filters.location === 'all' ? null : filters.location,
+      search: filters.search,
+    };
+    const previousQueryFilters = {
+      ...currentQueryFilters,
+      startDate: previousRange.startDate,
+      endDate: previousRange.endDate,
+    };
+
+    try {
+      const [currentResult, previousResult] = await Promise.all([
+        getJobsByDateRange(filters.startDate, filters.endDate, currentQueryFilters),
+        getJobsByDateRange(previousRange.startDate, previousRange.endDate, previousQueryFilters),
+      ]);
+      if (!shouldApplyMonthlyJobsResult({
+        isMounted: mountedRef.current,
+        isLatest: summaryRequestGuardRef.current.isLatest(requestId)
+      })) return;
+
+      if (!currentResult.success || !previousResult.success) {
+        throw new Error(currentResult.error || previousResult.error || 'No se pudo cargar el resumen.');
+      }
+
+      const nextSummary = buildMonthlyPeriodSummary({
+        currentJobs: currentResult.data || [],
+        previousJobs: previousResult.data || [],
+        normalizeStatus: normalizeStatusValue,
+        isEn,
+      });
+      setSummary(nextSummary);
+    } catch (error) {
+      if (!shouldApplyMonthlyJobsResult({
+        isMounted: mountedRef.current,
+        isLatest: summaryRequestGuardRef.current.isLatest(requestId)
+      })) return;
+      setSummary(null);
+      setSummaryError(error?.message || (isEn ? 'The summary could not be loaded.' : 'No se pudo cargar el resumen.'));
+    } finally {
+      if (shouldApplyMonthlyJobsResult({
+        isMounted: mountedRef.current,
+        isLatest: summaryRequestGuardRef.current.isLatest(requestId)
+      })) {
+        setSummaryLoading(false);
+      }
+    }
+  }, [filters.startDate, filters.endDate, filters.groupId, filters.workerId, filters.location, filters.search, user?.id, getJobsByDateRange, isEn]);
+
   useEffect(() => {
     if (user && filters.startDate && filters.endDate) {
         fetchJobs();
+        void fetchMonthlySummary();
     }
-  }, [user, filters.startDate, filters.endDate, fetchJobs]);
+  }, [user, filters.startDate, filters.endDate, filters.groupId, filters.workerId, filters.location, filters.search, fetchJobs, fetchMonthlySummary]);
 
   useEffect(() => {
     if (!user) return;
@@ -146,6 +223,18 @@ export default function MonthlyPanelPage() {
     () => applyMonthlyPanelFilters(jobs, filters, normalizeStatusValue),
     [jobs, filters]
   );
+  const summaryCards = useMemo(() => {
+    if (!summary?.current) return [];
+    return [
+      { key: 'all', label: isEn ? 'Total jobs' : 'Total de trabajos', value: summary.current.total, delta: summary.current.total - summary.previous.total, unit: 'trabajos', isPositiveGood: true },
+      { key: 'pending', label: isEn ? 'Pending' : 'Pendientes', value: summary.current.pending, delta: summary.current.pending - summary.previous.pending, unit: 'trabajos', isPositiveGood: false },
+      { key: 'completed', label: isEn ? 'Completed' : 'Completados', value: summary.current.completed, delta: summary.current.completed - summary.previous.completed, unit: 'trabajos', isPositiveGood: true },
+      { key: 'compliance', label: isEn ? 'Compliance' : 'Cumplimiento', value: `${summary.current.completionRate.toFixed(1)}%`, delta: summary.current.complianceDelta, unit: 'puntos', isPositiveGood: true, asPercent: true },
+      { key: 'workers', label: isEn ? 'Workers involved' : 'Trabajadores involucrados', value: summary.current.workers, delta: summary.current.workersDelta, unit: 'trabajadores', isPositiveGood: true },
+      { key: 'locations', label: isEn ? 'Places served' : 'Lugares atendidos', value: summary.current.locations, delta: summary.current.locationsDelta, unit: 'lugares', isPositiveGood: true },
+      { key: 'balance', label: isEn ? 'Estimated balance' : 'Balance estimado', value: formatCurrency(summary.current.balance), delta: summary.current.balanceDelta, unit: 'pesos', isPositiveGood: true, isCurrency: true },
+    ];
+  }, [isEn, summary]);
   const locationOptions = useMemo(() => buildMonthlyLocationOptions(jobs), [jobs]);
   const unknownLocationOptions = useMemo(() => getMonthlyUnknownLocations(jobs), [jobs]);
   const pagination = useMemo(
@@ -465,6 +554,73 @@ export default function MonthlyPanelPage() {
         groups={groupOptions}
         workers={workerOptions}
       />
+
+      <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Summary of the period' : 'Resumen del período'}</h2>
+          <span className="text-sm text-gray-500 dark:text-slate-400">{filters.startDate} – {filters.endDate}</span>
+        </div>
+        {summaryLoading ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-24 animate-pulse rounded-lg border border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40" />
+            ))}
+          </div>
+        ) : summaryError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200">
+            <div className="font-semibold">{isEn ? 'Summary unavailable' : 'Resumen no disponible'}</div>
+            <p className="mt-1">{summaryError}</p>
+            <Button type="button" variant="outline" size="sm" onClick={handleRetrySummary} className="mt-3">
+              {isEn ? 'Retry' : 'Reintentar'}
+            </Button>
+          </div>
+        ) : summary ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {summaryCards.map((card) => {
+                const isDeltaPositive = card.delta > 0;
+                const isDeltaNegative = card.delta < 0;
+                const isNeutral = card.delta === 0;
+                const isActive = filters.status === 'all' ? card.key === 'all' : card.key === filters.status;
+                const statusFilterValue = card.key === 'all' ? 'all' : card.key === 'pending' ? 'pending' : card.key === 'completed' ? 'completed' : null;
+                const changeLabel = card.asPercent
+                  ? `${Math.abs(card.delta).toFixed(1)} puntos ${card.delta >= 0 ? 'más' : 'menos'} que el período anterior`
+                  : card.delta === 0
+                    ? 'Sin cambios'
+                    : `${Math.abs(card.delta)} ${card.delta > 0 ? 'más' : 'menos'} que el período anterior`;
+                const tone = isNeutral ? 'text-gray-600 dark:text-slate-300' : (card.isPositiveGood ? (isDeltaPositive ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300') : (isDeltaNegative ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'));
+                const icon = isNeutral ? '•' : (card.isPositiveGood ? (isDeltaPositive ? '↑' : '↓') : (isDeltaNegative ? '↑' : '↓'));
+                return (
+                  <div key={card.key} className={`rounded-lg border p-3 shadow-sm ${isActive ? 'border-[#1e3a8a] bg-blue-50/50 dark:border-blue-500 dark:bg-blue-950/20' : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">{card.label}</span>
+                      {statusFilterValue ? (
+                        <button
+                          type="button"
+                          aria-pressed={isActive}
+                          onClick={() => handleFilterChange('status', statusFilterValue)}
+                          className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[#1e3a8a] hover:border-[#1e3a8a]/20 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a8a] focus-visible:ring-offset-2 dark:text-blue-200 dark:hover:bg-slate-800"
+                        >
+                          {isActive ? (isEn ? 'Active' : 'Activo') : (isEn ? 'View' : 'Ver')}
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 text-2xl font-bold text-gray-900 dark:text-slate-50">{card.value}</div>
+                    <div className={`mt-2 flex items-center gap-1 text-sm font-medium ${tone}`} aria-label={`${card.label}: ${changeLabel}`}>
+                      <span>{icon}</span>
+                      <span>{changeLabel}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200">
+              <div className="font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Operational reading' : 'Lectura operativa'}</div>
+              <p className="mt-1">{summary.conclusion}</p>
+            </div>
+          </>
+        ) : null}
+      </section>
 
       {/* Tabla consolidada */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden card-lg" data-tour="panel-mensual-tabla">

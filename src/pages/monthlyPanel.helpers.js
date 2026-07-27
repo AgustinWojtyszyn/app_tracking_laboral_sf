@@ -179,6 +179,158 @@ export const paginateMonthlyJobs = (jobs, page, pageSize) => {
   };
 };
 
+export const getPreviousDateRange = (startDate, endDate) => {
+  const start = normalizeDateOnly(startDate);
+  const end = normalizeDateOnly(endDate);
+  if (!start || !end) return { startDate: '', endDate: '' };
+
+  const startDateValue = new Date(`${start}T00:00:00`);
+  const endDateValue = new Date(`${end}T00:00:00`);
+  const duration = Math.round((endDateValue - startDateValue) / (1000 * 60 * 60 * 24)) + 1;
+  const previousEnd = new Date(startDateValue);
+  previousEnd.setDate(previousEnd.getDate() - 1);
+  const previousStart = new Date(previousEnd);
+  previousStart.setDate(previousStart.getDate() - duration + 1);
+
+  const formatDateValue = (value) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    startDate: formatDateValue(previousStart),
+    endDate: formatDateValue(previousEnd),
+  };
+};
+
+const getMetricDelta = (current, previous) => current - previous;
+const getPercentageDelta = (current, previous) => current - previous;
+const buildChangeLabel = ({ value, unit = 'puntos', isPositiveGood = true, isCurrency = false, isPercent = false }) => {
+  if (value === 0) return 'Sin cambios';
+
+  const absValue = Math.abs(value);
+  const direction = value > 0 ? 'más' : 'menos';
+  const sign = value > 0 ? '+' : '-';
+  const formatted = isCurrency
+    ? `${sign}${absValue.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    : `${sign}${Number(absValue).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const suffix = isPercent ? `${absValue} puntos` : isCurrency ? '' : absValue;
+  const suffixText = isPercent ? ` ${unit}` : isCurrency ? '' : ` ${unit}`;
+  const body = `${formatted}${suffixText}`;
+  const adjective = value > 0 ? 'más' : 'menos';
+  return `${absValue}${isPercent ? ' puntos' : ''} ${adjective} que el período anterior`;
+};
+
+const getSimpleSummaryPart = (jobs, normalizeStatus) => {
+  const safeJobs = Array.isArray(jobs) ? jobs : [];
+  const total = safeJobs.length;
+  const pending = safeJobs.filter((job) => normalizeStatus(job) === 'pending').length;
+  const completed = safeJobs.filter((job) => normalizeStatus(job) === 'completed').length;
+  return { total, pending, completed };
+};
+
+const getActiveJobs = (jobs, normalizeStatus) => (Array.isArray(jobs) ? jobs : []).filter((job) => normalizeStatus(job) !== 'archived');
+
+const getUniqueValues = (jobs, accessor) => {
+  const seen = new Set();
+  (Array.isArray(jobs) ? jobs : []).forEach((job) => {
+    const value = accessor(job);
+    if (!value) return;
+    seen.add(String(value).trim().toLowerCase());
+  });
+  return seen.size;
+};
+
+export const buildMonthlyPeriodSummary = ({ currentJobs, previousJobs, normalizeStatus, isEn = false }) => {
+  const currentSafeJobs = Array.isArray(currentJobs) ? currentJobs : [];
+  const previousSafeJobs = Array.isArray(previousJobs) ? previousJobs : [];
+
+  const currentBase = getSimpleSummaryPart(currentSafeJobs, normalizeStatus);
+  const previousBase = getSimpleSummaryPart(previousSafeJobs, normalizeStatus);
+  const currentActiveJobs = getActiveJobs(currentSafeJobs, normalizeStatus);
+  const previousActiveJobs = getActiveJobs(previousSafeJobs, normalizeStatus);
+  const currentActiveCount = currentActiveJobs.length;
+  const previousActiveCount = previousActiveJobs.length;
+  const currentCompletionRate = currentActiveCount === 0 ? 0 : (currentActiveJobs.filter((job) => normalizeStatus(job) === 'completed').length / currentActiveCount) * 100;
+  const previousCompletionRate = previousActiveCount === 0 ? 0 : (previousActiveJobs.filter((job) => normalizeStatus(job) === 'completed').length / previousActiveCount) * 100;
+
+  const currentWorkers = getUniqueValues(currentSafeJobs, (job) => job?.worker_id || job?.workers?.id || null);
+  const previousWorkers = getUniqueValues(previousSafeJobs, (job) => job?.worker_id || job?.workers?.id || null);
+  const currentLocations = getUniqueValues(currentSafeJobs, (job) => String(job?.location || '').trim());
+  const previousLocations = getUniqueValues(previousSafeJobs, (job) => String(job?.location || '').trim());
+
+  const currentBalance = currentActiveJobs.reduce((acc, job) => acc + (Number(job?.amount_to_charge) || 0) - (Number(job?.cost_spent) || 0), 0);
+  const previousBalance = previousActiveJobs.reduce((acc, job) => acc + (Number(job?.amount_to_charge) || 0) - (Number(job?.cost_spent) || 0), 0);
+
+  const current = {
+    total: currentBase.total,
+    pending: currentBase.pending,
+    completed: currentBase.completed,
+    activeCount: currentActiveCount,
+    completionRate: currentCompletionRate,
+    workers: currentWorkers,
+    locations: currentLocations,
+    balance: currentBalance,
+    pendingDelta: previousBase.pending - currentBase.pending,
+    completedDelta: currentBase.completed - previousBase.completed,
+    complianceDelta: currentCompletionRate - previousCompletionRate,
+    workersDelta: currentWorkers - previousWorkers,
+    locationsDelta: currentLocations - previousLocations,
+    balanceDelta: currentBalance - previousBalance,
+  };
+
+  const conclusion = (() => {
+    if (current.total === 0 && previousBase.total === 0) {
+      return isEn
+        ? 'No jobs were found for this period.'
+        : 'No hay trabajos suficientes para evaluar este período.';
+    }
+
+    const pendingDelta = current.pending - previousBase.pending;
+    const complianceDelta = current.completionRate - previousCompletionRate;
+    if (pendingDelta > 0 && complianceDelta < 0) {
+      return isEn
+        ? 'Attention: pending jobs increased and compliance dropped compared to the previous period.'
+        : 'Atención: aumentaron los trabajos pendientes y bajó el cumplimiento respecto al período anterior.';
+    }
+    if (pendingDelta < 0 && complianceDelta >= 0) {
+      return isEn
+        ? 'Positive trend: pending jobs decreased and compliance improved.'
+        : 'Evolución positiva: disminuyeron los pendientes y el cumplimiento mejoró.';
+    }
+    if (complianceDelta > 0) {
+      return isEn
+        ? 'Compliance improved compared to the previous period.'
+        : 'El cumplimiento mejoró respecto al período anterior.';
+    }
+    if (complianceDelta < 0) {
+      return isEn
+        ? 'Compliance declined compared to the previous period.'
+        : 'El cumplimiento bajó respecto al período anterior.';
+    }
+    return isEn
+      ? 'Activity remained stable compared to the previous period.'
+      : 'La actividad se mantiene estable respecto al período anterior.';
+  })();
+
+  return {
+    current,
+    previous: {
+      total: previousBase.total,
+      pending: previousBase.pending,
+      completed: previousBase.completed,
+      activeCount: previousActiveCount,
+      completionRate: previousCompletionRate,
+      workers: previousWorkers,
+      locations: previousLocations,
+      balance: previousBalance,
+    },
+    conclusion,
+  };
+};
+
 export const createLatestRequestGuard = () => {
   let currentRequestId = 0;
 

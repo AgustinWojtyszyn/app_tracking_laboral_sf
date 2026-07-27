@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   applyMonthlyPanelFilters,
   buildMonthlyLocationOptions,
+  buildMonthlyPeriodSummary,
   createLatestRequestGuard,
   filterMonthlyJobsBySearch,
   getMonthlyUnknownLocations,
+  getPreviousDateRange,
   paginateMonthlyJobs,
   shouldApplyMonthlyJobsResult
 } from './monthlyPanel.helpers';
@@ -97,6 +99,75 @@ describe('applyMonthlyPanelFilters', () => {
 
   it('ordena por fecha descendente antes de calcular pagina', () => {
     expect(applyMonthlyPanelFilters(jobs, baseFilters, normalizeStatus).map((job) => job.id)).toEqual(['1', '2', '3']);
+  });
+});
+
+describe('getPreviousDateRange', () => {
+  it('calcula un período anterior inclusivo con la misma cantidad de días', () => {
+    expect(getPreviousDateRange('2026-07-01', '2026-07-31')).toEqual({ startDate: '2026-05-31', endDate: '2026-06-30' });
+    expect(getPreviousDateRange('2026-07-15', '2026-07-21')).toEqual({ startDate: '2026-07-08', endDate: '2026-07-14' });
+  });
+});
+
+describe('buildMonthlyPeriodSummary', () => {
+  const normalizeStatus = (job) => job.status;
+
+  it('cuenta total, pendientes, completados y cumplimiento con datos normales', () => {
+    const currentJobs = [
+      { id: '1', status: 'pending', worker_id: 'w1', location: 'Hospital Sarmiento', amount_to_charge: 100, cost_spent: 60 },
+      { id: '2', status: 'completed', worker_id: 'w1', location: 'Hospital Pocito', amount_to_charge: 120, cost_spent: 70 },
+      { id: '3', status: 'completed', worker_id: 'w2', location: 'Hospital Sarmiento', amount_to_charge: 80, cost_spent: 40 },
+      { id: '4', status: 'archived', worker_id: 'w3', location: 'Hospital Barreal', amount_to_charge: 40, cost_spent: 20 },
+    ];
+    const previousJobs = [
+      { id: 'a', status: 'pending', worker_id: 'w1', location: 'Hospital Sarmiento', amount_to_charge: 90, cost_spent: 50 },
+      { id: 'b', status: 'pending', worker_id: 'w2', location: 'Hospital Pocito', amount_to_charge: 60, cost_spent: 30 },
+      { id: 'c', status: 'completed', worker_id: 'w2', location: 'Hospital Sarmiento', amount_to_charge: 70, cost_spent: 20 },
+    ];
+
+    const summary = buildMonthlyPeriodSummary({ currentJobs, previousJobs, normalizeStatus });
+
+    expect(summary.current.total).toBe(4);
+    expect(summary.current.pending).toBe(1);
+    expect(summary.current.completed).toBe(2);
+    expect(summary.current.activeCount).toBe(3);
+    expect(summary.current.completionRate).toBe(66.66666666666666);
+    expect(summary.current.workers).toBe(3);
+    expect(summary.current.locations).toBe(3);
+    expect(summary.current.balance).toBe(130);
+    expect(summary.current.pendingDelta).toBe(1);
+    expect(summary.current.completedDelta).toBe(1);
+    expect(summary.current.complianceDelta).toBe(33.33333333333333);
+    expect(summary.current.workersDelta).toBe(1);
+    expect(summary.current.locationsDelta).toBe(1);
+    expect(summary.current.balanceDelta).toBe(10);
+  });
+
+  it('devuelve cumplimiento en cero cuando no hay trabajos activos', () => {
+    const summary = buildMonthlyPeriodSummary({ currentJobs: [{ id: '1', status: 'archived' }], previousJobs: [], normalizeStatus });
+
+    expect(summary.current.completionRate).toBe(0);
+    expect(summary.current.complianceDelta).toBe(0);
+  });
+
+  it('excluye archivados del cumplimiento y del denominador', () => {
+    const summary = buildMonthlyPeriodSummary({
+      currentJobs: [{ id: '1', status: 'archived' }, { id: '2', status: 'pending' }, { id: '3', status: 'completed' }],
+      previousJobs: [{ id: 'a', status: 'archived' }, { id: 'b', status: 'pending' }, { id: 'c', status: 'completed' }],
+      normalizeStatus,
+    });
+
+    expect(summary.current.completionRate).toBe(50);
+    expect(summary.current.completed).toBe(1);
+    expect(summary.current.pending).toBe(1);
+  });
+
+  it('genera una conclusión operativa clara para los escenarios principales', () => {
+    expect(buildMonthlyPeriodSummary({ currentJobs: [{ status: 'pending' }, { status: 'pending' }], previousJobs: [{ status: 'completed' }], normalizeStatus }).conclusion).toContain('Atención');
+    expect(buildMonthlyPeriodSummary({ currentJobs: [{ status: 'pending' }], previousJobs: [{ status: 'pending' }, { status: 'pending' }], normalizeStatus }).conclusion).toContain('Evolución positiva');
+    expect(buildMonthlyPeriodSummary({ currentJobs: [{ status: 'completed' }], previousJobs: [{ status: 'pending' }], normalizeStatus }).conclusion).toContain('cumplimiento mejoró');
+    expect(buildMonthlyPeriodSummary({ currentJobs: [{ status: 'pending' }], previousJobs: [{ status: 'completed' }], normalizeStatus }).conclusion).toContain('cumplimiento');
+    expect(buildMonthlyPeriodSummary({ currentJobs: [], previousJobs: [], normalizeStatus }).conclusion).toContain('No hay trabajos suficientes');
   });
 });
 
