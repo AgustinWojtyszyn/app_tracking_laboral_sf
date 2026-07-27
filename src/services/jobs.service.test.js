@@ -235,4 +235,103 @@ describe('jobsService.listJobsPaginated', () => {
     expect(result.success).toBe(false);
     expect(result.data.items).toEqual([]);
   });
+
+  it('carga trabajos para copiar reutilizando el listado sin paginacion', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: { items: [{ id: 'job-1', title: 'Reparación' }] },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.listJobsForCopyByDate('2026-07-20');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
+      p_date: '2026-07-20',
+      p_location: null,
+      p_status: null,
+      p_search: null,
+    });
+    expect(result.success).toBe(true);
+    expect(result.data.items).toEqual([{ id: 'job-1', title: 'Reparación' }]);
+  });
+
+  it('rechaza cargar trabajos para copiar sin fecha de origen', async () => {
+    const { jobsService, supabase } = await buildJobsService();
+
+    const result = await jobsService.listJobsForCopyByDate('');
+
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+    expect(result.data.items).toEqual([]);
+  });
+
+  it('llama la RPC de copia con ids deduplicados, destino y request id', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: { copied_count: 2, failed_count: 0, target_date: '2026-07-21' },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.copyJobsFromDate({
+      jobIds: ['job-1', 'job-1', 'job-2', null],
+      targetDate: '2026-07-21',
+      copyRequestId: 'copy-request-1',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('copy_daily_jobs_from_date', {
+      p_job_ids: ['job-1', 'job-2'],
+      p_target_date: '2026-07-21',
+      p_copy_request_id: 'copy-request-1',
+    });
+    expect(result).toMatchObject({
+      success: true,
+      copiedCount: 2,
+      failedCount: 0,
+      targetDate: '2026-07-21',
+    });
+  });
+
+  it('no llama la RPC de copia si faltan seleccion, destino o request id', async () => {
+    const { jobsService, supabase } = await buildJobsService();
+
+    const noSelection = await jobsService.copyJobsFromDate({
+      jobIds: [],
+      targetDate: '2026-07-21',
+      copyRequestId: 'copy-request-1',
+    });
+    const noDate = await jobsService.copyJobsFromDate({
+      jobIds: ['job-1'],
+      targetDate: '',
+      copyRequestId: 'copy-request-1',
+    });
+    const noRequest = await jobsService.copyJobsFromDate({
+      jobIds: ['job-1'],
+      targetDate: '2026-07-21',
+      copyRequestId: '',
+    });
+
+    expect(supabase.rpc).not.toHaveBeenCalled();
+    expect(noSelection.success).toBe(false);
+    expect(noDate.success).toBe(false);
+    expect(noRequest.success).toBe(false);
+  });
+
+  it('informa copia parcial sin marcar exito total', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: { copied_count: 1, failed_count: 2, target_date: '2026-07-21' },
+      error: null,
+    });
+    const { jobsService } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.copyJobsFromDate({
+      jobIds: ['job-1', 'job-2', 'job-3'],
+      targetDate: '2026-07-21',
+      copyRequestId: 'copy-request-1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.copiedCount).toBe(1);
+    expect(result.failedCount).toBe(2);
+    expect(result.error).toBe('Se copiaron 1 trabajos y fallaron 2.');
+  });
 });
