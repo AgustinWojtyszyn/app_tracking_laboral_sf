@@ -140,6 +140,20 @@ const emptyPlantAsset = {
 const todayInputDate = () => new Date().toISOString().split('T')[0];
 const currentInputTime = () => new Date().toTimeString().slice(0, 5);
 
+const scrollEquipmentMainContentIntoView = () => {
+  if (typeof window === 'undefined') return;
+  if (window.innerWidth >= 768) return;
+
+  window.requestAnimationFrame(() => {
+    const container = document.querySelector('[data-equipment-main-content]');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    if (rect.top < 0 || rect.top > window.innerHeight * 0.5) {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+};
+
 const emptyFuelLoad = () => ({
   vehicle_id: '',
   price_ars: '',
@@ -1995,6 +2009,7 @@ export default function EquipmentLogPage() {
   const handleTabSelect = (key) => {
     setActiveTab(key);
     setMobileNavOpen(false);
+    scrollEquipmentMainContentIntoView();
   };
 
   const handleArchiveVehicle = async (id) => {
@@ -2315,7 +2330,7 @@ export default function EquipmentLogPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" data-equipment-main-content>
           <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-slate-800 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-50">
@@ -2348,6 +2363,7 @@ export default function EquipmentLogPage() {
               plantAssets={plantAssets}
               incidents={incidents}
               maintenanceChecks={maintenanceChecks}
+              onNavigate={handleTabSelect}
             />
           ) : activeTab === 'vehicles' ? (
             <VehiclesList
@@ -2511,7 +2527,7 @@ const documentVisualStatus = (expiration) => {
   return expiration.status || 'vigente';
 };
 
-function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicleRoutes = [], fuelLoads = [], maintenanceRequests = [], documentExpirations = [] }) {
+function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicleRoutes = [], fuelLoads = [], maintenanceRequests = [], documentExpirations = [], onNavigate }) {
   const activeVehicles = vehicles.filter((vehicle) => vehicle.status === 'activo').length;
   const today = todayInputDate();
   const todayRoutes = vehicleRoutes.filter((route) => route.route_date === today);
@@ -2525,12 +2541,12 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicle
   )).length;
 
   const cards = [
-    { label: 'Vehículos activos', value: activeVehicles, detail: vehicles.length ? `${vehicles.length} en registro` : 'Sin vehículos cargados', icon: Car, tone: 'normal' },
-    { label: 'Recorridos del día', value: todayRoutes.length, detail: `${formatNumber(todayKm, 0)} km recorridos`, icon: CalendarClock, tone: 'normal' },
-    { label: 'Cargas recientes', value: fuelLoads.slice(0, 5).length, detail: 'Últimos registros de combustible', icon: Fuel, tone: 'normal' },
-    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: `${highPriorityMaintenance} de prioridad alta`, icon: Wrench, tone: highPriorityMaintenance > 0 ? 'warning' : pendingMaintenance > 0 ? 'notice' : 'normal' },
-    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: `${expiredDocuments} vencidos`, icon: AlertCircle, tone: expiredDocuments > 0 ? 'critical' : upcomingExpirations > 0 ? 'warning' : 'normal' },
-    { label: 'Novedades de planta', value: plantNews, detail: 'Revisión, mantenimiento u observaciones', icon: Building2, tone: plantNews > 0 ? 'notice' : 'normal' },
+    { label: 'Vehículos activos', value: activeVehicles, detail: vehicles.length ? `${vehicles.length} en registro` : 'Sin vehículos cargados', icon: Car, tone: 'normal', targetTab: 'vehicles', actionLabel: 'Ver vehículos activos' },
+    { label: 'Recorridos del día', value: todayRoutes.length, detail: `${formatNumber(todayKm, 0)} km recorridos`, icon: CalendarClock, tone: 'normal', targetTab: 'routes', actionLabel: 'Ver recorridos de hoy' },
+    { label: 'Cargas recientes', value: fuelLoads.slice(0, 5).length, detail: 'Últimos registros de combustible', icon: Fuel, tone: 'normal', targetTab: 'fuel', actionLabel: 'Ver cargas recientes' },
+    { label: 'Mantenimientos pendientes', value: pendingMaintenance, detail: `${highPriorityMaintenance} de prioridad alta`, icon: Wrench, tone: highPriorityMaintenance > 0 ? 'warning' : pendingMaintenance > 0 ? 'notice' : 'normal', targetTab: 'maintenance', actionLabel: 'Ver mantenimientos pendientes' },
+    { label: 'Vencimientos próximos', value: upcomingExpirations, detail: `${expiredDocuments} vencidos`, icon: AlertCircle, tone: expiredDocuments > 0 ? 'critical' : upcomingExpirations > 0 ? 'warning' : 'normal', targetTab: 'expirations', actionLabel: 'Ver vencimientos próximos' },
+    { label: 'Novedades de planta', value: plantNews, detail: 'Revisión, mantenimiento u observaciones', icon: Building2, tone: plantNews > 0 ? 'notice' : 'normal', targetTab: 'operation', actionLabel: 'Ver novedades de planta' },
   ];
   const toneClass = {
     normal: 'border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900',
@@ -2550,7 +2566,13 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicle
       {cards.map((card) => {
         const Icon = card.icon;
         return (
-          <div key={card.label} className={`rounded-lg border p-3 shadow-sm ${toneClass[card.tone]}`}>
+          <button
+            key={card.label}
+            type="button"
+            onClick={() => onNavigate?.(card.targetTab)}
+            aria-label={card.actionLabel}
+            className={`w-full rounded-lg border p-3 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a8a] hover:border-blue-300 hover:bg-blue-50/70 dark:hover:bg-slate-800 ${toneClass[card.tone]}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase text-gray-600 dark:text-slate-300">{card.label}</p>
@@ -2561,14 +2583,14 @@ function EquipmentSummaryCards({ vehicles, maintenanceLogs, plantAssets, vehicle
                 <Icon className="h-4 w-4" />
               </div>
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
   );
 }
 
-function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceRequests, documentExpirations, plantAssets, incidents, maintenanceChecks }) {
+function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceRequests, documentExpirations, plantAssets, incidents, maintenanceChecks, onNavigate }) {
   const openPlantIncidents = incidents.filter((incident) => incident.plant_asset_id).length;
   const pendingPlantChecks = maintenanceChecks.filter((check) => check.plant_asset_id && isDateWithinDays(check.next_review_date, 30));
   const plantNews = plantAssets.filter((asset) => (
@@ -2583,6 +2605,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
       items: urgentExpirations.slice(0, 5),
       tone: urgentExpirations.some((expiration) => documentVisualStatus(expiration) === 'vencido') ? 'critical' : urgentExpirations.length > 0 ? 'warning' : 'normal',
       priority: urgentExpirations.length > 0 ? 0 : 2,
+      viewAllTab: 'expirations',
       renderItem: (expiration) => `${documentTypeLabels[expiration.document_type]} - ${formatDate(expiration.expires_at)} - ${documentStatusLabels[documentVisualStatus(expiration)]}`,
     },
     {
@@ -2590,6 +2613,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
       items: pendingMaintenance.slice(0, 5),
       tone: urgentMaintenance.length > 0 ? 'warning' : pendingMaintenance.length > 0 ? 'notice' : 'normal',
       priority: urgentMaintenance.length > 0 ? 0 : pendingMaintenance.length > 0 ? 1 : 2,
+      viewAllTab: 'maintenance',
       renderItem: (request) => `${maintenancePriorityLabels[request.priority]} - ${vehicleLabel(request.vehicle)} - ${request.issue_type}`,
     },
     {
@@ -2597,6 +2621,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
       items: fuelLoads.slice(0, 5),
       tone: 'normal',
       priority: 2,
+      viewAllTab: 'fuel',
       renderItem: (load) => `${formatDate(load.load_date)} - ${vehicleLabel(load.vehicle)} - ${formatNumber(load.liters, 2)} L`,
     },
     {
@@ -2604,6 +2629,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
       items: plantNews.slice(0, 5),
       tone: plantNews.length > 0 ? 'notice' : 'normal',
       priority: plantNews.length > 0 ? 1 : 2,
+      viewAllTab: 'operation',
       renderItem: (asset) => `${asset.name} - ${statusLabels[asset.status] || asset.status}${asset.notes ? ` - ${asset.notes}` : ''}`,
     },
     {
@@ -2611,6 +2637,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
       items: openPlantIncidents > 0 ? [{ id: 'plant-incidents', text: `${openPlantIncidents} registradas` }] : [],
       tone: openPlantIncidents > 0 ? 'warning' : 'normal',
       priority: openPlantIncidents > 0 ? 1 : 2,
+      viewAllTab: 'incidents',
       renderItem: (item) => item.text,
     },
     {
@@ -2618,12 +2645,13 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
       items: pendingPlantChecks.slice(0, 5),
       tone: pendingPlantChecks.length > 0 ? 'warning' : 'normal',
       priority: pendingPlantChecks.length > 0 ? 1 : 2,
+      viewAllTab: 'checks',
       renderItem: (check) => `${formatDate(check.next_review_date)} - ${equipmentLabel(check)} - ${inspectionTypeLabels[check.inspection_type] || check.inspection_type}`,
     },
   ].sort((a, b) => a.priority - b.priority);
   return (
     <div className="space-y-4 p-4">
-      <EquipmentSummaryCards vehicles={vehicles} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} maintenanceLogs={[]} plantAssets={plantAssets} />
+      <EquipmentSummaryCards vehicles={vehicles} vehicleRoutes={vehicleRoutes} fuelLoads={fuelLoads} maintenanceRequests={maintenanceRequests} documentExpirations={documentExpirations} maintenanceLogs={[]} plantAssets={plantAssets} onNavigate={onNavigate} />
       <div className="grid items-start gap-3 xl:grid-cols-3">
         {summarySections.map((section) => (
           <SummaryMiniList
@@ -2632,6 +2660,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
             items={section.items}
             tone={section.tone}
             renderItem={section.renderItem}
+            onViewAll={onNavigate ? () => onNavigate(section.viewAllTab) : undefined}
           />
         ))}
       </div>
@@ -2639,7 +2668,7 @@ function VehicleModuleSummary({ vehicles, vehicleRoutes, fuelLoads, maintenanceR
   );
 }
 
-function SummaryMiniList({ title, items, renderItem, tone = 'normal' }) {
+function SummaryMiniList({ title, items, renderItem, tone = 'normal', onViewAll }) {
   const toneClass = {
     normal: 'border-gray-100 dark:border-slate-800',
     notice: 'border-blue-200 bg-blue-50/50 dark:border-blue-900/60 dark:bg-blue-950/20',
@@ -2648,7 +2677,19 @@ function SummaryMiniList({ title, items, renderItem, tone = 'normal' }) {
   };
   return (
     <div className={`rounded-lg border p-3 ${toneClass[tone]}`}>
-      <h3 className="text-sm font-bold text-gray-900 dark:text-slate-50">{title}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-slate-50">{title}</h3>
+        {onViewAll ? (
+          <button
+            type="button"
+            onClick={onViewAll}
+            aria-label={`Ver todos los registros de ${title.toLowerCase()}`}
+            className="text-[11px] font-semibold uppercase tracking-wide text-[#1e3a8a] transition hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a8a] dark:text-blue-200 dark:hover:text-blue-100"
+          >
+            Ver todos
+          </button>
+        ) : null}
+      </div>
       {items.length === 0 ? (
         <div className="mt-2 flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:bg-slate-800/70 dark:text-slate-300">
           <ClipboardList className="h-4 w-4 shrink-0" />
