@@ -14,6 +14,7 @@ import ConfirmationModal from '@/components/common/ConfirmationModal';
 import { formatDate, formatCurrency } from '@/utils/formatters';
 import JobsFilters from '@/components/jobs/JobsFilters';
 import JobsPagination from '@/components/jobs/JobsPagination';
+import CopyJobsFromDateDialog from '@/components/jobs/CopyJobsFromDateDialog';
 import { onboardingService } from '@/services/onboarding.service';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
@@ -78,6 +79,7 @@ export default function DailyJobsPage() {
   const [exporting, setExporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  const [copyJobsDialogOpen, setCopyJobsDialogOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,6 +97,7 @@ export default function DailyJobsPage() {
   const summaryReqIdRef = useRef(0);
   const exportLockRef = useRef(false);
   const shareLockRef = useRef(false);
+  const copyJobsLockRef = useRef(false);
   const clearDisabled = clearing || loading || exporting || sharing;
   const clearPendingDisabled = clearingPending || loading || exporting || sharing;
   const autoTourStartedRef = useRef(false);
@@ -294,6 +297,45 @@ export default function DailyJobsPage() {
       shareLockRef.current = false;
       setSharing(false);
     }
+  };
+
+  const handleCopyJobsFromDate = async ({ jobIds, targetDate, copyRequestId }) => {
+    if (copyJobsLockRef.current) return;
+    copyJobsLockRef.current = true;
+
+    const result = await jobsService.copyJobsFromDate({
+      jobIds,
+      targetDate,
+      copyRequestId,
+    });
+
+    copyJobsLockRef.current = false;
+
+    if (result.success) {
+      const copied = result.copiedCount || 0;
+      const formattedTargetDate = formatDate(result.targetDate || targetDate);
+      addToast(`Se copiaron ${copied} trabajos al ${formattedTargetDate}.`, 'success');
+      setCopyJobsDialogOpen(false);
+      if ((result.targetDate || targetDate) === date) {
+        fetchJobs();
+        fetchSummary();
+      }
+      return;
+    }
+
+    if ((result.copiedCount || 0) > 0 || (result.failedCount || 0) > 0) {
+      addToast(
+        `Se copiaron ${result.copiedCount || 0} trabajos y fallaron ${result.failedCount || 0}.`,
+        'error'
+      );
+      if ((result.targetDate || targetDate) === date) {
+        fetchJobs();
+        fetchSummary();
+      }
+      return;
+    }
+
+    addToast(result.error || 'No se pudieron copiar los trabajos seleccionados.', 'error');
   };
 
   const handleClearCompleted = async () => {
@@ -517,6 +559,17 @@ export default function DailyJobsPage() {
                     </Button>
                   }
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-9 w-full justify-start gap-2 text-sm font-semibold text-[#1e3a8a] hover:bg-blue-50 hover:text-blue-900 dark:text-blue-200 dark:hover:bg-blue-950/40"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    setCopyJobsDialogOpen(true);
+                  }}
+                >
+                  <Copy className="h-4 w-4" /> Copiar trabajos de otro día
+                </Button>
               </div>
             )}
           </div>
@@ -746,6 +799,13 @@ export default function DailyJobsPage() {
           }}
         />
       )}
+
+      <CopyJobsFromDateDialog
+        open={copyJobsDialogOpen}
+        visibleDate={date}
+        onOpenChange={setCopyJobsDialogOpen}
+        onCopy={handleCopyJobsFromDate}
+      />
 
       <AlertDialog
         open={Boolean(pendingStatusChange)}
