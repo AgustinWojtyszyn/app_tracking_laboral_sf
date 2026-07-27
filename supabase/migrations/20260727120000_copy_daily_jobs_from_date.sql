@@ -156,3 +156,4 @@ $function$;
 
 revoke all on function public.copy_daily_jobs_from_date(uuid[], date, text) from public, anon;
 grant execute on function public.copy_daily_jobs_from_date(uuid[], date, text) to authenticated;
+ 
