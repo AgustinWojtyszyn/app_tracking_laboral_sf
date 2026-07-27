@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -39,6 +39,7 @@ const DEBUG_MAINTENANCE = false;
 export default function MonthlyPanelPage() {
   const { user, isAdmin, userRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getJobsByDateRange, loading } = useJobs();
   const { t, language } = useLanguage();
   const { addToast } = useToast();
@@ -58,6 +59,7 @@ export default function MonthlyPanelPage() {
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState('');
+  const appliedIncomingFiltersRef = useRef(false);
   const mountedRef = useRef(false);
   const requestGuardRef = useRef(createLatestRequestGuard());
   const summaryRequestGuardRef = useRef(createLatestRequestGuard());
@@ -77,6 +79,21 @@ export default function MonthlyPanelPage() {
     setCurrentPage(1);
     setFilter(key, value);
   }, [setFilter]);
+
+  useEffect(() => {
+    const incomingState = location.state;
+    if (!incomingState?.fromWorkerActivity || appliedIncomingFiltersRef.current) return;
+
+    const nextStartDate = incomingState.startDate || filters.startDate;
+    const nextEndDate = incomingState.endDate || filters.endDate;
+    const nextWorkerId = incomingState.workerId || 'all';
+
+    setCurrentPage(1);
+    setFilter('startDate', nextStartDate);
+    setFilter('endDate', nextEndDate);
+    setFilter('workerId', nextWorkerId);
+    appliedIncomingFiltersRef.current = true;
+  }, [location.state, filters.startDate, filters.endDate, setFilter]);
 
   const handleRetrySummary = () => {
     void fetchMonthlySummary();
