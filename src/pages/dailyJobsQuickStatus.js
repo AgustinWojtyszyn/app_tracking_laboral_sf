@@ -1,5 +1,19 @@
 import { normalizeJobStatus } from '@/utils/jobStatus';
 
+export const SUMMARY_STATUS_CARD_FILTERS = {
+  all: 'all',
+  pending: 'pending',
+  completed: 'completed',
+};
+
+export const getSummaryStatusCardFilter = (cardKey) => (
+  SUMMARY_STATUS_CARD_FILTERS[cardKey] || null
+);
+
+export const isSummaryStatusCardActive = (cardKey, selectedStatus) => (
+  getSummaryStatusCardFilter(cardKey) === selectedStatus
+);
+
 export const jobMatchesStatusFilter = (jobStatus, selectedStatus) => {
   const rawFilter = String(selectedStatus || '').trim();
   if (!rawFilter || rawFilter === 'all') return true;

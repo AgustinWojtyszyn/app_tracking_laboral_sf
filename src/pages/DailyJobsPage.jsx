@@ -20,7 +20,12 @@ import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 import { getJobStatusBadgeClass, getJobStatusLabel, JOB_STATUS_OPTIONS, normalizeJobStatus } from '@/utils/jobStatus';
 import { JOB_LOCATIONS } from '@/constants/jobLocations';
-import { buildJobsAfterStatusChange, getPageAfterStatusRemoval } from './dailyJobsQuickStatus';
+import {
+  buildJobsAfterStatusChange,
+  getPageAfterStatusRemoval,
+  getSummaryStatusCardFilter,
+  isSummaryStatusCardActive,
+} from './dailyJobsQuickStatus';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -655,22 +660,16 @@ export default function DailyJobsPage() {
               key: 'all',
               label: isEn ? 'Total jobs' : 'Total de trabajos',
               value: summary.total,
-              active: selectedStatus === 'all',
-              onClick: () => handleStatusFilterChange('all'),
             },
             {
               key: 'pending',
               label: isEn ? 'Pending' : 'Pendientes',
               value: summary.pending,
-              active: selectedStatus === 'pending',
-              onClick: () => handleStatusFilterChange('pending'),
             },
             {
               key: 'completed',
               label: isEn ? 'Completed' : 'Completados',
               value: summary.completed,
-              active: selectedStatus === 'completed',
-              onClick: () => handleStatusFilterChange('completed'),
             },
             {
               key: 'workers',
@@ -689,13 +688,21 @@ export default function DailyJobsPage() {
                 <span className="mt-1 block text-2xl font-bold text-gray-900 dark:text-slate-50">{card.value || 0}</span>
               </>
             );
+            const statusFilter = getSummaryStatusCardFilter(card.key);
+            const active = isSummaryStatusCardActive(card.key, selectedStatus);
             const className = `min-h-[82px] rounded-lg border p-3 text-left transition ${
-              card.active
-                ? 'border-[#1e3a8a] bg-blue-50 ring-2 ring-[#1e3a8a]/20 dark:border-blue-500 dark:bg-blue-950/30'
+              active
+                ? 'border-[#1e3a8a] bg-blue-50 shadow-sm ring-2 ring-[#1e3a8a]/20 dark:border-blue-500 dark:bg-blue-950/30'
                 : 'border-gray-100 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40'
             }`;
-            return card.onClick ? (
-              <button key={card.key} type="button" onClick={card.onClick} className={className}>
+            return statusFilter ? (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => handleStatusFilterChange(statusFilter)}
+                aria-pressed={active}
+                className={`${className} cursor-pointer hover:border-[#1e3a8a]/50 hover:bg-blue-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a8a] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:border-blue-500/70 dark:hover:bg-blue-950/30 dark:focus-visible:ring-offset-slate-900`}
+              >
                 {content}
               </button>
             ) : (
