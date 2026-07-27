@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildJobsAfterStatusChange,
+  getDailyJobsEmptyStateConfig,
   getPageAfterStatusRemoval,
   getSummaryStatusCardFilter,
   isSummaryStatusCardActive,
@@ -69,5 +70,30 @@ describe('dailyJobsQuickStatus', () => {
     expect(isSummaryStatusCardActive('all', 'archived')).toBe(false);
     expect(isSummaryStatusCardActive('pending', 'cancelled')).toBe(false);
     expect(isSummaryStatusCardActive('workers', 'pending')).toBe(false);
+  });
+
+  it('devuelve el estado vacío para un día sin trabajos sin filtros activos', () => {
+    const state = getDailyJobsEmptyStateConfig({ jobs: [], loading: false, error: '', hasActiveFilters: false, isEn: false });
+
+    expect(state).toMatchObject({
+      kind: 'empty-date',
+      title: 'No hay trabajos para esta fecha',
+    });
+  });
+
+  it('devuelve el estado vacío para coincidencias con filtros activos', () => {
+    const state = getDailyJobsEmptyStateConfig({ jobs: [], loading: false, error: '', hasActiveFilters: true, isEn: false });
+
+    expect(state).toMatchObject({
+      kind: 'filters',
+      title: 'No hay coincidencias',
+      actionLabel: 'Limpiar filtros',
+    });
+  });
+
+  it('no devuelve estado vacío mientras carga o hay error', () => {
+    expect(getDailyJobsEmptyStateConfig({ jobs: [], loading: true, error: '', hasActiveFilters: false, isEn: false })).toBeNull();
+    expect(getDailyJobsEmptyStateConfig({ jobs: [], loading: false, error: 'Oops', hasActiveFilters: false, isEn: false })).toBeNull();
+    expect(getDailyJobsEmptyStateConfig({ jobs: [{ id: '1' }], loading: false, error: '', hasActiveFilters: false, isEn: false })).toBeNull();
   });
 });

@@ -22,6 +22,7 @@ import { getJobStatusBadgeClass, getJobStatusLabel, JOB_STATUS_OPTIONS, normaliz
 import { JOB_LOCATIONS } from '@/constants/jobLocations';
 import {
   buildJobsAfterStatusChange,
+  getDailyJobsEmptyStateConfig,
   getPageAfterStatusRemoval,
   getSummaryStatusCardFilter,
   isSummaryStatusCardActive,
@@ -114,9 +115,26 @@ export default function DailyJobsPage() {
   const locationOptions = useMemo(() => (
     [...JOB_LOCATIONS].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
   ), []);
+  const hasActiveFilters = Boolean(searchTerm.trim() || selectedLocation !== 'all' || selectedStatus !== 'all');
+  const emptyStateConfig = getDailyJobsEmptyStateConfig({
+    jobs,
+    loading,
+    error,
+    hasActiveFilters,
+    isEn,
+  });
+  const showEmptyState = Boolean(emptyStateConfig);
 
   const handleLocationChange = (value) => {
     setSelectedLocation(value);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setDebouncedSearchTerm('');
+    setSelectedLocation('all');
+    setSelectedStatus('all');
     setCurrentPage(1);
   };
 
@@ -753,6 +771,59 @@ export default function DailyJobsPage() {
             <div className="px-4 py-6 text-center text-sm md:text-base text-red-600 dark:text-red-300">
               {error}
             </div>
+          ) : showEmptyState ? (
+            <div className="px-4 py-8 md:px-6 md:py-10">
+              <div className="mx-auto flex max-w-2xl flex-col items-center rounded-2xl border border-gray-200 bg-gray-50/70 px-5 py-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950/40 md:px-8">
+                <div className="mb-4 rounded-full border border-gray-200 bg-white p-3 text-gray-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                  {emptyStateConfig.kind === 'filters' ? (
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M4 5h16" />
+                      <path d="M7 12h10" />
+                      <path d="M10 19h4" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-50">{emptyStateConfig.title}</h3>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-gray-600 dark:text-slate-300">{emptyStateConfig.description}</p>
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                  {emptyStateConfig.kind === 'empty-date' ? (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={() => navigate('/app/trabajos-diarios/nuevo')}
+                        className="min-w-[170px] bg-[#1e3a8a] text-white hover:bg-blue-900"
+                      >
+                        <Plus className="mr-2 h-4 w-4" /> {emptyStateConfig.primaryActionLabel}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setCopyJobsDialogOpen(true);
+                        }}
+                        className="min-w-[230px] border-[#1e3a8a]/20 text-[#1e3a8a] hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-200 dark:hover:bg-blue-950/30"
+                      >
+                        <Copy className="mr-2 h-4 w-4" /> {emptyStateConfig.secondaryActionLabel}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleClearFilters}
+                      className="min-w-[170px] border-gray-200 bg-white text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {emptyStateConfig.actionLabel}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="table-x-scroll overflow-x-auto">
               <table className="w-full min-w-[1250px] text-xs md:text-sm text-left whitespace-nowrap">
@@ -904,18 +975,20 @@ export default function DailyJobsPage() {
             </div>
           )}
         </div>
-        <JobsPagination
-          isEn={isEn}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          pageSize={pageSize}
-          hasPreviousPage={hasPreviousPage}
-          hasNextPage={hasNextPage}
-          loading={loading}
-          onPreviousPage={handlePreviousPage}
-          onNextPage={handleNextPage}
-        />
+        {!showEmptyState && (
+          <JobsPagination
+            isEn={isEn}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            hasPreviousPage={hasPreviousPage}
+            hasNextPage={hasNextPage}
+            loading={loading}
+            onPreviousPage={handlePreviousPage}
+            onNextPage={handleNextPage}
+          />
+        )}
       </div>
       {editingJob && (
         <JobForm
