@@ -232,7 +232,7 @@ export default function MonthlyPanelPage() {
       { key: 'compliance', label: isEn ? 'Compliance' : 'Cumplimiento', value: `${summary.current.completionRate.toFixed(1)}%`, delta: summary.current.complianceDelta, unit: 'puntos', isPositiveGood: true, asPercent: true },
       { key: 'workers', label: isEn ? 'Workers involved' : 'Trabajadores involucrados', value: summary.current.workers, delta: summary.current.workersDelta, unit: 'trabajadores', isPositiveGood: true },
       { key: 'locations', label: isEn ? 'Places served' : 'Lugares atendidos', value: summary.current.locations, delta: summary.current.locationsDelta, unit: 'lugares', isPositiveGood: true },
-      { key: 'balance', label: isEn ? 'Estimated balance' : 'Balance estimado', value: formatCurrency(summary.current.balance), delta: summary.current.balanceDelta, unit: 'pesos', isPositiveGood: true, isCurrency: true },
+      { key: 'balance', label: isEn ? 'Estimated balance' : 'Balance estimado', value: formatCurrency(summary.current.balance), delta: summary.current.balanceDelta, unit: 'pesos', isPositiveGood: true, isCurrency: true, detail: { amountToCharge: summary.current.amountToCharge, workerCost: summary.current.workerCost, difference: summary.current.difference, previousDifference: summary.previous.difference } },
     ];
   }, [isEn, summary]);
   const locationOptions = useMemo(() => buildMonthlyLocationOptions(jobs), [jobs]);
@@ -606,6 +606,22 @@ export default function MonthlyPanelPage() {
                       ) : null}
                     </div>
                     <div className="mt-3 text-2xl font-bold text-gray-900 dark:text-slate-50">{card.value}</div>
+                    {card.key === 'balance' && card.detail ? (
+                      <div className="mt-2 space-y-1 text-xs text-gray-600 dark:text-slate-300">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{isEn ? 'To charge' : 'A cobrar'}</span>
+                          <span className="font-semibold">{formatCurrency(card.detail.amountToCharge)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{isEn ? 'Worker cost' : 'Costo de trabajadores'}</span>
+                          <span className="font-semibold">{formatCurrency(card.detail.workerCost)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{isEn ? 'Difference' : 'Diferencia'}</span>
+                          <span className="font-semibold">{formatCurrency(card.detail.difference)}</span>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className={`mt-2 flex items-center gap-1 text-sm font-medium ${tone}`} aria-label={`${card.label}: ${changeLabel}`}>
                       <span>{icon}</span>
                       <span>{changeLabel}</span>

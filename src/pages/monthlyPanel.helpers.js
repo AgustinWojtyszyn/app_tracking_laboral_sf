@@ -261,8 +261,14 @@ export const buildMonthlyPeriodSummary = ({ currentJobs, previousJobs, normalize
   const currentLocations = getUniqueValues(currentSafeJobs, (job) => String(job?.location || '').trim());
   const previousLocations = getUniqueValues(previousSafeJobs, (job) => String(job?.location || '').trim());
 
-  const currentBalance = currentActiveJobs.reduce((acc, job) => acc + (Number(job?.amount_to_charge) || 0) - (Number(job?.cost_spent) || 0), 0);
-  const previousBalance = previousActiveJobs.reduce((acc, job) => acc + (Number(job?.amount_to_charge) || 0) - (Number(job?.cost_spent) || 0), 0);
+  const currentAmountToCharge = currentActiveJobs.reduce((acc, job) => acc + (Number(job?.amount_to_charge) || 0), 0);
+  const previousAmountToCharge = previousActiveJobs.reduce((acc, job) => acc + (Number(job?.amount_to_charge) || 0), 0);
+  const currentWorkerCost = currentActiveJobs.reduce((acc, job) => acc + (Number(job?.cost_spent) || 0), 0);
+  const previousWorkerCost = previousActiveJobs.reduce((acc, job) => acc + (Number(job?.cost_spent) || 0), 0);
+  const currentDifference = currentAmountToCharge - currentWorkerCost;
+  const previousDifference = previousAmountToCharge - previousWorkerCost;
+  const currentBalance = currentDifference;
+  const previousBalance = previousDifference;
 
   const current = {
     total: currentBase.total,
@@ -272,6 +278,9 @@ export const buildMonthlyPeriodSummary = ({ currentJobs, previousJobs, normalize
     completionRate: currentCompletionRate,
     workers: currentWorkers,
     locations: currentLocations,
+    amountToCharge: currentAmountToCharge,
+    workerCost: currentWorkerCost,
+    difference: currentDifference,
     balance: currentBalance,
     pendingDelta: previousBase.pending - currentBase.pending,
     completedDelta: currentBase.completed - previousBase.completed,
@@ -325,6 +334,9 @@ export const buildMonthlyPeriodSummary = ({ currentJobs, previousJobs, normalize
       completionRate: previousCompletionRate,
       workers: previousWorkers,
       locations: previousLocations,
+      amountToCharge: previousAmountToCharge,
+      workerCost: previousWorkerCost,
+      difference: previousDifference,
       balance: previousBalance,
     },
     conclusion,

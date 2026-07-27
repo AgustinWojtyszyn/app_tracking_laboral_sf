@@ -134,6 +134,9 @@ describe('buildMonthlyPeriodSummary', () => {
     expect(summary.current.completionRate).toBe(66.66666666666666);
     expect(summary.current.workers).toBe(3);
     expect(summary.current.locations).toBe(3);
+    expect(summary.current.amountToCharge).toBe(300);
+    expect(summary.current.workerCost).toBe(170);
+    expect(summary.current.difference).toBe(130);
     expect(summary.current.balance).toBe(130);
     expect(summary.current.pendingDelta).toBe(1);
     expect(summary.current.completedDelta).toBe(1);
@@ -141,6 +144,25 @@ describe('buildMonthlyPeriodSummary', () => {
     expect(summary.current.workersDelta).toBe(1);
     expect(summary.current.locationsDelta).toBe(1);
     expect(summary.current.balanceDelta).toBe(10);
+  });
+
+  it('cuenta trabajadores asignados únicos y omite creadores, además de lugares no vacíos', () => {
+    const summary = buildMonthlyPeriodSummary({
+      currentJobs: [
+        { id: '1', status: 'pending', worker_id: 'w1', location: 'Hospital Sarmiento', amount_to_charge: 100, cost_spent: 80 },
+        { id: '2', status: 'pending', location: '', amount_to_charge: 50, cost_spent: 20 },
+        { id: '3', status: 'completed', worker_id: 'w2', location: '  ', amount_to_charge: 40, cost_spent: 10 },
+        { id: '4', status: 'completed', worker_id: 'w2', location: 'Hospital Pocito', amount_to_charge: 60, cost_spent: 30, creator: { id: 'creator-1' } },
+      ],
+      previousJobs: [],
+      normalizeStatus,
+    });
+
+    expect(summary.current.workers).toBe(2);
+    expect(summary.current.locations).toBe(2);
+    expect(summary.current.amountToCharge).toBe(250);
+    expect(summary.current.workerCost).toBe(140);
+    expect(summary.current.difference).toBe(110);
   });
 
   it('devuelve cumplimiento en cero cuando no hay trabajos activos', () => {
