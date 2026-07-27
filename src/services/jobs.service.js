@@ -233,6 +233,90 @@ export const jobsService = {
     }
   },
 
+  async listJobsForCopyByDate(sourceDate) {
+    try {
+      const normalizedDate = normalizeRpcFilterValue(sourceDate);
+      if (!normalizedDate) {
+        return { success: false, data: { items: [] }, error: 'Seleccioná una fecha de origen.' };
+      }
+
+      const result = await this.listJobsForExport({
+        date: normalizedDate,
+        location: null,
+        status: null,
+        search: '',
+      });
+
+      if (!result.success) {
+        return {
+          success: false,
+          data: { items: [] },
+          error: result.error || 'No se pudieron cargar los trabajos de origen.',
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          items: Array.isArray(result.data?.items) ? result.data.items : [],
+        },
+      };
+    } catch (error) {
+      console.error('listJobsForCopyByDate error', error);
+      return { success: false, data: { items: [] }, error: 'No se pudieron cargar los trabajos de origen.' };
+    }
+  },
+
+  async copyJobsFromDate({ jobIds = [], targetDate = null, copyRequestId = null } = {}) {
+    try {
+      const selectedIds = Array.from(new Set((Array.isArray(jobIds) ? jobIds : []).filter(Boolean)));
+      const normalizedTargetDate = normalizeRpcFilterValue(targetDate);
+      const normalizedRequestId = String(copyRequestId || '').trim();
+
+      if (selectedIds.length === 0) {
+        return { success: false, error: 'Seleccioná al menos un trabajo.' };
+      }
+
+      if (!normalizedTargetDate) {
+        return { success: false, error: 'Seleccioná una fecha de destino.' };
+      }
+
+      if (!normalizedRequestId) {
+        return { success: false, error: 'No se pudo identificar la solicitud de copia.' };
+      }
+
+      const { data, error } = await supabase.rpc('copy_daily_jobs_from_date', {
+        p_job_ids: selectedIds,
+        p_target_date: normalizedTargetDate,
+        p_copy_request_id: normalizedRequestId,
+      });
+
+      if (error) throw error;
+
+      const payload = Array.isArray(data) ? data[0] : data;
+      const copiedCount = Number(payload?.copied_count || 0);
+      const failedCount = Number(payload?.failed_count || 0);
+
+      return {
+        success: failedCount === 0 && copiedCount > 0,
+        copiedCount,
+        failedCount,
+        targetDate: payload?.target_date || normalizedTargetDate,
+        error: failedCount > 0
+          ? `Se copiaron ${copiedCount} trabajos y fallaron ${failedCount}.`
+          : null,
+      };
+    } catch (error) {
+      console.error('copyJobsFromDate error', error);
+      return {
+        success: false,
+        copiedCount: 0,
+        failedCount: Array.isArray(jobIds) ? jobIds.filter(Boolean).length : 0,
+        error: error?.message || 'No se pudieron copiar los trabajos seleccionados.',
+      };
+    }
+  },
+
   async getDailyJobsSummary({
     date = null,
     location = null,
