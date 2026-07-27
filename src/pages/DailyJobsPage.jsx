@@ -6,7 +6,7 @@ import { exportService } from '@/services/export.service';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Copy, MoreHorizontal, Plus } from 'lucide-react';
+import { Trash2, MessageCircle, FileSpreadsheet, Eye, Edit2, Copy, MoreHorizontal, Plus, CheckCircle2, Undo2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
@@ -20,6 +20,7 @@ import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { wasRecentManualNav } from '@/onboarding/onboardingStorage';
 import { getJobStatusBadgeClass, getJobStatusLabel, JOB_STATUS_OPTIONS, normalizeJobStatus } from '@/utils/jobStatus';
 import { JOB_LOCATIONS } from '@/constants/jobLocations';
+import { buildJobsAfterStatusChange, getPageAfterStatusRemoval } from './dailyJobsQuickStatus';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +81,7 @@ export default function DailyJobsPage() {
   const [sharing, setSharing] = useState(false);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
   const [copyJobsDialogOpen, setCopyJobsDialogOpen] = useState(false);
+  const [rowActionsOpenId, setRowActionsOpenId] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,7 +93,7 @@ export default function DailyJobsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [updatingStatusIds, setUpdatingStatusIds] = useState([]);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const reqIdRef = useRef(0);
   const summaryReqIdRef = useRef(0);
@@ -390,18 +392,42 @@ export default function DailyJobsPage() {
     setClearingPending(false);
   };
 
-  const applyStatusChange = async (job, nextStatus) => {
+  const applyStatusChange = async (job, nextStatus, { successMessage = null } = {}) => {
     if (!job?.id) return;
-    setUpdatingStatusId(job.id);
+    if (updatingStatusIds.includes(job.id)) return;
+    setUpdatingStatusIds((ids) => [...ids, job.id]);
+    setRowActionsOpenId(null);
     const result = await jobsService.updateJob(job.id, { status: nextStatus }, user?.id || null);
     if (result.success) {
-      addToast(isEn ? 'Status updated.' : 'Estado actualizado.', 'success');
-      fetchJobs();
+      const updatedList = buildJobsAfterStatusChange({
+        jobs,
+        jobId: job.id,
+        updatedJob: result.data,
+        nextStatus,
+        selectedStatus,
+      });
+      const nextPage = updatedList.removed
+        ? getPageAfterStatusRemoval({ currentPage, nextJobsLength: updatedList.jobs.length })
+        : currentPage;
+
+      setJobs(updatedList.jobs);
+      if (updatedList.removed) {
+        const nextTotalCount = Math.max(0, Number(totalCount || 0) - 1);
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / pageSize));
+        setTotalCount(nextTotalCount);
+        setTotalPages(nextTotalPages);
+        setHasNextPage(nextPage < nextTotalPages);
+        setHasPreviousPage(nextPage > 1);
+        if (nextPage !== currentPage) {
+          setCurrentPage(nextPage);
+        }
+      }
       fetchSummary();
+      addToast(successMessage || (isEn ? 'Status updated.' : 'Estado actualizado.'), 'success');
     } else {
       addToast(result.error || (isEn ? 'Status could not be updated.' : 'No se pudo actualizar el estado.'), 'error');
     }
-    setUpdatingStatusId(null);
+    setUpdatingStatusIds((ids) => ids.filter((id) => id !== job.id));
   };
 
   const handleRowStatusChange = (job, nextStatus) => {
@@ -409,10 +435,50 @@ export default function DailyJobsPage() {
     const currentStatus = normalizeJobStatus(job?.status || job?.estado);
     if (normalizedNext === currentStatus) return;
     if (normalizedNext === 'cancelled') {
-      setPendingStatusChange({ job, nextStatus: normalizedNext });
+      setPendingStatusChange({
+        job,
+        nextStatus: normalizedNext,
+        title: isEn ? 'Cancel job?' : '¿Cancelar trabajo?',
+        description: isEn
+          ? 'This will mark the selected job as cancelled.'
+          : 'Esto marcará el trabajo seleccionado como cancelado.',
+        confirmLabel: isEn ? 'Cancel job' : 'Cancelar trabajo',
+        successMessage: isEn ? 'Status updated.' : 'Estado actualizado.',
+        confirmClassName: 'bg-red-600 hover:bg-red-700 text-white',
+      });
       return;
     }
     applyStatusChange(job, normalizedNext);
+  };
+
+  const requestQuickStatusChange = (job, nextStatus) => {
+    const normalizedNext = normalizeJobStatus(nextStatus);
+    const title = job?.title || job?.description || 'este trabajo';
+
+    if (normalizedNext === 'completed') {
+      setPendingStatusChange({
+        job,
+        nextStatus: normalizedNext,
+        title: '¿Completar trabajo?',
+        description: `Se marcará como completado: ${title}`,
+        confirmLabel: 'Completar',
+        successMessage: 'Trabajo marcado como completado',
+        confirmClassName: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+      });
+      return;
+    }
+
+    if (normalizedNext === 'pending') {
+      setPendingStatusChange({
+        job,
+        nextStatus: normalizedNext,
+        title: '¿Volver a pendiente?',
+        description: `Se devolverá a pendientes: ${title}`,
+        confirmLabel: 'Volver a pendiente',
+        successMessage: 'Trabajo devuelto a pendientes',
+        confirmClassName: 'bg-[#1e3a8a] hover:bg-blue-900 text-white',
+      });
+    }
   };
 
   useEffect(() => {
@@ -708,6 +774,9 @@ export default function DailyJobsPage() {
                   ) : jobs.map((job) => (
                     (() => {
                       const normalizedStatus = normalizeJobStatus(job?.estado || job?.status);
+                      const isRowUpdating = updatingStatusIds.includes(job.id);
+                      const isPending = normalizedStatus === 'pending';
+                      const isCompleted = normalizedStatus === 'completed';
                       return (
                     <tr key={job.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
                       <td className="px-3 md:px-4 py-3 text-gray-800 dark:text-slate-50">{formatDate(job.date)}</td>
@@ -727,7 +796,7 @@ export default function DailyJobsPage() {
                           <select
                             value={normalizedStatus}
                             onChange={(event) => handleRowStatusChange(job, event.target.value)}
-                            disabled={updatingStatusId === job.id}
+                            disabled={isRowUpdating}
                             className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
                             aria-label={isEn ? 'Change job status' : 'Cambiar estado del trabajo'}
                           >
@@ -740,11 +809,28 @@ export default function DailyJobsPage() {
                         </div>
                       </td>
                       <td className="px-3 md:px-4 py-3 text-center">
-                        <div className="flex justify-center gap-3 flex-wrap">
+                        <div className="flex justify-center gap-2 flex-wrap">
+                          {isPending && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => requestQuickStatusChange(job, 'completed')}
+                              disabled={isRowUpdating}
+                              className="h-9 px-3 rounded-full border-emerald-200 text-xs font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 md:text-sm"
+                            >
+                              {isRowUpdating ? (
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                              )}
+                              {isRowUpdating ? 'Guardando...' : 'Completar'}
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => navigate(`/app/jobs/${job.id}`)}
+                            disabled={isRowUpdating}
                             className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
                           >
                             <Eye className="w-4 h-4 mr-1" /> {isEn ? 'View' : 'Detalle'}
@@ -753,6 +839,7 @@ export default function DailyJobsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => setEditingJob(job)}
+                            disabled={isRowUpdating}
                             className="h-9 px-3 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white text-xs md:text-sm font-semibold shadow-sm"
                           >
                             <Edit2 className="w-4 h-4 mr-1" /> {isEn ? 'Edit' : 'Editar'}
@@ -761,10 +848,44 @@ export default function DailyJobsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDuplicateJob(job)}
+                            disabled={isRowUpdating}
                             className="h-9 px-3 rounded-full text-[#1e3a8a] border-blue-200 text-xs md:text-sm font-semibold shadow-sm"
                           >
                             <Copy className="w-4 h-4 mr-1" /> Duplicar
                           </Button>
+                          {isCompleted && (
+                            <div className="relative">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setRowActionsOpenId((openId) => (openId === job.id ? null : job.id))}
+                                disabled={isRowUpdating}
+                                className="h-9 w-9 rounded-full border-gray-200 px-0 text-gray-700 shadow-sm dark:border-slate-700 dark:text-slate-200"
+                                aria-label="Más acciones del trabajo"
+                              >
+                                {isRowUpdating ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <MoreHorizontal className="h-4 w-4" />
+                                )}
+                              </Button>
+                              {rowActionsOpenId === job.id && (
+                                <div className="absolute right-0 z-20 mt-2 grid min-w-[180px] gap-1 rounded-lg border border-gray-200 bg-white p-2 text-left shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => requestQuickStatusChange(job, 'pending')}
+                                    className="h-9 justify-start gap-2 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
+                                  >
+                                    <Undo2 className="h-4 w-4" />
+                                    Volver a pendiente
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -810,33 +931,42 @@ export default function DailyJobsPage() {
       <AlertDialog
         open={Boolean(pendingStatusChange)}
         onOpenChange={(open) => {
-          if (!open) setPendingStatusChange(null);
+          const dialogJobId = pendingStatusChange?.job?.id;
+          if (!open && !updatingStatusIds.includes(dialogJobId)) setPendingStatusChange(null);
         }}
       >
         <AlertDialogContent className="bg-background text-foreground border border-border shadow-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-bold text-foreground">
-              {isEn ? 'Cancel job?' : '¿Cancelar trabajo?'}
+              {pendingStatusChange?.title || (isEn ? 'Change status?' : '¿Cambiar estado?')}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              {isEn
-                ? 'This will mark the selected job as cancelled.'
-                : 'Esto marcará el trabajo seleccionado como cancelado.'}
+              {pendingStatusChange?.description || (isEn
+                ? 'This will update the selected job status.'
+                : 'Esto actualizará el estado del trabajo seleccionado.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">
+            <AlertDialogCancel
+              disabled={updatingStatusIds.includes(pendingStatusChange?.job?.id)}
+              className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+            >
               {isEn ? 'Back' : 'Volver'}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 const change = pendingStatusChange;
                 setPendingStatusChange(null);
-                if (change?.job) applyStatusChange(change.job, change.nextStatus);
+                if (change?.job) {
+                  applyStatusChange(change.job, change.nextStatus, {
+                    successMessage: change.successMessage,
+                  });
+                }
               }}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={updatingStatusIds.includes(pendingStatusChange?.job?.id)}
+              className={pendingStatusChange?.confirmClassName || 'bg-[#1e3a8a] hover:bg-blue-900 text-white'}
             >
-              {isEn ? 'Cancel job' : 'Cancelar trabajo'}
+              {pendingStatusChange?.confirmLabel || (isEn ? 'Confirm' : 'Confirmar')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
