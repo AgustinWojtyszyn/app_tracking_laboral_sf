@@ -223,6 +223,7 @@ export default function MonthlyPanelPage() {
     () => applyMonthlyPanelFilters(jobs, filters, normalizeStatusValue),
     [jobs, filters]
   );
+  const showNoSummaryData = Boolean(summary && summary.current && summary.previous && summary.current.total === 0 && summary.previous.total === 0);
   const summaryCards = useMemo(() => {
     if (!summary?.current) return [];
     return [
@@ -575,8 +576,13 @@ export default function MonthlyPanelPage() {
             </Button>
           </div>
         ) : summary ? (
-          <>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          showNoSummaryData ? (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-300">
+              {isEn ? 'No jobs matched the current filters for this period.' : 'No hay trabajos que coincidan con los filtros para este período.'}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               {summaryCards.map((card) => {
                 const isDeltaPositive = card.delta > 0;
                 const isDeltaNegative = card.delta < 0;
@@ -630,11 +636,12 @@ export default function MonthlyPanelPage() {
                 );
               })}
             </div>
-            <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200">
-              <div className="font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Operational reading' : 'Lectura operativa'}</div>
-              <p className="mt-1">{summary.conclusion}</p>
-            </div>
-          </>
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200">
+                <div className="font-semibold text-gray-900 dark:text-slate-50">{isEn ? 'Operational reading' : 'Lectura operativa'}</div>
+                <p className="mt-1">{summary.conclusion}</p>
+              </div>
+            </>
+          )
         ) : null}
       </section>
 
