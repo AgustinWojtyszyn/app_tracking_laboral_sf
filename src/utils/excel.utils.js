@@ -29,7 +29,7 @@ export const exportJobsToExcel = async (jobs, filename = 'jobs-export.xlsx') => 
     'Amount to Charge': totalCharge
   });
 
-  const workbook = createExcelWorkbook();
+  const workbook = await createExcelWorkbook();
   appendJsonWorksheet(workbook, data, 'Jobs');
   const savedFilename = await saveWorkbookAsXlsx(workbook, filename);
   return { workbook, filename: savedFilename };

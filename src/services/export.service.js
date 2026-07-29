@@ -89,7 +89,7 @@ export const exportService = {
   },
 
   async _saveWorkbook(data, filename, sheetName = 'Trabajos') {
-    const workbook = createExcelWorkbook();
+    const workbook = await createExcelWorkbook();
     appendJsonWorksheet(workbook, data, sheetName, [
       { wch: 12 }, { wch: 25 }, { wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 40 }, { wch: 20 }, { wch: 20 }, { wch: 15 }
     ]);
@@ -199,7 +199,7 @@ export const exportService = {
     maintenanceRequests = [],
     documentExpirations = [],
   } = {}, filename = 'libro_registro_equipo.xlsx', section = 'todo') {
-    const workbook = createExcelWorkbook();
+    const workbook = await createExcelWorkbook();
     const shouldExport = (name) => section === 'todo' || section === name;
     const textCompare = (a, b) => String(a || '').localeCompare(String(b || ''), 'es');
     const sortedVehicles = [...vehicles].sort((a, b) => (

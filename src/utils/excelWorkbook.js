@@ -1,8 +1,7 @@
-import ExcelJS from 'exceljs';
-
 const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CONTROL_OR_SPACE_PREFIX = /^[\s\u0000-\u001f\u007f-\u009f]*/u;
 const UNSAFE_FORMULA_START = new Set(['=', '+', '-', '@']);
+let excelJsPromise;
 
 export const safeExcelCell = (value) => {
   if (typeof value !== 'string') return value;
@@ -22,7 +21,16 @@ export const normalizeExcelFileName = (filename = 'export.xlsx') => {
   return `${rawName}.xlsx`;
 };
 
-export const createExcelWorkbook = () => {
+const loadExcelJs = async () => {
+  if (!excelJsPromise) {
+    excelJsPromise = import('exceljs');
+  }
+  const module = await excelJsPromise;
+  return module.default || module;
+};
+
+export const createExcelWorkbook = async () => {
+  const ExcelJS = await loadExcelJs();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Tracking Laboral';
   workbook.created = new Date();

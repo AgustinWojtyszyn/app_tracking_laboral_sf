@@ -13,7 +13,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import EmptyState from '@/components/common/EmptyState';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
 import JobForm from '@/components/jobs/JobForm';
-import { History, Download, Trash2, Edit2, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { History, Download, Trash2, Edit2, ChevronLeft, ChevronRight, MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/contexts/ToastContext';
 import { normalizeJobStatus } from '@/utils/jobStatus';
@@ -32,6 +32,7 @@ export default function HistoryPage() {
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -129,6 +130,18 @@ export default function HistoryPage() {
       }
     };
 
+  const handleExportExcel = async () => {
+    if (exporting || filteredJobs.length === 0) return;
+    setExporting(true);
+    try {
+      await exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx');
+    } catch (error) {
+      addToast('No se pudo exportar el Excel.', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const currentData = getPageData(filteredJobs);
   const totalPageCount = totalPages(filteredJobs.length);
 
@@ -139,8 +152,8 @@ export default function HistoryPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50">Historial de Trabajos</h1>
           <p className="text-gray-500 dark:text-slate-300">Gestión completa de registros</p>
         </div>
-        <Button onClick={() => exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx').catch(() => {})} variant="outline" className="w-full md:w-auto">
-          <Download className="w-5 h-5 mr-2" /> Exportar
+        <Button onClick={handleExportExcel} disabled={filteredJobs.length === 0 || exporting} variant="outline" className="w-full md:w-auto">
+          {exporting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Download className="w-5 h-5 mr-2" />} Exportar
         </Button>
       </div>
 

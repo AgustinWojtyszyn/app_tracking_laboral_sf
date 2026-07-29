@@ -18,7 +18,7 @@ export default function ExcelExportButton({
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
-    if (!jobs || jobs.length === 0) return;
+    if (!jobs || jobs.length === 0 || exporting) return;
     
     setExporting(true);
     
