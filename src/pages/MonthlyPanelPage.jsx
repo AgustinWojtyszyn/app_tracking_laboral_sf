@@ -385,7 +385,7 @@ export default function MonthlyPanelPage() {
 
     if (!mountedRef.current) return;
     setExportingCompleted(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!mountedRef.current) return;
       if (DEBUG_MAINTENANCE) {
         console.log('[MonthlyPanel] Fechas de completados exportados', completedRecords.map((r) => ({
@@ -395,12 +395,17 @@ export default function MonthlyPanelPage() {
           status: r.status || r.estado || null
         })));
       }
-      exportService.exportRecordsToExcel(
-        completedRecords,
-        'mantenimiento-completados.xlsx',
-        'Completados'
-      );
-      setExportingCompleted(false);
+      try {
+        await exportService.exportRecordsToExcel(
+          completedRecords,
+          'mantenimiento-completados.xlsx',
+          'Completados'
+        );
+      } catch (error) {
+        addToast(isEn ? 'Export failed.' : 'No se pudo exportar el Excel.', 'error');
+      } finally {
+        if (mountedRef.current) setExportingCompleted(false);
+      }
     }, 300);
   };
 

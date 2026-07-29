@@ -23,13 +23,18 @@ export default function ExcelExportButton({
     setExporting(true);
     
     // Small delay to allow UI to update loading state
-    setTimeout(() => {
+    setTimeout(async () => {
+      try {
         if (grouped && startDate && endDate) {
-            exportService.exportRangeToExcel(startDate, endDate, jobs);
+          await exportService.exportRangeToExcel(startDate, endDate, jobs);
         } else {
-            exportService.exportJobsToExcel(jobs, filename);
+          await exportService.exportJobsToExcel(jobs, filename);
         }
+      } catch (error) {
+        console.error('Excel export failed:', error);
+      } finally {
         setExporting(false);
+      }
     }, 500);
   };
 

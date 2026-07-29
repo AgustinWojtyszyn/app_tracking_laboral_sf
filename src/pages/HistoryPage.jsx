@@ -139,7 +139,7 @@ export default function HistoryPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50">Historial de Trabajos</h1>
           <p className="text-gray-500 dark:text-slate-300">Gestión completa de registros</p>
         </div>
-        <Button onClick={() => exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx')} variant="outline" className="w-full md:w-auto">
+        <Button onClick={() => exportService.exportRecordsToExcel(filteredJobs, 'historial.xlsx').catch(() => {})} variant="outline" className="w-full md:w-auto">
           <Download className="w-5 h-5 mr-2" /> Exportar
         </Button>
       </div>

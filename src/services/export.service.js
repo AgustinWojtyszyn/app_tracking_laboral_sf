@@ -1,7 +1,12 @@
 
-import * as XLSX from 'xlsx';
 import { formatDate } from '@/utils/formatters';
 import { getJobStatusLabel } from '@/utils/jobStatus';
+import {
+  appendJsonWorksheet,
+  createExcelWorkbook,
+  normalizeExcelFileName,
+  saveWorkbookAsXlsx,
+} from '@/utils/excelWorkbook';
 
 const resolveSectorLabel = (job) => {
   const sectorType = (job?.sector_type || '').trim();
@@ -83,29 +88,23 @@ export const exportService = {
     };
   },
 
-  // Helper to create workbook and save
-  _saveWorkbook(data, filename, sheetName = 'Trabajos') {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    
-    // Auto-width columns approximation
-    const wscols = [
-        {wch:12}, {wch:25}, {wch:28}, {wch:24}, {wch:26}, {wch:40}, {wch:20}, {wch:20}, {wch:15}
-    ];
-    worksheet['!cols'] = wscols;
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-    XLSX.writeFile(workbook, filename);
+  async _saveWorkbook(data, filename, sheetName = 'Trabajos') {
+    const workbook = createExcelWorkbook();
+    appendJsonWorksheet(workbook, data, sheetName, [
+      { wch: 12 }, { wch: 25 }, { wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 40 }, { wch: 20 }, { wch: 20 }, { wch: 15 }
+    ]);
+    const savedFilename = await saveWorkbookAsXlsx(workbook, filename);
+    return { workbook, filename: savedFilename };
   },
 
-  exportRecordsToExcel(records, fileName = 'trabajos.xls', sheetName = 'Trabajos') {
-    if (!records || records.length === 0) return;
+  async exportRecordsToExcel(records, fileName = 'trabajos.xlsx', sheetName = 'Trabajos') {
+    if (!records || records.length === 0) return null;
     const data = records.map(this._mapJobToRow);
-    this._saveWorkbook(data, fileName, sheetName);
+    return this._saveWorkbook(data, normalizeExcelFileName(fileName), sheetName);
   },
 
-  exportJobsToExcel(jobs, filename = 'trabajos.xls') {
-    if (!jobs || jobs.length === 0) return;
+  async exportJobsToExcel(jobs, filename = 'trabajos.xlsx') {
+    if (!jobs || jobs.length === 0) return null;
     const data = jobs.map(this._mapJobToRow);
 
     // Calculate totals
@@ -114,15 +113,15 @@ export const exportService = {
       Fecha: 'TOTAL GENERAL'
     });
 
-    this._saveWorkbook(data, filename);
+    return this._saveWorkbook(data, normalizeExcelFileName(filename));
   },
 
-  exportDayToExcel(date, jobs) {
-      this.exportJobsToExcel(jobs, `trabajos_${date}.xls`);
+  async exportDayToExcel(date, jobs) {
+    return this.exportJobsToExcel(jobs, `trabajos_${date}.xlsx`);
   },
 
-  exportRangeToExcel(startDate, endDate, jobs) {
-    if (!jobs || jobs.length === 0) return;
+  async exportRangeToExcel(startDate, endDate, jobs) {
+    if (!jobs || jobs.length === 0) return null;
 
     // Group by date
     const grouped = jobs.reduce((acc, job) => {
@@ -156,8 +155,8 @@ export const exportService = {
         Fecha: 'TOTAL PERÍODO'
     });
 
-    const filename = `trabajos_${startDate}_a_${endDate}.xls`;
-    this._saveWorkbook(finalData, filename);
+    const filename = `trabajos_${startDate}_a_${endDate}.xlsx`;
+    return this._saveWorkbook(finalData, filename);
   },
 
   // Build a text-friendly summary for sharing (e.g., WhatsApp)
@@ -185,12 +184,10 @@ export const exportService = {
   },
 
   _appendJsonSheet(workbook, rows, sheetName, columnWidths = []) {
-    const worksheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{}]);
-    worksheet['!cols'] = columnWidths;
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    return appendJsonWorksheet(workbook, rows, sheetName, columnWidths);
   },
 
-  exportEquipmentLogToExcel({
+  async exportEquipmentLogToExcel({
     vehicles = [],
     fuelLoads = [],
     maintenanceLogs = [],
@@ -202,7 +199,7 @@ export const exportService = {
     maintenanceRequests = [],
     documentExpirations = [],
   } = {}, filename = 'libro_registro_equipo.xlsx', section = 'todo') {
-    const workbook = XLSX.utils.book_new();
+    const workbook = createExcelWorkbook();
     const shouldExport = (name) => section === 'todo' || section === name;
     const textCompare = (a, b) => String(a || '').localeCompare(String(b || ''), 'es');
     const sortedVehicles = [...vehicles].sort((a, b) => (
@@ -437,6 +434,7 @@ export const exportService = {
       { wch: 24 }, { wch: 14 }, { wch: 34 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 28 }, { wch: 44 }, { wch: 18 },
     ]);
 
-    XLSX.writeFile(workbook, filename);
+    const savedFilename = await saveWorkbookAsXlsx(workbook, filename);
+    return { workbook, filename: savedFilename };
   }
 };

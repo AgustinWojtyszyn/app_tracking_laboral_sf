@@ -1,9 +1,8 @@
-
-import * as XLSX from 'xlsx';
 import { formatCurrency, formatDate } from './formatters';
+import { appendJsonWorksheet, createExcelWorkbook, saveWorkbookAsXlsx } from './excelWorkbook';
 
-export const exportJobsToExcel = (jobs, filename = 'jobs-export.xlsx') => {
-  if (!jobs || jobs.length === 0) return;
+export const exportJobsToExcel = async (jobs, filename = 'jobs-export.xlsx') => {
+  if (!jobs || jobs.length === 0) return null;
 
   const data = jobs.map(job => ({
     Date: formatDate(job.date),
@@ -30,8 +29,8 @@ export const exportJobsToExcel = (jobs, filename = 'jobs-export.xlsx') => {
     'Amount to Charge': totalCharge
   });
 
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Jobs");
-  XLSX.writeFile(workbook, filename);
+  const workbook = createExcelWorkbook();
+  appendJsonWorksheet(workbook, data, 'Jobs');
+  const savedFilename = await saveWorkbookAsXlsx(workbook, filename);
+  return { workbook, filename: savedFilename };
 };

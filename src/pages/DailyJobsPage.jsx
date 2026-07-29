@@ -294,7 +294,7 @@ export default function DailyJobsPage() {
         addToast(isEn ? 'No jobs to export.' : 'No hay trabajos para exportar.', 'error');
         return;
       }
-      exportService.exportDayToExcel(date, exportJobs);
+      await exportService.exportDayToExcel(date, exportJobs);
     } catch (error) {
       addToast(error.message || (isEn ? 'Export failed.' : 'No se pudo preparar la exportación.'), 'error');
     } finally {

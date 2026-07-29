@@ -2096,7 +2096,28 @@ export default function EquipmentLogPage() {
   };
 
   const handleExportEquipmentLog = async () => {
+    if (exporting) return;
     setExporting(true);
+    let exportDataResults;
+    try {
+      exportDataResults = await Promise.all([
+        equipmentLogService.getVehicles(),
+        equipmentLogService.getFuelLoads(),
+        equipmentLogService.getMaintenanceLogs(),
+        equipmentLogService.getPlantAssets(),
+        equipmentLogService.getDailyOperations(),
+        equipmentLogService.getIncidents(),
+        equipmentLogService.getMaintenanceChecks(),
+        equipmentLogService.getVehicleRoutes(),
+        equipmentLogService.getMaintenanceRequests(),
+        equipmentLogService.getDocumentExpirations(),
+      ]);
+    } catch (error) {
+      addToast('No se pudo preparar la exportación.', 'error');
+      setExporting(false);
+      return;
+    }
+
     const [
       vehiclesResult,
       fuelLoadsResult,
@@ -2108,19 +2129,7 @@ export default function EquipmentLogPage() {
       vehicleRoutesResult,
       maintenanceRequestsResult,
       documentExpirationsResult,
-    ] = await Promise.all([
-      equipmentLogService.getVehicles(),
-      equipmentLogService.getFuelLoads(),
-      equipmentLogService.getMaintenanceLogs(),
-      equipmentLogService.getPlantAssets(),
-      equipmentLogService.getDailyOperations(),
-      equipmentLogService.getIncidents(),
-      equipmentLogService.getMaintenanceChecks(),
-      equipmentLogService.getVehicleRoutes(),
-      equipmentLogService.getMaintenanceRequests(),
-      equipmentLogService.getDocumentExpirations(),
-    ]);
-    setExporting(false);
+    ] = exportDataResults;
 
     const results = [
       vehiclesResult,
@@ -2137,22 +2146,29 @@ export default function EquipmentLogPage() {
     const failed = results.find((result) => !result.success);
     if (failed) {
       addToast(failed.error, 'error');
+      setExporting(false);
       return;
     }
 
-    exportService.exportEquipmentLogToExcel({
-      vehicles: vehiclesResult.data || [],
-      fuelLoads: fuelLoadsResult.data || [],
-      maintenanceLogs: maintenanceLogsResult.data || [],
-      plantAssets: plantAssetsResult.data || [],
-      dailyOperations: dailyOperationsResult.data || [],
-      incidents: incidentsResult.data || [],
-      maintenanceChecks: maintenanceChecksResult.data || [],
-      vehicleRoutes: vehicleRoutesResult.data || [],
-      maintenanceRequests: maintenanceRequestsResult.data || [],
-      documentExpirations: documentExpirationsResult.data || [],
-    }, 'libro_registro_equipo.xlsx', 'todo');
-    addToast('Excel exportado correctamente.', 'success');
+    try {
+      await exportService.exportEquipmentLogToExcel({
+        vehicles: vehiclesResult.data || [],
+        fuelLoads: fuelLoadsResult.data || [],
+        maintenanceLogs: maintenanceLogsResult.data || [],
+        plantAssets: plantAssetsResult.data || [],
+        dailyOperations: dailyOperationsResult.data || [],
+        incidents: incidentsResult.data || [],
+        maintenanceChecks: maintenanceChecksResult.data || [],
+        vehicleRoutes: vehicleRoutesResult.data || [],
+        maintenanceRequests: maintenanceRequestsResult.data || [],
+        documentExpirations: documentExpirationsResult.data || [],
+      }, 'libro_registro_equipo.xlsx', 'todo');
+      addToast('Excel exportado correctamente.', 'success');
+    } catch (error) {
+      addToast('No se pudo exportar el Excel.', 'error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const createButton = canManageMasterData && activeTab === 'vehicles' ? (
