@@ -335,3 +335,186 @@ describe('jobsService.listJobsPaginated', () => {
     expect(result.error).toBe('Se copiaron 1 trabajos y fallaron 2.');
   });
 });
+
+describe('jobsService.getDailyJobsSummary', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('calcula el resumen sin filtro de estado y envia p_status null', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: 'job-1',
+            status: 'pending',
+            worker_id: 'worker-1',
+            location: 'ServiFood',
+            amount_to_charge: 1000,
+            cost_spent: 400,
+          },
+          {
+            id: 'job-2',
+            status: 'completed',
+            worker_id: 'worker-2',
+            location: 'Clorox',
+            amount_to_charge: 2000,
+            cost_spent: 700,
+          },
+        ],
+      },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.getDailyJobsSummary({
+      date: '2026-07-10',
+      location: 'all',
+      status: 'all',
+      search: ' ',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
+      p_date: '2026-07-10',
+      p_location: null,
+      p_status: null,
+      p_search: null,
+    });
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({
+      total: 2,
+      pending: 1,
+      completed: 1,
+      workers: 2,
+      locations: 2,
+      totalCharge: 3000,
+      workerCost: 1100,
+      balance: 1900,
+    });
+  });
+
+  it('calcula el resumen filtrado por pending', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: 'job-1',
+            status: 'pending',
+            worker_id: 'worker-1',
+            location: 'ServiFood',
+            amount_to_charge: 1000,
+            cost_spent: 400,
+          },
+        ],
+      },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.getDailyJobsSummary({
+      date: '2026-07-10',
+      location: 'ServiFood',
+      status: 'pending',
+      search: 'reparacion',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
+      p_date: '2026-07-10',
+      p_location: 'ServiFood',
+      p_status: 'pending',
+      p_search: 'reparacion',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({
+      total: 1,
+      pending: 1,
+      completed: 0,
+      totalCharge: 1000,
+      workerCost: 400,
+      balance: 600,
+    });
+  });
+
+  it('calcula el resumen filtrado por completed', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: 'job-1',
+            status: 'completed',
+            workers: { id: 'worker-1' },
+            location: 'Clorox',
+            amount_to_charge: 2500,
+            cost_spent: 1000,
+          },
+        ],
+      },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+
+    const result = await jobsService.getDailyJobsSummary({
+      date: '2026-07-10',
+      location: 'Clorox',
+      status: 'completed',
+      search: 'campana',
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith('list_jobs_for_export', {
+      p_date: '2026-07-10',
+      p_location: 'Clorox',
+      p_status: 'completed',
+      p_search: 'campana',
+    });
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({
+      total: 1,
+      pending: 0,
+      completed: 1,
+      workers: 1,
+      locations: 1,
+      totalCharge: 2500,
+      workerCost: 1000,
+      balance: 1500,
+    });
+  });
+
+  it('mantiene coherentes fecha, lugar, busqueda y estado entre listado, resumen y exportacion', async () => {
+    const rpcImpl = vi.fn().mockResolvedValue({
+      data: { items: [] },
+      error: null,
+    });
+    const { jobsService, supabase } = await buildJobsService({ rpcImpl });
+    const filters = {
+      date: '2026-07-10',
+      location: 'ServiFood',
+      status: 'completed',
+      search: 'campana',
+    };
+
+    await jobsService.listJobsPaginated({ ...filters, page: 2, pageSize: 30 });
+    await jobsService.getDailyJobsSummary(filters);
+    await jobsService.listJobsForExport(filters);
+
+    expect(supabase.rpc).toHaveBeenNthCalledWith(1, 'list_jobs_paginated', {
+      p_date: filters.date,
+      p_location: filters.location,
+      p_status: filters.status,
+      p_search: filters.search,
+      p_page: 2,
+      p_page_size: 30,
+    });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(2, 'list_jobs_for_export', {
+      p_date: filters.date,
+      p_location: filters.location,
+      p_status: filters.status,
+      p_search: filters.search,
+    });
+    expect(supabase.rpc).toHaveBeenNthCalledWith(3, 'list_jobs_for_export', {
+      p_date: filters.date,
+      p_location: filters.location,
+      p_status: filters.status,
+      p_search: filters.search,
+    });
+  });
+});

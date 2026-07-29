@@ -159,7 +159,7 @@ export default function DailyJobsPage() {
 
   useEffect(() => {
     if (user) fetchSummary();
-  }, [user, date, selectedLocation, debouncedSearchTerm]);
+  }, [user, date, selectedLocation, selectedStatus, debouncedSearchTerm]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -235,6 +235,7 @@ export default function DailyJobsPage() {
     const result = await jobsService.getDailyJobsSummary({
       date,
       location: selectedLocation,
+      status: selectedStatus,
       search: debouncedSearchTerm,
     });
     if (reqId !== summaryReqIdRef.current) return;

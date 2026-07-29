@@ -320,10 +320,11 @@ export const jobsService = {
   async getDailyJobsSummary({
     date = null,
     location = null,
+    status = null,
     search = '',
   } = {}) {
     try {
-      const result = await this.listJobsForExport({ date, location, search });
+      const result = await this.listJobsForExport({ date, location, status, search });
       if (!result.success) {
         return { success: false, error: result.error };
       }
