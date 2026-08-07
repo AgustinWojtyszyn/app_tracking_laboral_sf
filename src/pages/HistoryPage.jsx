@@ -25,9 +25,10 @@ export default function HistoryPage() {
     startDate: getMonthStart(),
     endDate: getTodayDate(),
     status: 'all',
+    requestedBy: '',
     search: ''
   });
-  const { startDate, endDate, status, groupId, workerId } = filters;
+  const { startDate, endDate, status, groupId, workerId, requestedBy } = filters;
   
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
@@ -66,7 +67,7 @@ export default function HistoryPage() {
     setLoading(true);
 
     try {
-      const requestFilters = { startDate, endDate, status, groupId, workerId };
+      const requestFilters = { startDate, endDate, status, groupId, workerId, requestedBy };
       const data = await jobsService.getJobsByDateRange(startDate, endDate, requestFilters);
       if (!mountedRef.current || requestId !== requestIdRef.current) return;
 
@@ -85,7 +86,7 @@ export default function HistoryPage() {
         setLoading(false);
       }
     }
-  }, [addToast, startDate, endDate, status, groupId, workerId]);
+  }, [addToast, startDate, endDate, status, groupId, workerId, requestedBy]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -108,7 +109,8 @@ export default function HistoryPage() {
       result = result.filter(job => 
         (job.title?.toLowerCase().includes(term)) ||
         (job.description?.toLowerCase().includes(term)) || 
-        (job.location?.toLowerCase().includes(term))
+        (job.location?.toLowerCase().includes(term)) ||
+        (job.requested_by?.toLowerCase().includes(term))
       );
     }
     setFilteredJobs(result);

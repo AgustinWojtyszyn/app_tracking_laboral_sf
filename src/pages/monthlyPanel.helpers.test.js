@@ -4,6 +4,7 @@ import {
   buildMonthlyLocationOptions,
   buildMonthlyPeriodSummary,
   createLatestRequestGuard,
+  filterMonthlyJobsByRequester,
   filterMonthlyJobsBySearch,
   getMonthlyUnknownLocations,
   getPreviousDateRange,
@@ -12,9 +13,9 @@ import {
 } from './monthlyPanel.helpers';
 
 const jobs = [
-  { id: '1', title: 'Cambio de filtro', description: 'Preventivo mensual', location: 'Planta Norte', date: '2026-07-03', status: 'pending' },
-  { id: '2', title: 'Inspeccion', description: 'Reparacion urgente', location: 'Deposito Sur', date: '2026-07-02', status: 'completed' },
-  { id: '3', title: 'Revision general', description: 'Control electrico', location: 'Oficina Centro', date: '2026-07-01', status: 'archived' },
+  { id: '1', title: 'Cambio de filtro', description: 'Preventivo mensual', location: 'Planta Norte', requested_by: 'Juan Perez', date: '2026-07-03', status: 'pending' },
+  { id: '2', title: 'Inspeccion', description: 'Reparacion urgente', location: 'Deposito Sur', requested_by: 'Maria Garcia', date: '2026-07-02', status: 'completed' },
+  { id: '3', title: 'Revision general', description: 'Control electrico', location: 'Oficina Centro', requested_by: 'Carlos Lopez', date: '2026-07-01', status: 'archived' },
 ];
 
 describe('filterMonthlyJobsBySearch', () => {
@@ -30,6 +31,10 @@ describe('filterMonthlyJobsBySearch', () => {
     expect(filterMonthlyJobsBySearch(jobs, 'centro')).toEqual([jobs[2]]);
   });
 
+  it('busca por solicitante', () => {
+    expect(filterMonthlyJobsBySearch(jobs, 'maria')).toEqual([jobs[1]]);
+  });
+
   it('limpia busqueda y devuelve todos los registros', () => {
     expect(filterMonthlyJobsBySearch(jobs, '')).toEqual(jobs);
   });
@@ -37,6 +42,13 @@ describe('filterMonthlyJobsBySearch', () => {
   it('cambiar solo el texto de busqueda cambia el resultado local', () => {
     expect(filterMonthlyJobsBySearch(jobs, 'planta')).toEqual([jobs[0]]);
     expect(filterMonthlyJobsBySearch(jobs, 'deposito')).toEqual([jobs[1]]);
+  });
+});
+
+describe('filterMonthlyJobsByRequester', () => {
+  it('filtra por quien solicito sin distinguir mayusculas ni tildes', () => {
+    expect(filterMonthlyJobsByRequester(jobs, 'garcía')).toEqual([jobs[1]]);
+    expect(filterMonthlyJobsByRequester(jobs, 'JUAN')).toEqual([jobs[0]]);
   });
 });
 
@@ -67,6 +79,7 @@ describe('applyMonthlyPanelFilters', () => {
     status: 'all',
     groupId: 'all',
     workerId: 'all',
+    requestedBy: '',
     location: 'all',
   };
 
@@ -83,8 +96,21 @@ describe('applyMonthlyPanelFilters', () => {
       status: 'completed',
       groupId: 'g1',
       workerId: 'w1',
+      requestedBy: '',
       location: 'hospital sarmiento',
     }, normalizeStatus).map((job) => job.id)).toEqual(['1']);
+  });
+
+  it('aplica filtro de solicitante junto con el resto', () => {
+    const data = [
+      { id: '1', title: 'Control', date: '2026-07-10', status: 'pending', requested_by: 'Juan Perez' },
+      { id: '2', title: 'Control', date: '2026-07-11', status: 'pending', requested_by: 'Maria Garcia' },
+    ];
+
+    expect(applyMonthlyPanelFilters(data, {
+      ...baseFilters,
+      requestedBy: 'maria',
+    }, normalizeStatus).map((job) => job.id)).toEqual(['2']);
   });
 
   it('busca lugar sin distinguir mayusculas ni tildes', () => {

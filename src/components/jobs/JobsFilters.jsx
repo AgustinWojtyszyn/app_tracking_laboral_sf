@@ -8,17 +8,19 @@ export default function JobsFilters({
   searchTerm,
   selectedLocation,
   selectedStatus,
+  requestedBy,
   locationOptions,
   pageSize,
   onDateChange,
   onSearchChange,
   onLocationChange,
   onStatusChange,
+  onRequestedByChange,
   onPageSizeChange,
 }) {
   return (
     <div className="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[12rem_minmax(0,1fr)_18rem_13rem_12rem] gap-3 items-end">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[12rem_minmax(0,1fr)_18rem_13rem_16rem_12rem] gap-3 items-end">
         <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
           <span className="mb-1 block">{isEn ? 'Date' : 'Fecha'}</span>
           <input
@@ -72,6 +74,18 @@ export default function JobsFilters({
             <option value="completed">{isEn ? 'Completed' : 'Completados'}</option>
             <option value="cancelled">{isEn ? 'Cancelled' : 'Cancelados'}</option>
           </select>
+        </label>
+
+        <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">
+          <span className="mb-1 block">{isEn ? 'Requester' : 'Solicitante'}</span>
+          <input
+            type="search"
+            value={requestedBy}
+            onChange={onRequestedByChange}
+            placeholder={isEn ? 'Requested by...' : 'Quién solicitó...'}
+            className="h-12 w-full rounded-lg border border-gray-200 bg-white px-3 text-base text-gray-900 outline-none focus:ring-2 focus:ring-[#1e3a8a] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50 dark:placeholder:text-slate-400"
+            aria-label={isEn ? 'Requester' : 'Solicitante'}
+          />
         </label>
 
         <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">

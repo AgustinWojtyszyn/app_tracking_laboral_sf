@@ -117,6 +117,23 @@ export default function QuickFilterChips({ filters, onChange, groups = [], worke
             </button>
           </div>
         )}
+
+        {filters.requestedBy && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs md:text-sm font-semibold text-gray-500 dark:text-slate-300">
+              {isEn ? 'Requester' : 'Solicitante'}:
+            </span>
+            <button
+              type="button"
+              className={`${chipClass(true)} inline-flex items-center gap-2`}
+              onClick={() => onChange('requestedBy', '')}
+              aria-label={isEn ? 'Clear requester filter' : 'Limpiar filtro de solicitante'}
+            >
+              {filters.requestedBy}
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -158,6 +158,7 @@ export const jobsService = {
     date = null,
     location = null,
     status = null,
+    requestedBy = '',
     search = '',
     page = 1,
     pageSize = 10,
@@ -167,6 +168,7 @@ export const jobsService = {
         p_date: normalizeRpcFilterValue(date),
         p_location: normalizeRpcFilterValue(location),
         p_status: normalizeRpcFilterValue(status),
+        p_requested_by: normalizeRpcFilterValue(requestedBy),
         p_search: normalizeRpcFilterValue(search),
         p_page: page,
         p_page_size: pageSize,
@@ -202,6 +204,7 @@ export const jobsService = {
     date = null,
     location = null,
     status = null,
+    requestedBy = '',
     search = '',
   } = {}) {
     try {
@@ -209,6 +212,7 @@ export const jobsService = {
         p_date: normalizeRpcFilterValue(date),
         p_location: normalizeRpcFilterValue(location),
         p_status: normalizeRpcFilterValue(status),
+        p_requested_by: normalizeRpcFilterValue(requestedBy),
         p_search: normalizeRpcFilterValue(search),
       });
 
@@ -244,6 +248,7 @@ export const jobsService = {
         date: normalizedDate,
         location: null,
         status: null,
+        requestedBy: '',
         search: '',
       });
 
@@ -321,10 +326,11 @@ export const jobsService = {
     date = null,
     location = null,
     status = null,
+    requestedBy = '',
     search = '',
   } = {}) {
     try {
-      const result = await this.listJobsForExport({ date, location, status, search });
+      const result = await this.listJobsForExport({ date, location, status, requestedBy, search });
       if (!result.success) {
         return { success: false, error: result.error };
       }
@@ -556,11 +562,13 @@ export const jobsService = {
           status: filters?.status,
           groupId: filters?.groupId,
           workerId: filters?.workerId,
+          requestedBy: filters?.requestedBy,
           search: filters?.search
         });
       }
       const { userId, groupIds, isAdmin } = await this.resolveActorContext(filters.currentUserId);
       const requestedGroupId = filters.groupId ? filters.groupId.toString() : null;
+      const requestedByFilter = normalizeRpcFilterValue(filters.requestedBy);
       if (!userId) return { success: true, data: [] };
       if (!isAdmin && requestedGroupId && requestedGroupId !== 'all' && !groupIds.includes(requestedGroupId)) {
         return { success: true, data: [] };
@@ -590,8 +598,9 @@ export const jobsService = {
       if (filters.status && filters.status !== 'all') baseQuery = baseQuery.eq('status', filters.status);
       if (filters.groupId && filters.groupId !== 'all') baseQuery = baseQuery.eq('group_id', filters.groupId);
       if (filters.workerId && filters.workerId !== 'all') baseQuery = baseQuery.eq('worker_id', filters.workerId);
+      if (requestedByFilter) baseQuery = baseQuery.ilike('requested_by', `%${requestedByFilter}%`);
       if (filters.search) {
-        baseQuery = baseQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+        baseQuery = baseQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%,requested_by.ilike.%${filters.search}%`);
       }
 
       let { data, error } = await baseQuery;
@@ -615,8 +624,9 @@ export const jobsService = {
         if (filters.status && filters.status !== 'all') fallbackQuery = fallbackQuery.eq('status', filters.status);
         if (filters.groupId && filters.groupId !== 'all') fallbackQuery = fallbackQuery.eq('group_id', filters.groupId);
         if (filters.workerId && filters.workerId !== 'all') fallbackQuery = fallbackQuery.eq('worker_id', filters.workerId);
+        if (requestedByFilter) fallbackQuery = fallbackQuery.ilike('requested_by', `%${requestedByFilter}%`);
         if (filters.search) {
-          fallbackQuery = fallbackQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+          fallbackQuery = fallbackQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%,requested_by.ilike.%${filters.search}%`);
         }
 
         const fallbackResult = await fallbackQuery;
@@ -788,6 +798,7 @@ export const jobsService = {
         p_end_date: endDate,
         p_status: 'completed',
         p_location: normalizeRpcFilterValue(filters.location),
+        p_requested_by: normalizeRpcFilterValue(filters.requestedBy),
         p_search: normalizeRpcFilterValue(filters.search),
       });
 
@@ -805,6 +816,7 @@ export const jobsService = {
         p_end_date: endDate,
         p_status: 'pending',
         p_location: normalizeRpcFilterValue(filters.location),
+        p_requested_by: normalizeRpcFilterValue(filters.requestedBy),
         p_search: normalizeRpcFilterValue(filters.search),
       });
 

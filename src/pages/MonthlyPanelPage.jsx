@@ -71,6 +71,7 @@ export default function MonthlyPanelPage() {
       status: 'all',
       groupId: 'all',
       workerId: 'all',
+      requestedBy: '',
       location: 'all',
       search: ''
   });
@@ -145,6 +146,7 @@ export default function MonthlyPanelPage() {
       status: 'all',
       groupId: filters.groupId === 'all' ? null : filters.groupId,
       workerId: filters.workerId === 'all' ? null : filters.workerId,
+      requestedBy: filters.requestedBy,
       location: filters.location === 'all' ? null : filters.location,
       search: filters.search,
     };
@@ -190,7 +192,7 @@ export default function MonthlyPanelPage() {
         setSummaryLoading(false);
       }
     }
-  }, [filters.startDate, filters.endDate, filters.groupId, filters.workerId, filters.location, filters.search, user?.id, getJobsByDateRange, isEn]);
+  }, [filters.startDate, filters.endDate, filters.groupId, filters.workerId, filters.requestedBy, filters.location, filters.search, user?.id, getJobsByDateRange, isEn]);
 
   useEffect(() => {
     if (user && filters.startDate && filters.endDate) {
@@ -339,6 +341,7 @@ export default function MonthlyPanelPage() {
         status: filters.status,
         groupId: filters.groupId,
         workerId: filters.workerId,
+        requestedBy: filters.requestedBy,
         location: filters.location,
         search: filters.search
       });

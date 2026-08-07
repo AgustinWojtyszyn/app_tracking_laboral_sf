@@ -49,7 +49,7 @@ export const filterMonthlyJobsBySearch = (jobs, search) => {
   if (!term) return Array.isArray(jobs) ? jobs : [];
 
   return (Array.isArray(jobs) ? jobs : []).filter((job) => {
-    const fields = [job?.title, job?.description, job?.location];
+    const fields = [job?.title, job?.description, job?.location, job?.requested_by];
     return fields.some((field) => normalizeSearchValue(field).includes(term));
   });
 };
@@ -99,6 +99,12 @@ export const filterMonthlyJobsByLocation = (jobs, location) => {
   return (Array.isArray(jobs) ? jobs : []).filter((job) => normalizeSearchValue(job?.location) === selected);
 };
 
+export const filterMonthlyJobsByRequester = (jobs, requestedBy) => {
+  const term = normalizeSearchValue(requestedBy);
+  if (!term) return Array.isArray(jobs) ? jobs : [];
+  return (Array.isArray(jobs) ? jobs : []).filter((job) => normalizeSearchValue(job?.requested_by).includes(term));
+};
+
 export const sortMonthlyJobsByCurrentOrder = (jobs) => (
   [...(Array.isArray(jobs) ? jobs : [])].sort((a, b) => {
     const dateCompare = String(b?.date || b?.fecha || '').localeCompare(String(a?.date || a?.fecha || ''));
@@ -113,7 +119,8 @@ export const applyMonthlyPanelFilters = (jobs, filters, normalizeStatus) => {
   const byStatus = filterMonthlyJobsByStatus(bySearch, filters.status, normalizeStatus);
   const byGroup = filterMonthlyJobsByGroup(byStatus, filters.groupId);
   const byWorker = filterMonthlyJobsByWorker(byGroup, filters.workerId);
-  const byLocation = filterMonthlyJobsByLocation(byWorker, filters.location);
+  const byRequester = filterMonthlyJobsByRequester(byWorker, filters.requestedBy);
+  const byLocation = filterMonthlyJobsByLocation(byRequester, filters.location);
   return sortMonthlyJobsByCurrentOrder(byLocation);
 };
 

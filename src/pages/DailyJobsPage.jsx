@@ -90,7 +90,9 @@ export default function DailyJobsPage() {
   const [rowActionsOpenId, setRowActionsOpenId] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [requestedBy, setRequestedBy] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedRequestedBy, setDebouncedRequestedBy] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [summary, setSummary] = useState(emptySummary);
   const [currentPage, setCurrentPage] = useState(1);
@@ -115,7 +117,7 @@ export default function DailyJobsPage() {
   const locationOptions = useMemo(() => (
     [...JOB_LOCATIONS].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
   ), []);
-  const hasActiveFilters = Boolean(searchTerm.trim() || selectedLocation !== 'all' || selectedStatus !== 'all');
+  const hasActiveFilters = Boolean(searchTerm.trim() || requestedBy.trim() || selectedLocation !== 'all' || selectedStatus !== 'all');
   const emptyStateConfig = getDailyJobsEmptyStateConfig({
     jobs,
     loading,
@@ -133,6 +135,8 @@ export default function DailyJobsPage() {
   const handleClearFilters = () => {
     setSearchTerm('');
     setDebouncedSearchTerm('');
+    setRequestedBy('');
+    setDebouncedRequestedBy('');
     setSelectedLocation('all');
     setSelectedStatus('all');
     setCurrentPage(1);
@@ -148,6 +152,10 @@ export default function DailyJobsPage() {
     setSearchTerm(event.target.value);
   };
 
+  const handleRequestedByChange = (event) => {
+    setRequestedBy(event.target.value);
+  };
+
   const handlePageSizeChange = (event) => {
     setPageSize(Number(event.target.value));
     setCurrentPage(1);
@@ -155,11 +163,11 @@ export default function DailyJobsPage() {
 
   useEffect(() => {
     if (user) fetchJobs();
-  }, [user, date, selectedLocation, selectedStatus, debouncedSearchTerm, currentPage, pageSize]);
+  }, [user, date, selectedLocation, selectedStatus, debouncedRequestedBy, debouncedSearchTerm, currentPage, pageSize]);
 
   useEffect(() => {
     if (user) fetchSummary();
-  }, [user, date, selectedLocation, selectedStatus, debouncedSearchTerm]);
+  }, [user, date, selectedLocation, selectedStatus, debouncedRequestedBy, debouncedSearchTerm]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -169,6 +177,15 @@ export default function DailyJobsPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [searchTerm]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedRequestedBy(requestedBy);
+      setCurrentPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [requestedBy]);
 
   const withTimeout = (promise, ms = 12000) =>
     Promise.race([
@@ -185,6 +202,7 @@ export default function DailyJobsPage() {
         date,
         location: selectedLocation,
         status: selectedStatus,
+        requestedBy: debouncedRequestedBy,
         search: debouncedSearchTerm,
         page: currentPage,
         pageSize,
@@ -236,6 +254,7 @@ export default function DailyJobsPage() {
       date,
       location: selectedLocation,
       status: selectedStatus,
+      requestedBy: debouncedRequestedBy,
       search: debouncedSearchTerm,
     });
     if (reqId !== summaryReqIdRef.current) return;
@@ -274,6 +293,7 @@ export default function DailyJobsPage() {
       date,
       location: selectedLocation,
       status: selectedStatus,
+      requestedBy: requestedBy.trim(),
       search: searchTerm.trim(),
     });
 
@@ -372,6 +392,7 @@ export default function DailyJobsPage() {
     setClearing(true);
     const result = await jobsService.deleteCompletedJobs(date, date, {
       location: selectedLocation,
+      requestedBy: requestedBy.trim(),
       search: searchTerm.trim(),
     });
     if (result.success) {
@@ -398,6 +419,7 @@ export default function DailyJobsPage() {
     setClearingPending(true);
     const result = await jobsService.deletePendingJobs(date, date, {
       location: selectedLocation,
+      requestedBy: requestedBy.trim(),
       search: searchTerm.trim(),
     });
     if (result.success) {
@@ -749,12 +771,14 @@ export default function DailyJobsPage() {
         searchTerm={searchTerm}
         selectedLocation={selectedLocation}
         selectedStatus={selectedStatus}
+        requestedBy={requestedBy}
         locationOptions={locationOptions}
         pageSize={pageSize}
         onDateChange={handleDateChange}
         onSearchChange={handleSearchChange}
         onLocationChange={handleLocationChange}
         onStatusChange={handleStatusFilterChange}
+        onRequestedByChange={handleRequestedByChange}
         onPageSizeChange={handlePageSizeChange}
       />
 

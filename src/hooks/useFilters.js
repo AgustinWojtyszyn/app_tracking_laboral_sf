@@ -8,6 +8,7 @@ export const useFilters = (initialState = {}) => {
     status: 'all',
     groupId: 'all',
     workerId: 'all',
+    requestedBy: '',
     search: '',
     ...initialState
   });
@@ -23,6 +24,7 @@ export const useFilters = (initialState = {}) => {
       status: 'all',
       groupId: 'all',
       workerId: 'all',
+      requestedBy: '',
       search: ''
     });
   };
@@ -34,11 +36,16 @@ export const useFilters = (initialState = {}) => {
           if (filters.status !== 'all' && item.status !== filters.status) return false;
           if (filters.groupId !== 'all' && item.group_id !== filters.groupId) return false;
         if (filters.workerId !== 'all' && item.worker_id !== filters.workerId) return false;
+          if (filters.requestedBy) {
+              const requester = String(item.requested_by || '').toLowerCase();
+              if (!requester.includes(filters.requestedBy.toLowerCase())) return false;
+          }
           if (filters.search) {
               const term = filters.search.toLowerCase();
               const matchDesc = item.description?.toLowerCase().includes(term);
               const matchLoc = item.location?.toLowerCase().includes(term);
-              if (!matchDesc && !matchLoc) return false;
+              const matchRequester = item.requested_by?.toLowerCase().includes(term);
+              if (!matchDesc && !matchLoc && !matchRequester) return false;
           }
           return true;
       });
