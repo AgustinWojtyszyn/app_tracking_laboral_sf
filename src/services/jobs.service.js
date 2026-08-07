@@ -147,6 +147,8 @@ const normalizeTextFilterValue = (value) => (
     .trim()
 );
 
+const getRequesterInitial = (value) => normalizeTextFilterValue(value).charAt(0);
+
 export const jobsService = {
   normalizePaginatedJobsPayload(payload, { page = 1, pageSize = 10 } = {}) {
     const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
@@ -642,9 +644,9 @@ export const jobsService = {
 
       if (error) throw error;
       const safeData = Array.isArray(data) ? data.map(hydrateJobRecord) : [];
-      const requestedByTerm = normalizeTextFilterValue(requestedByFilter);
-      const filteredData = requestedByTerm
-        ? safeData.filter((job) => normalizeTextFilterValue(job?.requested_by).includes(requestedByTerm))
+      const requestedByInitial = getRequesterInitial(requestedByFilter);
+      const filteredData = requestedByInitial
+        ? safeData.filter((job) => getRequesterInitial(job?.requested_by) === requestedByInitial)
         : safeData;
       const jobDateValues = filteredData.map((job) => job?.date).filter(Boolean).sort();
       const createdAtValues = filteredData.map((job) => job?.created_at).filter(Boolean).sort();

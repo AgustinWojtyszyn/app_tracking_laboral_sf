@@ -44,6 +44,8 @@ export const normalizeSearchValue = (value) => (
     .trim()
 );
 
+export const getRequesterInitial = (value) => normalizeSearchValue(value).charAt(0);
+
 export const filterMonthlyJobsBySearch = (jobs, search) => {
   const term = normalizeSearchValue(search);
   if (!term) return Array.isArray(jobs) ? jobs : [];
@@ -100,9 +102,9 @@ export const filterMonthlyJobsByLocation = (jobs, location) => {
 };
 
 export const filterMonthlyJobsByRequester = (jobs, requestedBy) => {
-  const term = normalizeSearchValue(requestedBy);
-  if (!term) return Array.isArray(jobs) ? jobs : [];
-  return (Array.isArray(jobs) ? jobs : []).filter((job) => normalizeSearchValue(job?.requested_by).includes(term));
+  const initial = getRequesterInitial(requestedBy);
+  if (!initial) return Array.isArray(jobs) ? jobs : [];
+  return (Array.isArray(jobs) ? jobs : []).filter((job) => getRequesterInitial(job?.requested_by) === initial);
 };
 
 export const sortMonthlyJobsByCurrentOrder = (jobs) => (

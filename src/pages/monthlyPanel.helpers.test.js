@@ -46,9 +46,14 @@ describe('filterMonthlyJobsBySearch', () => {
 });
 
 describe('filterMonthlyJobsByRequester', () => {
-  it('filtra por quien solicito sin distinguir mayusculas ni tildes', () => {
-    expect(filterMonthlyJobsByRequester(jobs, 'garcía')).toEqual([jobs[1]]);
+  it('filtra por inicial del nombre sin distinguir mayusculas ni tildes', () => {
+    expect(filterMonthlyJobsByRequester(jobs, 'm')).toEqual([jobs[1]]);
     expect(filterMonthlyJobsByRequester(jobs, 'JUAN')).toEqual([jobs[0]]);
+  });
+
+  it('no busca por texto interno ni apellido', () => {
+    expect(filterMonthlyJobsByRequester(jobs, 'garcia')).toEqual([]);
+    expect(filterMonthlyJobsByRequester(jobs, 'arlos')).toEqual([]);
   });
 });
 
@@ -109,7 +114,7 @@ describe('applyMonthlyPanelFilters', () => {
 
     expect(applyMonthlyPanelFilters(data, {
       ...baseFilters,
-      requestedBy: 'maria',
+      requestedBy: 'm',
     }, normalizeStatus).map((job) => job.id)).toEqual(['2']);
   });
 

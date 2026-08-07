@@ -108,16 +108,17 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
 
             <div className="w-full min-w-0 lg:w-56">
                 <label htmlFor={requestedByInputId} className="sr-only">
-                    Solicitante
+                    Inicial del solicitante
                 </label>
                 <input
                     id={requestedByInputId}
                     type="search"
+                    maxLength={1}
                     className="w-full py-3 px-3 text-base md:text-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] outline-none text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
-                    placeholder="Solicitante"
+                    placeholder="Inicial solicitante"
                     value={filters.requestedBy || ''}
                     onChange={(e) => handleChange('requestedBy', e.target.value)}
-                    aria-label="Solicitante"
+                    aria-label="Inicial del solicitante"
                 />
             </div>
 
