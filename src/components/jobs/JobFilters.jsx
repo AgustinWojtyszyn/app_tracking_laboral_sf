@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -8,6 +8,8 @@ import DateRangePicker from '@/components/common/DateRangePicker';
 export default function JobFilters({ filters, onChange, showDates = true, showClear = true }) {
   const [groups, setGroups] = useState([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const uniqueId = useId();
+  const requestedByInputId = `job-filters-requested-by-${uniqueId}`;
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -34,9 +36,9 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
 
     return (
 	    <div className="bg-white dark:bg-slate-900 p-5 md:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 transition-all duration-300">
-            <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start">
         {/* Search Bar - Always Visible */}
-        <div className="flex-1 relative">
+        <div className="relative min-w-0 flex-1">
                 	    <Search className="w-5 h-5 absolute left-3 top-3 text-gray-400 dark:text-slate-400" />
             <input
                 type="text"
@@ -60,7 +62,7 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
         </div>
 
         <div className={`
-            flex-col lg:flex-row gap-4 items-start lg:items-center 
+            min-w-0 flex-col gap-4 items-start lg:flex-1 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end
             ${isExpanded ? 'flex' : 'hidden lg:flex'}
         `}>
              {/* Date Range */}
@@ -104,8 +106,12 @@ export default function JobFilters({ filters, onChange, showDates = true, showCl
                 </select>
             </div>
 
-            <div className="w-full lg:w-56">
+            <div className="w-full min-w-0 lg:w-56">
+                <label htmlFor={requestedByInputId} className="sr-only">
+                    Solicitante
+                </label>
                 <input
+                    id={requestedByInputId}
                     type="search"
                     className="w-full py-3 px-3 text-base md:text-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-[#1e3a8a] outline-none text-gray-900 dark:text-slate-50 placeholder:text-gray-400 dark:placeholder:text-slate-400"
                     placeholder="Solicitante"

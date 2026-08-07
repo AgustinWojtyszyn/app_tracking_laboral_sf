@@ -113,6 +113,7 @@ export default function MonthlyPanelPage() {
       startDate: filters.startDate,
       endDate: filters.endDate,
       currentUserId: user?.id,
+      requestedBy: filters.requestedBy,
     };
     const result = await getJobsByDateRange(filters.startDate, filters.endDate, queryFilters);
     if (!shouldApplyMonthlyJobsResult({
@@ -123,6 +124,7 @@ export default function MonthlyPanelPage() {
   }, [
     filters.startDate,
     filters.endDate,
+    filters.requestedBy,
     user?.id,
     getJobsByDateRange
   ]);
@@ -199,7 +201,7 @@ export default function MonthlyPanelPage() {
         fetchJobs();
         void fetchMonthlySummary();
     }
-  }, [user, filters.startDate, filters.endDate, filters.groupId, filters.workerId, filters.location, filters.search, fetchJobs, fetchMonthlySummary]);
+  }, [user, filters.startDate, filters.endDate, filters.groupId, filters.workerId, filters.requestedBy, filters.location, filters.search, fetchJobs, fetchMonthlySummary]);
 
   useEffect(() => {
     if (!user) return;

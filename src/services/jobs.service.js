@@ -139,6 +139,14 @@ const normalizeRpcFilterValue = (value) => {
   return normalized;
 };
 
+const normalizeTextFilterValue = (value) => (
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+);
+
 export const jobsService = {
   normalizePaginatedJobsPayload(payload, { page = 1, pageSize = 10 } = {}) {
     const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
@@ -598,7 +606,6 @@ export const jobsService = {
       if (filters.status && filters.status !== 'all') baseQuery = baseQuery.eq('status', filters.status);
       if (filters.groupId && filters.groupId !== 'all') baseQuery = baseQuery.eq('group_id', filters.groupId);
       if (filters.workerId && filters.workerId !== 'all') baseQuery = baseQuery.eq('worker_id', filters.workerId);
-      if (requestedByFilter) baseQuery = baseQuery.ilike('requested_by', `%${requestedByFilter}%`);
       if (filters.search) {
         baseQuery = baseQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%,requested_by.ilike.%${filters.search}%`);
       }
@@ -624,7 +631,6 @@ export const jobsService = {
         if (filters.status && filters.status !== 'all') fallbackQuery = fallbackQuery.eq('status', filters.status);
         if (filters.groupId && filters.groupId !== 'all') fallbackQuery = fallbackQuery.eq('group_id', filters.groupId);
         if (filters.workerId && filters.workerId !== 'all') fallbackQuery = fallbackQuery.eq('worker_id', filters.workerId);
-        if (requestedByFilter) fallbackQuery = fallbackQuery.ilike('requested_by', `%${requestedByFilter}%`);
         if (filters.search) {
           fallbackQuery = fallbackQuery.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%,requested_by.ilike.%${filters.search}%`);
         }
@@ -636,13 +642,17 @@ export const jobsService = {
 
       if (error) throw error;
       const safeData = Array.isArray(data) ? data.map(hydrateJobRecord) : [];
-      const jobDateValues = safeData.map((job) => job?.date).filter(Boolean).sort();
-      const createdAtValues = safeData.map((job) => job?.created_at).filter(Boolean).sort();
-      const scheduledDateValues = safeData.map((job) => job?.scheduled_date).filter(Boolean).sort();
-      const completedAtValues = safeData.map((job) => job?.completed_at).filter(Boolean).sort();
+      const requestedByTerm = normalizeTextFilterValue(requestedByFilter);
+      const filteredData = requestedByTerm
+        ? safeData.filter((job) => normalizeTextFilterValue(job?.requested_by).includes(requestedByTerm))
+        : safeData;
+      const jobDateValues = filteredData.map((job) => job?.date).filter(Boolean).sort();
+      const createdAtValues = filteredData.map((job) => job?.created_at).filter(Boolean).sort();
+      const scheduledDateValues = filteredData.map((job) => job?.scheduled_date).filter(Boolean).sort();
+      const completedAtValues = filteredData.map((job) => job?.completed_at).filter(Boolean).sort();
       if (DEBUG_MAINTENANCE) {
         console.log('[jobs.service] getJobsByDateRange result summary', {
-          total: safeData.length,
+          total: filteredData.length,
           minDate: jobDateValues[0] || null,
           maxDate: jobDateValues[jobDateValues.length - 1] || null,
           minCreatedAt: createdAtValues[0] || null,
@@ -653,7 +663,7 @@ export const jobsService = {
           maxCompletedAt: completedAtValues[completedAtValues.length - 1] || null
         });
       }
-      return { success: true, data: safeData };
+      return { success: true, data: filteredData };
     } catch (error) {
       console.error("GetJobs Error:", error);
       return { success: false, data: [], error: "Error al cargar trabajos. Verifique su conexión." };

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { normalizeSearchValue } from '@/pages/monthlyPanel.helpers';
 
@@ -13,6 +13,8 @@ export default function LocationCombobox({
   const [activeIndex, setActiveIndex] = useState(0);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
+  const uniqueId = useId();
+  const labelId = `location-combobox-label-${uniqueId}`;
 
   const selectedLabel = value && value !== 'all' ? value : '';
   const filteredOptions = useMemo(() => {
@@ -90,13 +92,13 @@ export default function LocationCombobox({
 
   return (
     <div ref={wrapperRef} className="relative w-full lg:w-72">
-      <label className="sr-only" htmlFor="monthly-location-combobox">{label}</label>
+      <span id={labelId} className="sr-only">{label}</span>
       <div
-        id="monthly-location-combobox"
         role="combobox"
         tabIndex={0}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-labelledby={labelId}
         aria-label={selectedLabel ? `Lugar seleccionado: ${selectedLabel}` : 'Buscar o seleccionar lugar'}
         onClick={() => setOpen((current) => !current)}
         onKeyDown={handleKeyDown}
