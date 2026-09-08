@@ -8,29 +8,19 @@
   Trabajos diarios · Personal · Grupos · Costos · Reportes · Vehículos · Planta · Auditoría
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React 18" />
-  <img src="https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white" alt="Vite 5" />
-  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white" alt="Supabase" />
-  <img src="https://img.shields.io/badge/Tailwind-CSS-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/Vitest-Testing-6E9F18?logo=vitest&logoColor=white" alt="Vitest" />
-  <img src="https://img.shields.io/badge/Locust-Load%20Testing-2A7D2E" alt="Locust" />
-</p>
-
 ---
 
 ## 🚀 Vista general
 
-**ServiFood Tracking** es una plataforma web desarrollada para centralizar la operación de mantenimiento, seguimiento de trabajos y control de recursos.
+**ServiFood Tracking** es una plataforma web desarrollada para centralizar la gestión operativa y de mantenimiento de ServiFood.
 
-El sistema permite gestionar desde una única aplicación:
+El sistema reúne dentro de una única aplicación:
 
 - trabajos diarios;
 - solicitudes de mantenimiento;
 - trabajadores;
 - grupos de trabajo;
-- costos internos;
-- montos a cobrar;
+- costos y montos a cobrar;
 - paneles diarios y mensuales;
 - exportaciones a Excel;
 - comunicación mediante WhatsApp;
@@ -42,114 +32,21 @@ El sistema permite gestionar desde una única aplicación:
 - vencimientos documentales;
 - activos y sectores de planta;
 - incidencias;
-- controles y revisiones;
-- administración y auditoría.
+- controles;
+- administración.
 
-La plataforma está construida como una SPA con **React + Vite** y utiliza **Supabase** como backend para autenticación, PostgreSQL y acceso a datos.
+La aplicación está desarrollada como una SPA con **React + Vite** y utiliza **Supabase** para autenticación, base de datos PostgreSQL y acceso a datos.
 
 ---
 
-# 🖥️ Interfaz
+# 🖥️ Vista del sistema
 
-## 📋 Trabajos diarios
-
-El panel principal concentra la operación diaria y permite visualizar rápidamente el estado de los trabajos.
-
-Incluye:
-
-- total de trabajos;
-- pendientes;
-- completados;
-- trabajadores involucrados;
-- lugares atendidos;
-- balance estimado;
-- costos;
-- montos a cobrar;
-- filtros por fecha;
-- búsqueda por ubicación;
-- filtro de estado;
-- filtro por solicitante;
-- paginación;
-- creación de nuevos trabajos;
-- exportación a Excel;
-- compartir por WhatsApp.
+La interfaz está orientada al trabajo diario de personal operativo y administrativo, combinando métricas, filtros, formularios, reportes y herramientas de mantenimiento.
 
 <p align="center">
   <img
-    src="./docs/screenshots/dashboard-trabajos-diarios.png"
-    alt="Panel de trabajos diarios de ServiFood Tracking"
-    width="100%"
-  />
-</p>
-
----
-
-## 📝 Nueva solicitud
-
-El formulario de creación permite registrar un trabajo con toda la información operativa necesaria.
-
-### Datos principales
-
-- Fecha.
-- Título.
-- Ubicación.
-- Solicitante.
-- Tipo de acción.
-- Sector o equipo.
-- Descripción.
-
-### Imágenes
-
-Cada solicitud puede incluir hasta **3 imágenes de referencia**, con:
-
-- archivo;
-- título;
-- descripción.
-
-### Asignación y costos
-
-También permite registrar:
-
-- costo del trabajador;
-- monto a cobrar;
-- trabajador asignado;
-- grupo de trabajo;
-- configuración de edición por grupo.
-
-<details>
-  <summary><strong>📸 Ver formulario completo de nueva solicitud</strong></summary>
-
-  <br>
-
-  <p align="center">
-    <img
-      src="./docs/screenshots/nueva-solicitud.png"
-      alt="Formulario completo de nueva solicitud"
-      width="100%"
-    />
-  </p>
-
-</details>
-
----
-
-## 🚚 Registro de equipo y planta
-
-El módulo **Libro registro de equipo** extiende la plataforma al seguimiento de vehículos, choferes, mantenimiento y activos operativos.
-
-El dashboard presenta indicadores como:
-
-- vehículos activos;
-- kilómetros recorridos durante el día;
-- cargas de combustible recientes;
-- mantenimientos pendientes;
-- vencimientos próximos;
-- novedades de planta.
-
-<p align="center">
-  <img
-    src="./docs/screenshots/registro-equipo-planta.png"
-    alt="Libro registro de equipo y planta"
+    src="https://github.com/user-attachments/assets/f192af5e-347d-457d-8baa-27d52ff100fa"
+    alt="ServiFood Tracking - Panel de Mantenimiento"
     width="100%"
   />
 </p>
@@ -160,97 +57,219 @@ El dashboard presenta indicadores como:
 
 ## 🔨 Gestión de trabajos
 
-El núcleo del sistema permite administrar trabajos y solicitudes de mantenimiento.
+El núcleo de la plataforma permite registrar y administrar trabajos diarios.
 
-Incluye:
+Cada trabajo puede contener información como:
 
-- creación de trabajos;
-- edición;
-- detalle individual;
-- fechas;
-- ubicaciones;
-- solicitantes;
+- fecha;
+- título;
+- ubicación;
+- solicitante;
+- tipo de acción;
+- sector o equipo;
 - descripción;
 - estado;
 - trabajador asignado;
-- grupos;
-- costos;
-- importes;
-- imágenes;
-- búsqueda;
-- filtros;
-- seguimiento operativo.
+- grupo;
+- costo;
+- monto a cobrar;
+- imágenes de referencia.
+
+El sistema permite crear, editar, consultar y organizar trabajos según las necesidades de la operación.
 
 ---
 
-## 📊 Dashboard diario
+# 📋 Trabajos diarios
 
-La vista diaria resume automáticamente el estado de la jornada.
+El panel diario concentra la actividad correspondiente a una jornada.
 
-Entre las métricas disponibles:
+Incluye indicadores como:
 
-```text
-Total de trabajos
-Pendientes
-Completados
-Trabajadores involucrados
-Lugares atendidos
-Balance estimado
-```
+- total de trabajos;
+- trabajos pendientes;
+- trabajos completados;
+- trabajadores involucrados;
+- lugares atendidos;
+- balance estimado.
 
-El balance permite comparar el monto a cobrar con los costos asociados al trabajo.
+También incorpora herramientas para:
+
+- filtrar por fecha;
+- buscar por ubicación;
+- filtrar por estado;
+- buscar por solicitante;
+- modificar cantidad de registros;
+- crear nuevos trabajos;
+- exportar información;
+- compartir información.
 
 ---
 
-## 📅 Panel mensual
+# 💰 Control de costos
 
-El sistema incorpora un panel dedicado al análisis mensual.
+Cada trabajo puede almacenar información económica asociada a la operación.
 
-Permite consolidar información relacionada con:
+Entre los valores soportados se encuentran:
 
-- trabajos realizados;
-- trabajadores;
-- estados;
-- costos;
-- facturación;
-- períodos;
-- filtros;
-- exportaciones.
+- costo del trabajador;
+- monto a cobrar;
+- diferencia estimada.
+
+Esto permite tener una referencia rápida del balance económico de cada jornada.
+
+---
+
+# 📝 Solicitudes de trabajo
+
+El formulario de creación permite registrar toda la información necesaria para iniciar una tarea.
+
+## Datos principales
+
+- Fecha.
+- Título.
+- Ubicación.
+- Solicitante.
+
+## Detalle del trabajo
+
+- Tipo de acción.
+- Sector o equipo.
+- Descripción.
+
+## Referencias visuales
+
+Una solicitud puede contener hasta **3 imágenes**, cada una con:
+
+- archivo;
+- título;
+- descripción.
+
+## Asignación
+
+También puede definirse:
+
+- trabajador;
+- grupo;
+- costo;
+- importe;
+- permisos de edición por grupo.
 
 ---
 
 # 👷 Gestión de trabajadores
 
-Existe un módulo específico para administrar el personal disponible.
+La plataforma dispone de un módulo específico para administrar el personal operativo.
 
-Los trabajadores pueden ser utilizados posteriormente en:
+Los trabajadores registrados pueden utilizarse posteriormente en:
 
-- asignaciones;
-- solicitudes;
 - trabajos;
+- solicitudes;
+- asignaciones;
 - grupos;
-- operaciones de mantenimiento.
+- tareas de mantenimiento.
 
 ---
 
 # 👥 Grupos de trabajo
 
-Los administradores pueden organizar trabajadores dentro de grupos.
+El sistema permite organizar trabajadores dentro de grupos.
 
-Esto permite representar:
+Los grupos pueden utilizarse para representar:
 
 - cuadrillas;
-- equipos;
-- grupos de mantenimiento;
-- personal que trabaja conjuntamente.
+- equipos de mantenimiento;
+- grupos operativos;
+- personal que trabaja de forma conjunta.
 
-La gestión de grupos está protegida mediante permisos administrativos.
+La administración de grupos está restringida según los permisos del usuario.
+
+---
+
+# 📅 Panel mensual
+
+El panel mensual permite analizar la operación durante períodos más amplios.
+
+Entre sus funciones se encuentran:
+
+- consulta por rango de fechas;
+- búsqueda;
+- filtrado;
+- trabajos completados;
+- trabajos pendientes;
+- análisis económico;
+- exportación de información;
+- acciones masivas.
+
+Esto facilita la revisión de actividad y resultados más allá de la jornada actual.
+
+---
+
+# 📊 Reportes
+
+La aplicación permite generar información consolidada para analizar la actividad.
+
+Los reportes pueden utilizar datos relacionados con:
+
+- trabajos;
+- fechas;
+- trabajadores;
+- lugares;
+- costos;
+- estados;
+- importes;
+- vehículos;
+- mantenimiento.
+
+---
+
+# 📤 Exportación a Excel
+
+ServiFood Tracking utiliza **ExcelJS** para generar archivos `.xlsx`.
+
+La exportación está integrada en distintos módulos de la plataforma.
+
+Puede utilizarse para información relacionada con:
+
+- trabajos diarios;
+- panel mensual;
+- historial;
+- vehículos;
+- combustible;
+- mantenimiento;
+- recorridos;
+- equipos;
+- planta.
+
+---
+
+# 💬 Compartir por WhatsApp
+
+Los paneles operativos incluyen herramientas para preparar información y compartirla mediante **WhatsApp**.
+
+Esto facilita la distribución de resúmenes a responsables, supervisores y equipos de trabajo.
+
+---
+
+# 🚚 Libro registro de equipo
+
+Uno de los módulos principales del sistema es el **Libro registro de equipo y planta**.
+
+Este módulo centraliza el control de:
+
+- vehículos;
+- choferes;
+- recorridos;
+- combustible;
+- mantenimiento;
+- documentación;
+- equipos;
+- planta.
 
 ---
 
 # 🚗 Gestión de vehículos
 
-El **Libro registro de equipo** permite registrar y administrar vehículos utilizados en la operación.
+La plataforma permite registrar los vehículos utilizados dentro de la operación.
 
 Cada vehículo puede almacenar información como:
 
@@ -260,59 +279,93 @@ Cada vehículo puede almacenar información como:
 - marca;
 - modelo;
 - año;
-- chofer asignado;
-- vencimiento de documentación;
-- kilometraje inicial;
-- kilometraje actual;
+- chofer;
+- kilometraje;
 - estado;
 - observaciones.
 
+Los estados permiten identificar rápidamente vehículos disponibles o que requieren atención.
+
 ---
 
-# ⛽ Combustible
+# 👨‍✈️ Choferes
 
-La plataforma permite registrar cargas de combustible.
+Los vehículos pueden vincularse con choferes registrados dentro del sistema.
 
-Cada carga puede incluir:
+Esto permite asociar:
+
+- vehículo;
+- conductor;
+- recorridos;
+- kilometraje;
+- solicitudes de mantenimiento;
+- documentación.
+
+---
+
+# ⛽ Cargas de combustible
+
+El sistema permite registrar cargas de combustible.
+
+Cada carga puede contener:
 
 - vehículo;
 - fecha;
-- hora estimada;
+- hora;
 - litros;
-- importe;
+- precio;
 - kilometraje;
 - observaciones.
 
-Esto permite mantener historial operativo por vehículo.
+Esto permite mantener un historial operativo por vehículo.
 
 ---
 
-# 🔧 Mantenimiento de vehículos
+# 🛣️ Recorridos
 
-El sistema diferencia entre:
+También pueden registrarse recorridos realizados por los vehículos.
 
-### Mantenimiento preventivo
+Cada registro puede incluir:
 
-Trabajos programados para evitar fallas y mantener el vehículo en condiciones.
+- fecha;
+- vehículo;
+- chofer;
+- kilometraje inicial;
+- kilometraje final;
+- lugares visitados;
+- observaciones.
+
+De esta manera es posible mantener trazabilidad sobre la utilización de cada unidad.
+
+---
+
+# 🔧 Mantenimiento
+
+El sistema contempla dos grandes tipos de mantenimiento.
+
+## Preventivo
+
+Tareas planificadas para reducir la posibilidad de fallas.
 
 Ejemplos:
 
 - controles;
 - service;
 - cambios;
+- inspecciones;
 - revisiones periódicas.
 
-### Mantenimiento correctivo
+## Correctivo
 
-Intervenciones realizadas luego de detectar una falla o inconveniente.
+Intervenciones realizadas después de detectar una falla o inconveniente.
 
-Los registros pueden incluir:
+Los registros pueden almacenar:
 
 - vehículo;
 - fecha;
 - detalle;
 - kilometraje;
-- valor;
+- costo;
 - próximo control;
 - observaciones.
 
@@ -320,9 +373,9 @@ Los registros pueden incluir:
 
 # 🛠️ Solicitudes de mantenimiento
 
-También pueden generarse solicitudes independientes de mantenimiento.
+La plataforma también permite registrar solicitudes específicas de mantenimiento.
 
-Estas contemplan:
+Estas pueden incluir:
 
 - vehículo;
 - chofer;
@@ -332,10 +385,9 @@ Estas contemplan:
 - kilometraje;
 - prioridad;
 - estado;
-- observaciones administrativas;
-- resolución.
+- observaciones administrativas.
 
-### Prioridades
+## Prioridades
 
 ```text
 Baja
@@ -343,7 +395,7 @@ Media
 Alta
 ```
 
-### Estados
+## Estados
 
 ```text
 Pendiente
@@ -355,34 +407,18 @@ Cancelado
 
 ---
 
-# 🛣️ Recorridos
-
-La plataforma permite registrar recorridos de vehículos.
-
-Cada recorrido puede almacenar:
-
-- fecha;
-- vehículo;
-- chofer;
-- kilometraje inicial;
-- kilometraje final;
-- lugares visitados;
-- observaciones.
-
-Esto permite calcular y mantener historial de uso.
-
----
-
 # 📄 Documentación y vencimientos
 
-ServiFood Tracking permite controlar vencimientos relacionados con:
+ServiFood Tracking permite controlar documentación relacionada con vehículos y personal.
+
+Entre los documentos contemplados se encuentran:
 
 - seguro;
 - RTO / revisión técnica;
 - licencia de conducir;
 - otros documentos.
 
-Los documentos pueden clasificarse como:
+Los vencimientos pueden clasificarse como:
 
 ```text
 Vigente
@@ -390,15 +426,17 @@ Próximo a vencer
 Vencido
 ```
 
+Esto permite detectar documentación que requiere renovación.
+
 ---
 
 # 🏭 Planta y equipos
 
-El módulo no está limitado a vehículos.
+El Libro de Equipo no está limitado al seguimiento vehicular.
 
-También permite administrar sectores y activos de planta.
+También permite registrar sectores y activos operativos de planta.
 
-Cada registro puede incluir:
+Cada elemento puede almacenar:
 
 - nombre;
 - categoría;
@@ -411,24 +449,24 @@ Cada registro puede incluir:
 
 # ⚠️ Incidencias
 
-Los operadores pueden registrar novedades o anomalías relacionadas con equipos o sectores.
+La plataforma permite registrar anomalías o problemas detectados durante la operación.
 
-Los registros contemplan:
+Un registro puede incluir:
 
 - equipo;
 - fecha;
 - hora;
-- anomalía;
+- descripción de la anomalía;
 - acción correctiva;
 - tiempo fuera de servicio;
-- responsable del mantenimiento;
+- responsable;
 - observaciones.
 
 ---
 
 # 🔍 Revisiones y controles
 
-La aplicación permite registrar controles periódicos.
+Los activos pueden disponer de controles periódicos.
 
 Por ejemplo:
 
@@ -438,89 +476,84 @@ Por ejemplo:
 - observaciones;
 - próxima fecha de revisión.
 
----
-
-# 📤 Exportaciones a Excel
-
-El sistema utiliza **ExcelJS** para generar archivos `.xlsx`.
-
-Las exportaciones se utilizan en diferentes módulos, incluyendo:
-
-- trabajos diarios;
-- panel mensual;
-- historial;
-- equipos;
-- vehículos;
-- combustible;
-- mantenimiento;
-- recorridos;
-- información de planta.
+Esto ayuda a mantener un historial técnico del equipamiento.
 
 ---
 
-# 💬 Integración operativa con WhatsApp
+# 📈 Dashboard del libro de equipos
 
-Los paneles diarios y mensuales incorporan acciones para preparar información y compartirla mediante **WhatsApp**.
+El módulo de equipos dispone de indicadores rápidos para visualizar el estado general de la operación.
 
-Esto permite distribuir rápidamente resúmenes operativos a responsables y equipos.
+Entre ellos:
+
+```text
+Vehículos activos
+Recorridos del día
+Cargas recientes
+Mantenimientos pendientes
+Vencimientos próximos
+Novedades de planta
+```
+
+Esto permite detectar rápidamente elementos que requieren atención.
 
 ---
 
 # 🎓 Tutorial integrado
 
-La aplicación incorpora un módulo de tutorial para explicar las funciones principales.
+La aplicación cuenta con un módulo de tutorial para facilitar el uso de las principales funciones.
 
-Esto facilita la incorporación de usuarios sin necesidad de documentación externa para cada operación.
+El objetivo es que los usuarios puedan aprender los flujos del sistema directamente desde la propia plataforma.
 
 ---
 
 # 🌐 Idiomas
 
-La interfaz contempla navegación en:
+La interfaz contempla soporte para:
 
 - 🇦🇷 Español
 - 🇬🇧 Inglés
 
-El idioma puede cambiarse directamente desde la aplicación.
+El idioma puede cambiarse desde la aplicación.
 
 ---
 
 # 🌙 Apariencia
 
-La plataforma soporta:
+ServiFood Tracking incluye soporte para:
 
 - modo claro;
 - modo oscuro.
 
-La interfaz adapta sus componentes y paneles al tema seleccionado.
+Esto permite adaptar la interfaz a las preferencias del usuario y al entorno de trabajo.
 
 ---
 
 # 📱 Responsive design
 
-ServiFood Tracking está diseñado para funcionar en:
+La plataforma está preparada para utilizarse en:
 
-- desktop;
+- computadoras de escritorio;
 - notebooks;
 - tablets;
 - smartphones.
 
-Los principales flujos priorizan:
+La interfaz prioriza:
 
 - navegación clara;
 - formularios estructurados;
-- filtros visibles;
-- estados comprensibles;
-- acciones rápidas;
-- adaptación a pantallas pequeñas.
+- paneles de resumen;
+- filtros accesibles;
+- estados visibles;
+- acciones rápidas.
 
 ---
 
-# 🔐 Roles y seguridad
+# 🔐 Roles y permisos
 
 La aplicación utiliza autenticación y rutas protegidas.
 
-Entre los perfiles contemplados se encuentran:
+Entre los perfiles contemplados por el sistema se encuentran:
 
 ```text
 admin
@@ -530,16 +563,16 @@ solicitante
 trabajador
 ```
 
-Algunas operaciones poseen restricciones adicionales.
+Existen operaciones restringidas según el rol.
 
 Por ejemplo:
 
-- gestión de grupos → administrador;
-- panel administrativo → administrador;
-- módulos operativos → usuarios autorizados;
-- libro de equipo → roles habilitados.
+- administración general → `admin`;
+- gestión de grupos → `admin`;
+- libro de equipo → usuarios autorizados;
+- módulos operativos → usuarios autenticados según permisos.
 
-La protección no depende únicamente de ocultar botones en la interfaz.
+Las rutas principales están protegidas dentro de la aplicación. 
 
 ---
 
@@ -567,7 +600,7 @@ La protección no depende únicamente de ocultar botones en la interfaz.
                │              │
                ▼              ▼
       ┌───────────────┐  ┌───────────────┐
-      │ Datos         │  │ Exportaciones │
+      │ Datos         │  │ Reportes      │
       │ operativos    │  │ Excel         │
       └───────────────┘  └───────────────┘
                │
@@ -588,17 +621,15 @@ La protección no depende únicamente de ocultar botones en la interfaz.
 |---|---|
 | React 18 | Interfaz de usuario |
 | Vite 5 | Desarrollo y build |
-| React Router 6 | Routing |
+| React Router 6 | Navegación |
 | Tailwind CSS 3 | Estilos |
-| Radix UI | Componentes accesibles |
+| Radix UI | Componentes |
 | Framer Motion | Animaciones |
 | Lucide React | Iconografía |
 | date-fns | Gestión de fechas |
-| React Day Picker | Selectores de fecha |
+| React Day Picker | Selección de fechas |
 | Driver.js | Tutoriales |
 | React Helmet | Metadatos |
-
----
 
 ## Backend
 
@@ -607,17 +638,13 @@ La protección no depende únicamente de ocultar botones en la interfaz.
 | Supabase | Plataforma backend |
 | PostgreSQL | Base de datos |
 | Supabase Auth | Autenticación |
-| Supabase JS | Acceso a datos |
-
----
+| Supabase JS | Cliente de datos |
 
 ## Reportes
 
 | Tecnología | Uso |
 |---|---|
 | ExcelJS | Generación de Excel |
-
----
 
 ## Testing
 
@@ -626,6 +653,8 @@ La protección no depende únicamente de ocultar botones en la interfaz.
 | Vitest | Tests automatizados |
 | ESLint | Análisis estático |
 | Locust | Pruebas de carga |
+
+El stack corresponde a las dependencias actuales del proyecto. 
 
 ---
 
@@ -658,7 +687,7 @@ Supabase
         ├──► Panel mensual
         ├──► Trabajadores
         ├──► Grupos
-        ├──► Exportación Excel
+        ├──► Excel
         └──► Administración
 ```
 
@@ -670,27 +699,27 @@ Supabase
 Libro de equipo
       │
       ├──► Vehículos
-      │     ├─ Kilometraje
-      │     ├─ Chofer
-      │     └─ Estado
+      │     ├── Kilometraje
+      │     ├── Chofer
+      │     └── Estado
       │
       ├──► Combustible
       │
       ├──► Recorridos
       │
       ├──► Mantenimiento
-      │     ├─ Preventivo
-      │     └─ Correctivo
+      │     ├── Preventivo
+      │     └── Correctivo
       │
       ├──► Documentación
       │
       ├──► Incidencias
       │
       └──► Planta
-            ├─ Sectores
-            ├─ Equipos
-            ├─ Revisiones
-            └─ Novedades
+            ├── Sectores
+            ├── Equipos
+            ├── Revisiones
+            └── Novedades
 ```
 
 ---
@@ -703,9 +732,7 @@ Libro de equipo
 npm test
 ```
 
-Ejecuta la suite mediante **Vitest**.
-
----
+Ejecuta la suite de pruebas mediante **Vitest**.
 
 ## Lint
 
@@ -713,19 +740,19 @@ Ejecuta la suite mediante **Vitest**.
 npm run lint
 ```
 
----
-
 ## Build
 
 ```bash
 npm run build
 ```
 
+Los scripts `dev`, `build`, `preview`, `start`, `lint` y `test` están definidos actualmente en el proyecto. 
+
 ---
 
 # 📈 Pruebas de carga con Locust
 
-El proyecto incluye pruebas de carga mediante **Locust**.
+El repositorio incorpora pruebas de carga mediante **Locust**.
 
 ## 1. Crear entorno virtual
 
@@ -743,29 +770,23 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
----
-
 ## 2. Instalar dependencias
 
 ```bash
 pip install -r load-tests/requirements.txt
 ```
 
----
-
-## 3. Ejecutar la aplicación
+## 3. Iniciar la aplicación
 
 ```bash
 npm run dev
 ```
 
-El servidor de desarrollo utiliza por defecto:
+El entorno local utiliza el puerto:
 
 ```text
-http://localhost:3000
+3000
 ```
-
----
 
 ## 4. Ejecutar Locust
 
@@ -776,13 +797,13 @@ locust -f load-tests/locustfile.py \
   --host http://localhost:3000
 ```
 
-La interfaz de Locust estará disponible en:
+Luego abrir:
 
 ```text
 http://localhost:8089
 ```
 
-Para incluir llamadas contra Supabase REST pueden definirse:
+También pueden configurarse variables específicas para probar llamadas a Supabase:
 
 ```env
 LOCUST_SUPABASE_URL=
@@ -799,17 +820,12 @@ LOCUST_SUPABASE_ANON_KEY=
 - npm
 - proyecto Supabase configurado
 
----
-
-## 1. Clonar el repositorio
+## 1. Clonar
 
 ```bash
 git clone https://github.com/AgustinWojtyszyn/app_tracking_laboral_sf.git
-
 cd app_tracking_laboral_sf
 ```
-
----
 
 ## 2. Instalar dependencias
 
@@ -817,9 +833,7 @@ cd app_tracking_laboral_sf
 npm install
 ```
 
----
-
-## 3. Variables de entorno
+## 3. Configurar entorno
 
 Crear un archivo `.env`.
 
@@ -828,25 +842,19 @@ VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-clave-publica
 ```
 
-> Las variables `VITE_*` forman parte del bundle del frontend. Nunca utilizar `service_role`, contraseñas, secretos administrativos o credenciales privadas dentro de ellas.
+> Nunca colocar `service_role`, contraseñas o secretos privados dentro de variables `VITE_*`.
 
----
-
-## 4. Iniciar desarrollo
+## 4. Desarrollo
 
 ```bash
 npm run dev
 ```
 
----
-
-## 5. Build de producción
+## 5. Build
 
 ```bash
 npm run build
 ```
-
----
 
 ## 6. Preview
 
@@ -885,11 +893,6 @@ app_tracking_laboral_sf/
 │   └── ...
 │
 ├── docs/
-│   └── screenshots/
-│       ├── dashboard-trabajos-diarios.png
-│       ├── nueva-solicitud.png
-│       └── registro-equipo-planta.png
-│
 ├── load-tests/
 ├── tools/
 ├── package.json
@@ -898,31 +901,50 @@ app_tracking_laboral_sf/
 
 ---
 
+# 🔒 Seguridad
+
+El proyecto separa las credenciales públicas del frontend de los secretos administrativos.
+
+Nunca deben publicarse:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY
+Contraseñas
+Tokens privados
+Secretos de backend
+Credenciales administrativas
+API keys privadas
+```
+
+Las variables expuestas mediante `VITE_*` forman parte del bundle del frontend y deben contener únicamente información apta para cliente.
+
+---
+
 # ⚡ Diseño orientado a operación
 
-La interfaz está pensada para una aplicación utilizada diariamente por personal operativo y administrativo.
+La interfaz está diseñada para utilizarse durante la operación diaria.
 
 Prioriza:
 
-- navegación lateral rápida;
+- navegación lateral;
 - paneles de resumen;
 - búsqueda;
 - filtros;
 - formularios organizados;
 - indicadores;
-- carga de imágenes;
+- imágenes de referencia;
 - exportaciones;
 - acciones rápidas;
-- estados visibles;
-- responsive design.
+- estados claros;
+- diseño responsive.
 
 ---
 
 # 🔎 Auditoría y mantenimiento
 
-El repositorio mantiene documentación técnica y auditorías separadas de la portada principal.
+El repositorio mantiene documentación técnica y auditorías adicionales separadas del README.
 
-Esto permite mantener el README enfocado en explicar el producto mientras que los detalles técnicos pueden permanecer dentro de:
+De esta forma, esta página funciona principalmente como presentación general del sistema, mientras los detalles técnicos pueden mantenerse dentro de:
 
 ```text
 docs/
@@ -930,53 +952,35 @@ docs/
 
 ---
 
-# 🔒 Seguridad de configuración
-
-Las credenciales de producción no deben escribirse directamente en el README.
-
-Nunca publicar:
-
-```text
-SUPABASE_SERVICE_ROLE_KEY
-Secretos de backend
-Contraseñas
-Tokens privados
-Credenciales administrativas
-API keys privadas
-```
-
-La clave `anon` / publishable utilizada por un cliente Supabase es distinta de una clave administrativa, pero la documentación pública utiliza valores genéricos para evitar acoplar el repositorio a un entorno concreto.
-
----
-
 # 🟢 Estado del proyecto
 
 **En desarrollo activo y uso operativo.**
 
-Actualmente la plataforma cubre distintas áreas de operación:
+Actualmente la plataforma incluye funcionalidades relacionadas con:
 
 - trabajos;
 - mantenimiento;
 - trabajadores;
 - grupos;
+- costos;
 - vehículos;
 - choferes;
 - combustible;
 - recorridos;
+- documentación;
 - planta;
 - reportes;
-- costos;
 - administración.
 
-El proyecto continúa evolucionando principalmente en:
+El proyecto continúa evolucionando especialmente en:
 
 - estabilidad;
 - rendimiento;
 - experiencia de usuario;
 - seguridad;
 - reportes;
-- automatización;
 - mantenimiento;
+- automatización;
 - observabilidad.
 
 ---
