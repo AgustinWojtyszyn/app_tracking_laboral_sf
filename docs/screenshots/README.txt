@@ -1,0 +1,1 @@
+Las capturas del README se almacenan en este directorio.
