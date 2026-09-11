@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import JobForm from '@/components/jobs/JobForm';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ConfirmationModal from '@/components/common/ConfirmationModal';
-import { formatDate, formatCurrency } from '@/utils/formatters';
+import { formatDate, formatCurrency, getArgentinaToday } from '@/utils/formatters';
 import JobsFilters from '@/components/jobs/JobsFilters';
 import JobsPagination from '@/components/jobs/JobsPagination';
 import CopyJobsFromDateDialog from '@/components/jobs/CopyJobsFromDateDialog';
@@ -37,10 +37,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-const getArgentinaToday = () => (
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date())
-);
 
 const buildDuplicateJobDraft = (job, selectedDate) => ({
   date: selectedDate || getArgentinaToday(),
@@ -76,7 +72,7 @@ export default function DailyJobsPage() {
   const { language, t } = useLanguage();
   const isEn = language === 'en';
   const { startTour, resumeTourIfNeeded } = useOnboardingTour();
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getArgentinaToday());
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

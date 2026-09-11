@@ -13,7 +13,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { exportService } from '@/services/export.service';
-import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
+import { formatCurrency, formatDate, formatNumber, getArgentinaToday } from '@/utils/formatters';
 import { JOB_LOCATIONS } from '@/constants/jobLocations';
 import {
   buildEquipmentHistory,
@@ -137,7 +137,7 @@ const emptyPlantAsset = {
   notes: '',
 };
 
-const todayInputDate = () => new Date().toISOString().split('T')[0];
+const todayInputDate = () => getArgentinaToday();
 const currentInputTime = () => new Date().toTimeString().slice(0, 5);
 
 const scrollEquipmentMainContentIntoView = () => {

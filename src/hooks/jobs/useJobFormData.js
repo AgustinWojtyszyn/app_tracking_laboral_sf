@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { workersService } from '@/services/workers.service';
 import { normalizeJobStatus } from '@/utils/jobStatus';
+import { getArgentinaToday } from '@/utils/formatters';
 
 const buildInitialForm = () => ({
-  date: new Date().toISOString().split('T')[0],
+  date: getArgentinaToday(),
   title: '',
   location: '',
   requested_by: '',

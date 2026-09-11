@@ -1,4 +1,10 @@
 
+export const getArgentinaToday = (date = new Date()) => (
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/San_Juan',
+  }).format(date)
+);
+
 export const formatCurrency = (amount) => {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',

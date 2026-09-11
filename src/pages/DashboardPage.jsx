@@ -6,7 +6,7 @@ import { jobsService } from '@/services/jobs.service';
 import { Briefcase, ArrowRight, Plus, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { formatCurrency } from '@/utils/formatters';
+import { formatCurrency, getArgentinaToday } from '@/utils/formatters';
 import { normalizeJobStatus } from '@/utils/jobStatus';
 
 export default function DashboardPage() {
@@ -19,7 +19,7 @@ export default function DashboardPage() {
   }, [user]);
 
   const loadDashboard = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getArgentinaToday();
     
     // Get today's jobs (using range for today)
     const recentResult = await jobsService.getJobsByDateRange(today, today); 
