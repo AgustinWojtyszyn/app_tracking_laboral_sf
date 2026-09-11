@@ -10,7 +10,13 @@ const buildJobsService = async ({ rpcResult, rpcError = null, rpcImpl = null } =
     }),
     storage: {
       from: vi.fn(() => ({
-        getPublicUrl: vi.fn(() => ({ data: { publicUrl: 'https://example.com/image.jpg' } })),
+        createSignedUrls: vi.fn(async (paths) => ({
+          data: paths.map((path) => ({
+            path,
+            signedUrl: `https://example.com/signed/${path}?token=test`,
+          })),
+          error: null,
+        })),
       })),
     },
   };
@@ -65,6 +71,34 @@ describe('jobsService.listJobsPaginated', () => {
     expect(result.data.total_count).toBe(31);
     expect(result.data.has_previous_page).toBe(true);
     expect(result.data.has_next_page).toBe(false);
+  });
+
+  it('firma las URLs de adjuntos privados al listar trabajos', async () => {
+    const imagePath = 'user-1/job-1/photo.jpg';
+    const { jobsService, supabase } = await buildJobsService({
+      rpcResult: {
+        items: [{
+          id: 'job-1',
+          image_attachments: [{
+            image_path: imagePath,
+            image_url: 'https://example.com/old-public-url.jpg',
+          }],
+        }],
+        total_count: 1,
+        page: 1,
+        page_size: 10,
+        total_pages: 1,
+        has_previous_page: false,
+        has_next_page: false,
+      },
+    });
+
+    const result = await jobsService.listJobsPaginated({ page: 1, pageSize: 10 });
+    const storageClient = supabase.storage.from.mock.results[0].value;
+
+    expect(storageClient.createSignedUrls).toHaveBeenCalledWith([imagePath], 3600);
+    expect(result.data.items[0].image_attachments[0].image_url)
+      .toBe(`https://example.com/signed/${imagePath}?token=test`);
   });
 
   it('envia null para fecha, todos los lugares y busqueda vacia', async () => {

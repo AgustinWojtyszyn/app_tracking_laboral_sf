@@ -11,6 +11,7 @@ import {
 import { normalizeJobStatus } from '@/utils/jobStatus';
 
 const JOB_IMAGES_BUCKET = 'job-request-images';
+const JOB_IMAGE_SIGNED_URL_TTL_SECONDS = 60 * 60;
 const DEBUG_MAINTENANCE = false;
 
 const createStorageToken = () => {
@@ -34,7 +35,7 @@ const normalizeJobImageAttachmentsForSave = (drafts) => {
 
       return {
         image_path: draft?.image_path || null,
-        image_url: draft?.image_url || null,
+        image_url: draft?.image_path ? null : (draft?.image_url || null),
         image_title: imageTitle || null,
         image_description: description || null,
         file_name: draft?.file_name || null,
@@ -69,37 +70,68 @@ const resolveStorageErrorMessage = (error) => {
   return 'No se pudo subir una de las imágenes.';
 };
 
-const hydrateJobImageAttachments = (attachments) => {
-  if (!Array.isArray(attachments)) {
-    return attachments;
+const hydrateJobRecords = async (jobs) => {
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    return Array.isArray(jobs) ? jobs : [];
   }
 
-  return attachments.map((attachment) => {
-    if (!attachment || typeof attachment !== 'object' || Array.isArray(attachment)) {
-      return attachment;
-    }
+  const imagePaths = Array.from(new Set(
+    jobs.flatMap((job) => (
+      Array.isArray(job?.image_attachments)
+        ? job.image_attachments.map((attachment) => attachment?.image_path).filter(Boolean)
+        : []
+    ))
+  ));
 
-    if (attachment.image_url || !attachment.image_path) {
-      return attachment;
-    }
+  if (imagePaths.length === 0) {
+    return jobs;
+  }
 
-    const { data } = supabase.storage.from(JOB_IMAGES_BUCKET).getPublicUrl(attachment.image_path);
+  const { data, error } = await supabase.storage
+    .from(JOB_IMAGES_BUCKET)
+    .createSignedUrls(imagePaths, JOB_IMAGE_SIGNED_URL_TTL_SECONDS);
+
+  if (error) {
+    console.warn('hydrateJobRecords signed URL error', error);
+  }
+
+  const signedUrlByPath = new Map(
+    (data || [])
+      .filter((item) => item?.path && item?.signedUrl)
+      .map((item) => [item.path, item.signedUrl])
+  );
+
+  return jobs.map((job) => {
+    if (!job || typeof job !== 'object') return job;
+    if (!Array.isArray(job.image_attachments)) return job;
+
     return {
-      ...attachment,
-      image_url: data?.publicUrl || null,
+      ...job,
+      image_attachments: job.image_attachments.map((attachment) => {
+        if (!attachment || typeof attachment !== 'object' || Array.isArray(attachment)) {
+          return attachment;
+        }
+
+        if (!attachment.image_path) {
+          return attachment;
+        }
+
+        return {
+          ...attachment,
+          image_url: signedUrlByPath.get(attachment.image_path) || null,
+        };
+      }),
     };
   });
 };
 
-const hydrateJobRecord = (job) => {
+const hydrateJobRecord = async (job) => {
   if (!job || typeof job !== 'object') {
     return job;
   }
 
-  return {
-    ...job,
-    image_attachments: hydrateJobImageAttachments(job.image_attachments),
-  };
+  const [hydrated] = await hydrateJobRecords([job]);
+  return hydrated || job;
 };
 
 const isIdempotencyConflictConfigError = (error) => {
@@ -151,7 +183,7 @@ const getRequesterInitial = (value) => normalizeTextFilterValue(value).charAt(0)
 
 export const jobsService = {
   normalizePaginatedJobsPayload(payload, { page = 1, pageSize = 10 } = {}) {
-    const items = Array.isArray(payload?.items) ? payload.items.map(hydrateJobRecord) : [];
+    const items = Array.isArray(payload?.items) ? payload.items : [];
 
     return {
       items,
@@ -187,10 +219,14 @@ export const jobsService = {
       if (error) throw error;
 
       const payload = Array.isArray(data) ? data[0] : data;
+      const hydratedItems = await hydrateJobRecords(
+        Array.isArray(payload?.items) ? payload.items : []
+      );
+      const hydratedPayload = { ...(payload || {}), items: hydratedItems };
 
       return {
         success: true,
-        data: this.normalizePaginatedJobsPayload(payload, { page, pageSize }),
+        data: this.normalizePaginatedJobsPayload(hydratedPayload, { page, pageSize }),
       };
     } catch (error) {
       console.error('ListJobsPaginated Error:', error);
@@ -234,7 +270,7 @@ export const jobsService = {
       return {
         success: true,
         data: {
-          items: rawItems.map(hydrateJobRecord),
+          items: await hydrateJobRecords(rawItems),
         },
       };
     } catch (error) {
@@ -415,10 +451,9 @@ export const jobsService = {
       throw new Error(resolveStorageErrorMessage(error));
     }
 
-    const { data } = supabase.storage.from(JOB_IMAGES_BUCKET).getPublicUrl(objectPath);
     return {
       image_path: objectPath,
-      image_url: data?.publicUrl || null,
+      image_url: null,
       file_name: sanitizedName,
       mime_type: file.type || null,
       file_size_bytes: Number(file.size) || null,
@@ -513,7 +548,7 @@ export const jobsService = {
 
       return {
         ...result,
-        data: hydrateJobRecord({
+        data: await hydrateJobRecord({
           ...result.data,
           image_attachments: payload.image_attachments,
         }),
@@ -643,7 +678,7 @@ export const jobsService = {
       }
 
       if (error) throw error;
-      const safeData = Array.isArray(data) ? data.map(hydrateJobRecord) : [];
+      const safeData = await hydrateJobRecords(Array.isArray(data) ? data : []);
       const requestedByInitial = getRequesterInitial(requestedByFilter);
       const filteredData = requestedByInitial
         ? safeData.filter((job) => getRequesterInitial(job?.requested_by) === requestedByInitial)
@@ -721,7 +756,7 @@ export const jobsService = {
       }
 
       if (error) throw error;
-      return { success: true, data: hydrateJobRecord(data) };
+      return { success: true, data: await hydrateJobRecord(data) };
     } catch (error) {
       console.error('getJobById error', error);
       return { success: false, error: 'No se pudo cargar el trabajo.' };
@@ -767,7 +802,7 @@ export const jobsService = {
         p_updates: jobData || {},
       });
       if (error) throw error;
-      return { success: true, data: hydrateJobRecord(data), message: "Trabajo actualizado exitosamente" };
+      return { success: true, data: await hydrateJobRecord(data), message: "Trabajo actualizado exitosamente" };
     } catch (error) {
       console.error('updateJob error', error);
       const schemaError = getSchemaCompatibilityError(error);
