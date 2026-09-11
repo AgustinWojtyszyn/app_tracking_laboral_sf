@@ -13,19 +13,12 @@ export const usersService = {
         .from('users')
         .select('*')
         .is('deleted_at', null)
-        .not('email_confirmed_at', 'is', null)
         .order('created_at', { ascending: false });
+
       if (error) {
         const errorMessage = error.message || '';
-        const missingColumn = error.code === '42703' || errorMessage.includes('deleted_at') || errorMessage.includes('email_confirmed_at');
-        if (missingColumn) {
-          const fallback = await supabase
-            .from('users')
-            .select('*')
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false });
-          if (!fallback.error) return { success: true, data: fallback.data };
-
+        const missingDeletedAt = error.code === '42703' || errorMessage.includes('deleted_at');
+        if (missingDeletedAt) {
           const legacy = await supabase
             .from('users')
             .select('*')
@@ -35,6 +28,7 @@ export const usersService = {
         }
         throw error;
       }
+
       return { success: true, data };
     } catch (error) {
       return { success: false, error: "Error al cargar usuarios." };
