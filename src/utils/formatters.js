@@ -16,16 +16,29 @@ export const formatCurrency = (amount) => {
 
 export const formatDate = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  // Add timezone offset to fix off-by-one error often seen with dates
-  const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-  const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-  
+
+  const rawValue = String(dateString);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+    const [year, month, day] = rawValue.split('-').map(Number);
+    const calendarDate = new Date(Date.UTC(year, month - 1, day));
+    const isValidCalendarDate = (
+      calendarDate.getUTCFullYear() === year
+      && calendarDate.getUTCMonth() === month - 1
+      && calendarDate.getUTCDate() === day
+    );
+    if (!isValidCalendarDate) return '';
+    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+  }
+
+  const date = new Date(rawValue);
+  if (Number.isNaN(date.getTime())) return '';
+
   return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/San_Juan',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
-  }).format(adjustedDate);
+  }).format(date);
 };
 
 export const formatDateTime = (dateString) => {
